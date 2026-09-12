@@ -72,15 +72,22 @@ mic → AudioWorklet (one capture) ─┬→ buffered clip → /api/voice/transc
 One microphone feeds both. The browser opens the socket itself, because
 relaying every 64 ms frame through a server hop is the exact latency streaming
 exists to remove — it carries a short-lived token from `/api/voice/stream-token`
-and never the API key. Measured in a real browser: the first word paints
-**2.1 s** after you start speaking, then refines every 150-350 ms. Settled text
-is solid, in-flight words are dim, and the buffered transcript is still the one
-that gets marked. If the socket never opens you lose the animation and nothing
-else.
+and never the API key. Measured in a real browser, median of four runs: the
+first word paints **2.4 s** after the mic opens (that includes minting the
+token and the handshake), then the line updates about every **370 ms**, fifteen
+times across a ten-second sentence. Settled text is solid, in-flight words are
+dim, and the buffered transcript is still the one that gets marked. If the
+socket never opens you lose the animation and nothing else.
 
-Language is a picker, not a guess: 32 streaming codes plus automatic detection.
-Auto-detect is confident and wrong on marginal audio (a degraded English clip
-came back as German), which is why the picker stays.
+Language is a picker, and **Automatic is the default on purpose**. Naming a
+single language pins the streaming model: `language_code=en` runs a model that
+holds every word unsettled until the end of the turn, so the transcript arrives
+in ~1.2 s lumps and the settle never happens word by word. Automatic runs the
+multilingual model, which finalises words as they land — measured on the same
+clip, 22 words settle individually against 2. Thirty-two codes are available
+for anyone who wants theirs pinned. Automatic is also confident and wrong on
+marginal audio (a degraded English clip came back as German), which is why the
+picker exists at all.
 
 ## Reproduce the transcription yourself
 
@@ -108,11 +115,10 @@ Latency, measured against production on 13 September 2026 with the command
 above, five runs from a UK machine: **median 1310 ms** end to end, of which
 **571 ms** is AssemblyAI's own `request_time_ms`. The rest is our round trip.
 
-(Two earlier drafts of this file were optimistic — 853 ms, then 1166 ms. Both
-were real measurements that stopped reproducing as the app changed, and both
-were caught by a reviewer re-running the command rather than by us. The
-numbers above are the median of five consecutive runs; expect roughly
-1300-1530 ms end to end and 545-580 ms of provider time.)
+(Two earlier drafts said 853 ms, then 1166 ms. Both were real measurements
+that stopped reproducing as the app changed, and both were caught by a
+reviewer re-running the command rather than by us. Expect 1300-1530 ms end to
+end and 545-580 ms of provider time.)
 
 ---
 
@@ -253,5 +259,9 @@ Stated plainly, because a demo that hides its edges is not worth trusting.
   transcript is real, but every clip measured here was English. Nobody has
   checked a Hindi or Mandarin transcript word by word, so no accuracy claim is
   made for them.
-- **Screen readers.** Automated accessibility checks pass; a manual pass with a
-  real screen reader has not been done.
+- **Screen readers.** Automated checks pass with zero violations on every
+  route at two widths; a manual pass with a real screen reader has not been
+  done.
+- **Marking.** VIVA checks a claim against the passages in your subject. It
+  will say it could not check something rather than guess, but a claim your
+  source does not speak to is a claim it cannot mark.

@@ -144,6 +144,18 @@ varying vec3 vV;
 varying vec3 vP;
 varying float vF;
 ${SIMPLEX}
+
+/* Every weight the look is made of, in one place, because this object was
+ * tuned by rendering it and sampling the pixels rather than by reading it. */
+const float LIMB    = 0.20;  // wide fresnel: the glass thickening at the edge
+const float EDGE    = 2.30;  // narrow fresnel: the hard silhouette stroke
+const float VEIN    = 0.22;  // caustic filaments pooling inside
+const float LAT     = 2.10;  // latitude isolines
+const float MER     = 1.00;  // meridian isolines
+const float BODY    = 0.030; // the faintest tint, so the glass is not a hole
+const float SPEC    = 0.65;  // one glint
+const float BLEACH  = 2.60;  // where a highlight starts turning white
+
 void main() {
   vec3 N = normalize(vN);
   if (!gl_FrontFacing) N = -N;
@@ -151,64 +163,64 @@ void main() {
   float ndv = clamp(dot(N, V), 0.0, 1.0);
   float rim = 1.0 - ndv;
   // The far wall is the same glass seen through the near one, so it is dimmer
-  // but never absent — reading it through the front is most of what makes an
-  // orb feel hollow rather than solid.
+  // but never absent — reading the back rings through the front is most of
+  // what makes an orb feel hollow rather than solid.
   float back = gl_FrontFacing ? 1.0 : 0.5;
+  // Features crowd toward the silhouette, the way they do in real glass, which
+  // keeps the middle dark enough for the lines to read as lines.
+  float lens = 0.70 + 0.30 * rim;
 
-  // Two nested limbs. The wide one is the glass thickening toward the
-  // silhouette; the narrow one is the hard edge that makes this an object and
-  // not a fog. Both at full accent — bleaching these to white is exactly what
-  // used to leave the orb with no colour anywhere it was bright.
+  // Two nested limbs. The wide one is the thickening of the glass toward the
+  // silhouette; the narrow one is the hard edge that makes this an object
+  // rather than a fog.
   float limb = pow(rim, 3.2);
   float edge = pow(rim, 13.0);
 
-  // Light focused through the lens. Ridged noise along the refracted ray,
-  // sharpened into veins, on its own slow clock so the inside of the orb is
-  // never still even when nobody is talking.
+  // Light focused through the lens. Ridged noise along the refracted ray, on
+  // its own slow clock, so the inside of the orb is never still even when
+  // nobody is talking — that is the state a first-time visitor sees.
   vec3 R = refract(-V, N, 0.62);
-  float n1 = snoise(vP * 1.05 + R * 0.80 + vec3(0.0, 0.0, uTime * 0.14));
-  float caustic = pow(1.0 - abs(n1), 7.0);
+  float caustic = pow(1.0 - abs(snoise(vP * 1.05 + R * 0.80 + vec3(0.0, 0.0, uTime * 0.14))), 7.0);
 
-  // Isolines etched on the surface, one pixel wide at any size because the
-  // band is measured in screen-space derivatives rather than in field units.
-  // The sample point is the DISPLACED position and the field is added on top,
-  // so a travelling wave drags the whole pattern across the face instead of
-  // the orb simply getting bigger.
-  float s = vP.y * 4.6 + uTime * 0.07 + vF * 10.0;
-  float w = max(fwidth(s), 1e-4);
-  float line = 1.0 - smoothstep(0.0, 1.35 * w, abs(fract(s) - 0.5));
-
-  // A few meridians under the latitudes. Two families of lines is what turns
-  // a striped ball into a globe with a front and a back, and it is the read
-  // the SVG fallback gets for free from having actual edges.
-  float m = atan(vP.x, vP.z) * 1.43 + vF * 4.0;
-  float mw = max(fwidth(m), 1e-4);
-  float mer = 1.0 - smoothstep(0.0, 1.1 * mw, abs(fract(m) - 0.5));
+  // Isolines etched on the surface: latitudes, and a few meridians under them.
+  // Two families is what turns a striped ball into a globe with a front and a
+  // back, which is the read the SVG fallback gets free from having real edges.
+  // Both are measured in screen-space derivatives, so they stay a pixel wide
+  // at any size — crisp the way the fallback is crisp, not soft the way a lit
+  // sphere is soft. And both are sampled at the DISPLACED position with the
+  // field added on top, so a travelling wave drags the whole pattern across
+  // the face instead of the orb simply getting bigger.
+  float lat = vP.y * 4.6 + uTime * 0.07 + vF * 10.0;
+  float mer = atan(vP.x, vP.z) * 1.43 + vF * 4.0;
+  float latLine = 1.0 - smoothstep(0.0, 1.35 * max(fwidth(lat), 1e-4), abs(fract(lat) - 0.5));
+  float merLine = 1.0 - smoothstep(0.0, 1.10 * max(fwidth(mer), 1e-4), abs(fract(mer) - 0.5));
+  // Light pools unevenly inside, so the rings are not all lit the same. This
+  // is the difference between a wireframe and something with a body.
+  float pool = 0.58 + 0.70 * caustic;
 
   // One hard light, up and to the left, and only on the near surface: letting
   // the flipped back-face normal make a highlight too put a second white spot
   // in the middle, which read as a defect rather than as depth.
   vec3 L = normalize(vec3(-0.55, 0.75, 0.62));
-  vec3 H = normalize(L + V);
-  float spec = pow(max(dot(N, H), 0.0), 220.0) * (gl_FrontFacing ? 1.0 : 0.0);
+  float spec = pow(max(dot(N, normalize(L + V)), 0.0), 220.0) * (gl_FrontFacing ? 1.0 : 0.0);
 
-  vec3 col = uRim * limb * (0.16 + uLevel * 0.30) * back
-           + uRim * edge * (2.60 + uLevel * 1.40) * back
-           + uRim * caustic * (0.26 + uLevel * 0.85) * back * (0.42 + 0.58 * rim)
-           + uRim * line * (1.55 + uLevel * 1.20) * back * (0.74 + 0.26 * rim) * (0.72 + 0.55 * caustic)
-           + uRim * mer * (0.52 + uLevel * 0.62) * back * (0.74 + 0.26 * rim) * (0.72 + 0.55 * caustic)
-           + uRim * (0.050 + 0.10 * caustic)
-           + uSpec * spec * 1.15;
+  vec3 col = uRim * limb * (LIMB + uLevel * 0.30) * back
+           + uRim * edge * (EDGE + uLevel * 0.95) * back
+           + uRim * caustic * (VEIN + uLevel * 0.60) * back * (0.42 + 0.58 * rim)
+           + uRim * latLine * (LAT + uLevel * 0.85) * back * lens * pool
+           + uRim * merLine * (MER + uLevel * 0.50) * back * lens * pool
+           + uRim * (BODY + 0.070 * caustic)
+           + uSpec * spec * SPEC;
 
   // Lime is far off white (184, 255, 90), so a naive sum clips green long
   // before red and every bright pixel drifts to a poster-paint yellow-green.
-  // Divide the whole triple by its own peak instead: overdriven pixels land
+  // Divide the whole triple by its own peak instead: an overdriven pixel lands
   // exactly on the accent rather than on a clipped version of it, which is the
   // difference between "the accent lit through glass" and "some green". Only
-  // what is genuinely far over one is then bleached, the way a light source is.
+  // what is genuinely far over one then bleaches, the way a light source does.
   float hot = max(max(col.r, col.g), col.b);
   col /= max(hot, 1.0);
-  col = mix(col, vec3(1.0), clamp((hot - 1.35) * 0.30, 0.0, 0.60));
+  col = mix(col, vec3(1.0), clamp((hot - BLEACH) * 0.22, 0.0, 0.50));
 
   // Additive over obsidian: order independent with no depth sort, and it is
   // what "the accent lit through glass" actually is. The middle of the orb
@@ -244,9 +256,9 @@ void main() {
   // Falls away well inside its own silhouette, so it reads as the source the
   // caustics imply rather than as a second ball with an edge of its own.
   float c = pow(clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0), 7.0);
-  vec3 col = uRim * c * (0.48 + uLevel * 1.9);
+  vec3 col = uRim * c * (0.26 + uLevel * 1.05);
   float hot = max(max(col.r, col.g), col.b);
-  gl_FragColor = vec4(mix(col, vec3(hot), clamp((hot - 1.0) * 0.7, 0.0, 0.6)), 1.0);
+  gl_FragColor = vec4(mix(col / max(hot, 1.0), vec3(1.0), clamp((hot - 1.4) * 0.3, 0.0, 0.5)), 1.0);
 }
 `;
 

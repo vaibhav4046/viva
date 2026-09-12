@@ -322,15 +322,19 @@ export default function SubjectsPage() {
               line under it starts at the same height on every card in the row.
               That row was measured at three different baselines. */}
           <span className="heading line-clamp-2 min-h-[2lh] text-lg">{s.title}</span>
+          {/* 12 px, not `.mono`'s 13: at 13 the counts and the affordance came
+              to more than the card is wide and "5 / questions" broke across two
+              lines, which moved the row it exists to keep level. `ml-auto` so
+              that if it ever does wrap it wraps as a whole, still on the right. */}
           <span
-            className="mono flex w-full items-center justify-between gap-3 text-xs"
+            className="mono flex w-full flex-wrap items-center gap-x-3 gap-y-1 !text-[12px]"
             style={{ color: "var(--color-ash)" }}
           >
-            <span>
+            <span className="whitespace-nowrap">
               <span className="tnum">{s.conceptCount}</span> concepts · <span className="tnum">{s.examCount}</span>{" "}
               questions
             </span>
-            <span className="inline-flex shrink-0 items-center gap-1 transition-colors group-hover:text-[var(--color-paper)]">
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap transition-colors group-hover:text-[var(--color-paper)]">
               Start talking
               <ArrowRight size={13} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
             </span>

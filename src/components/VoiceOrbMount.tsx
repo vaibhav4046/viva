@@ -34,10 +34,45 @@ export function VoiceOrbMount({ level = 0, className = "" }: { level?: number; c
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (!hasWebGL()) return;
-    // A phone does not need 20k triangles to read as a sphere.
-    setDetail(window.matchMedia("(max-width: 767px)").matches ? 3 : 5);
-    // Let the page settle before pulling in three.
-    const id = window.setTimeout(() => setShow(true), 250);
+
+    /*
+     * Phones never load three at all.
+     *
+     * Measured on the deployed landing before this guard: mobile Lighthouse
+     * Performance 66, total blocking time 1,110 ms, 2.0 s of script bootup,
+     * with a single 239 KB chunk — three.js — dominating a 430 KB payload.
+     * A 250 ms delay does not help: the download and parse still land inside
+     * the window the score measures, and on a real mid-range phone that is a
+     * second of unresponsiveness for decoration.
+     *
+     * The gradient fallback carries the same silhouette and the same lime, so
+     * the page still looks composed; the orb is a desktop flourish and is
+     * treated as one. Also skipped on a metered or 2g/3g connection.
+     */
+    if (window.matchMedia("(max-width: 767px)").matches) return;
+
+    type NetworkInfo = { saveData?: boolean; effectiveType?: string };
+    const conn = (navigator as Navigator & { connection?: NetworkInfo }).connection;
+    if (conn?.saveData) return;
+    if (conn?.effectiveType && /(^|-)(2g|3g)$/.test(conn.effectiveType)) return;
+
+    setDetail(5);
+
+    /*
+     * Wait for the main thread to be genuinely idle rather than guessing with
+     * a timer, so the import can never compete with hydration or LCP.
+     */
+    const start = () => setShow(true);
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number })
+      .requestIdleCallback;
+    if (typeof ric === "function") {
+      const handle = ric(start, { timeout: 3000 });
+      return () => {
+        const cancel = (window as Window & { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback;
+        cancel?.(handle);
+      };
+    }
+    const id = window.setTimeout(start, 1200);
     return () => window.clearTimeout(id);
   }, []);
 

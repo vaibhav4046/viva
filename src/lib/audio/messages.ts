@@ -14,6 +14,7 @@ export const VOICE_MESSAGES: Record<string, string> = {
   NO_MIC: "This browser will not give VIVA a microphone. Type instead.",
   NO_WORKLET: "This browser could not start the microphone. Type instead.",
   NO_AUDIO: "No audio came through. Hold the mic and speak.",
+  NETWORK_DOWN: "You look offline. Reconnect and hold the mic again, or type instead.",
   EMPTY_AUDIO: "No audio came through. Hold the mic and speak.",
   AUDIO_TOO_SHORT: "That was too short. Hold a little longer and speak.",
   AUDIO_TOO_LONG: "That was over two minutes. Say it in a shorter burst.",

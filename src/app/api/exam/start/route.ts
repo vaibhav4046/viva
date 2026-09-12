@@ -61,6 +61,11 @@ export async function POST(req: NextRequest) {
     ));
   }
   const q = pool[Math.floor(Math.random() * pool.length)];
+  // The marking key never leaves the server with the question. It used to ride
+  // along in `requiredKeywords`, so the answer was on the wire before the
+  // student had typed anything. /api/exam/answer looks the question up again
+  // by id, so nothing needs it out here.
+  const { requiredKeywords: _key, ...asked } = q;
   // courseId lets callers scope the answer POST even in "all courses" mode.
-  return done(Response.json({ ...q, courseId: activeCourse.id }));
+  return done(Response.json({ ...asked, courseId: activeCourse.id }));
 }

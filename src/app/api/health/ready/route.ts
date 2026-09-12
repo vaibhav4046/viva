@@ -1,6 +1,7 @@
 import { dbStatus } from "@/lib/db/db";
 import { storeDegradation } from "@/lib/store";
 import { providerStatus } from "@/lib/ai/provider";
+import { resolveTranscriptionMode } from "@/lib/assemblyai";
 
 /**
  * GET /api/health/ready — readiness. Reports whether critical dependencies
@@ -8,8 +9,15 @@ import { providerStatus } from "@/lib/ai/provider";
  * as a lie: each dependency reports configured/reachable explicitly.
  */
 export async function GET() {
+  /*
+   * Report the mode the hot path will actually use, not the raw env string.
+   * This probe used to echo ASSEMBLYAI_TRANSCRIPTION_MODE verbatim and default
+   * it to "sync", while the provider resolves aliases and defaults to
+   * "dictation" — so the one endpoint whose job is honest disclosure could
+   * name a different endpoint than the one serving traffic.
+   */
   const transcription = process.env.ASSEMBLYAI_API_KEY
-    ? { configured: true, mode: (process.env.ASSEMBLYAI_TRANSCRIPTION_MODE ?? "sync").toLowerCase() }
+    ? { configured: true, mode: resolveTranscriptionMode() }
     : { configured: false, mode: null };
   const database = await dbStatus();
   const store = storeDegradation();

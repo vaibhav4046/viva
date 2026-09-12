@@ -3,12 +3,15 @@ import { getStore, learnerDNA } from "@/lib/store";
 import { listSubjectsFor, resolveSubject } from "@/lib/courses/subject";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
-import { buildSeedDoc } from "@/lib/store/seed";
 
 /**
  * GET /api/learner?courseId=… — scoped mastery + learner DNA + recent events.
- * ?reset=1 deletes ONLY the caller's data and reseeds (privacy §110).
- * `priors` labels every seeded track honestly (demo data, not measured).
+ * ?reset=1 deletes ONLY the caller's data (privacy §110).
+ *
+ * A learner who has never spoken gets an empty `mastery` and an empty
+ * `events`. The subject's own material (concepts, passages, questions) is
+ * still there — the map can show six concepts at "Not yet" without claiming
+ * anybody answered anything.
  */
 export async function GET(req: NextRequest) {
   const { identity, setCookie } = await resolveIdentity(req);
@@ -31,12 +34,10 @@ export async function GET(req: NextRequest) {
     ? Object.fromEntries(Object.entries(allMastery).filter(([id]) => conceptIds.has(id)))
     : allMastery;
   const events = courseParam ? allEvents.filter((e) => e.courseId === course.id) : allEvents;
+  // Always empty now, and kept only so an older client does not crash on a
+  // missing key. Nothing about this learner is pre-filled: a concept with no
+  // record is "Not yet", which is the truth on a first visit.
   const priors: Record<string, number> = {};
-  if (course.demo) {
-    for (const [id, m] of Object.entries(buildSeedDoc(identity.userId).mastery)) {
-      if (!courseParam || conceptIds.has(id)) priors[id] = m.mastery;
-    }
-  }
   const productEvents = await store.productEventSummary(identity.userId, 7);
   return done(Response.json({
     mastery, events, concepts, priors,

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { Mic } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -161,9 +162,20 @@ export default function TodayPage() {
 
   const totalMinutes = path ? path.path.reduce((n, s) => n + s.minutes, 0) : 0;
 
+  /*
+   * One recall open at a time. Each open panel mounts a mic, and a mic owns
+   * the Space key and the id on the typed box — two of them on one page is two
+   * things listening to the same keystroke. It also matches what the page is
+   * for: a ten-minute path is done one segment at a time.
+   */
+  const [openPanel, setOpenPanel] = useState<string | null>(null);
+  const togglePanel = useCallback(
+    (id: string) => setOpenPanel((cur) => (cur === id ? null : id)),
+    []
+  );
+
   return (
     <>
-      <main id="main" className="mx-auto max-w-4xl px-5 py-8">
         <PageHeader
                     title="Today"
           description="Ten minutes, built from what you actually said: what you got wrong first, then what is weakest, then one thing to prove."
@@ -179,8 +191,6 @@ export default function TodayPage() {
             <ErrorBanner message={error} onRetry={() => void load()} retryLabel="Retry" />
           </div>
         ) : null}
-
-        {week ? <WeekStrip days={week.days} /> : null}
 
         <section aria-labelledby="path-heading" className="mt-8">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -216,6 +226,19 @@ export default function TodayPage() {
             <div className="mt-4">
               <LoadingBlock label="Composing today's path from your own events…" lines={4} />
             </div>
+          ) : path && path.path.length === 0 ? (
+            <div
+              className="mt-4 rounded-xl border border-dashed px-5 py-6"
+              style={{ borderColor: "var(--color-hairline)" }}
+            >
+              <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                Nothing yet. Say something in Study and tomorrow&apos;s ten minutes will be waiting here.
+              </p>
+              <Link href="/study" className="btn-lime mt-4">
+                <Mic size={16} aria-hidden />
+                Start talking
+              </Link>
+            </div>
           ) : path ? (
             <ol className="mt-4 space-y-3">
               {path.path.map((segment, i) => (
@@ -224,7 +247,8 @@ export default function TodayPage() {
                     index={i + 1}
                     segment={segment}
                     courseId={segment.courseId ?? courseId ?? undefined}
-                    
+                    open={openPanel === `seg-${i}`}
+                    onToggle={() => togglePanel(`seg-${i}`)}
                     onAnswered={() => void quietRefresh()}
                   />
                 </li>
@@ -240,6 +264,8 @@ export default function TodayPage() {
           )}
         </section>
 
+        {week ? <WeekStrip days={week.days} /> : null}
+
         <div className="mt-10 grid gap-8 lg:grid-cols-2">
           <section aria-labelledby="due-heading">
             <h2 id="due-heading" className="heading text-xl">
@@ -252,7 +278,14 @@ export default function TodayPage() {
             ) : queue.length > 0 ? (
               <ul className="mt-4 space-y-3">
                 {queue.map((item) => (
-                  <DueRow key={item.conceptId} item={item} courseId={courseId ?? undefined} onAnswered={() => void quietRefresh()} />
+                  <DueRow
+                    key={item.conceptId}
+                    item={item}
+                    courseId={courseId ?? undefined}
+                    open={openPanel === `due-${item.conceptId}`}
+                    onToggle={() => togglePanel(`due-${item.conceptId}`)}
+                    onAnswered={() => void quietRefresh()}
+                  />
                 ))}
               </ul>
             ) : (
@@ -262,11 +295,11 @@ export default function TodayPage() {
               >
                 {thinHistory ? (
                   <>
-                    Nothing due — capture a thought in{" "}
-                    <Link href="/demo" className="underline underline-offset-4" style={{ color: "var(--color-band-getting)" }}>
+                    Nothing due — say something in{" "}
+                    <Link href="/study" className="underline underline-offset-4" style={{ color: "var(--color-band-getting)" }}>
                       Study
                     </Link>{" "}
-                    to start your memory.
+                    and it will show up here.
                   </>
                 ) : (
                   "Nothing due right now — review priority updates as you learn."
@@ -348,13 +381,23 @@ export default function TodayPage() {
             </section>
           </div>
         </div>
-      </main>
     </>
   );
 }
 
-function DueRow({ item, courseId, onAnswered }: { item: ReviewItem; courseId?: string; onAnswered?: () => void }) {
-  const [open, setOpen] = useState(false);
+function DueRow({
+  item,
+  courseId,
+  open,
+  onToggle,
+  onAnswered,
+}: {
+  item: ReviewItem;
+  courseId?: string;
+  open: boolean;
+  onToggle: () => void;
+  onAnswered?: () => void;
+}) {
   const panelId = useId();
   return (
     <li className="surface-card p-4">
@@ -376,9 +419,10 @@ function DueRow({ item, courseId, onAnswered }: { item: ReviewItem; courseId?: s
           className="btn-ghost inline-flex min-h-11 items-center !py-2 text-sm"
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
-          onClick={() => setOpen((v) => !v)}
+          onClick={onToggle}
         >
-          {open ? "Hide recall" : "Recall now"}
+          <Mic size={15} aria-hidden />
+          {open ? "Hide" : "Say what you remember"}
         </button>
       </div>
       {open ? (

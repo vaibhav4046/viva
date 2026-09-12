@@ -98,7 +98,7 @@ export default function MapPage() {
     : [];
 
   return (
-    <main id="main" className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
+    <>
       <PageHeader
         title="Your map"
         description="Every concept in this subject, and how it is going. Tap one to see what you said about it."
@@ -192,6 +192,6 @@ export default function MapPage() {
           )}
         </div>
       </div>
-    </main>
+    </>
   );
 }

@@ -146,7 +146,7 @@ export default function SubjectsPage() {
   ];
 
   return (
-    <main id="main" className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6">
+    <>
       <PageHeader
         title="Subjects"
         description="Start with one of ours, or bring your own notes and let VIVA build the map."
@@ -329,6 +329,6 @@ export default function SubjectsPage() {
           </div>
         ) : null}
       </section>
-    </main>
+    </>
   );
 }

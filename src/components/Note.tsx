@@ -2,6 +2,7 @@
 import { m, useReducedMotion } from "motion/react";
 import { Keyboard, Mic } from "lucide-react";
 import { SNAPPY, FADE_ONLY } from "@/lib/motion";
+import { BAND_COLOR, BAND_LABEL, type BandKey } from "@/components/bands";
 import type { LearningEvent } from "@/lib/types";
 
 /**
@@ -30,11 +31,20 @@ const KIND: Record<string, { color: string; label: string }> = {
 export function Note({
   event,
   conceptName,
-  delta,
+  band,
 }: {
   event: LearningEvent;
   conceptName?: string | null;
-  delta?: number | null;
+  /**
+   * Where the concept sits now — never the signed move that got it there.
+   *
+   * A note used to print "Moved down -8" under an admission of confusion, so
+   * saying "I don't get this" cost the student eight of something they were
+   * never told the scale of. The rational move was to stop admitting it, which
+   * is the one thing the product cannot survive. Confusion is a fact about the
+   * concept; the concept's band is what says so.
+   */
+  band?: BandKey | null;
 }) {
   const reduced = useReducedMotion();
   const kind = KIND[event.intent] ?? KIND.note;
@@ -73,12 +83,11 @@ export function Note({
             <dd className="text-right">{where}</dd>
           </div>
         ) : null}
-        {typeof delta === "number" && delta !== 0 ? (
+        {band && conceptName ? (
           <div className="flex justify-between gap-3">
-            <dt>{delta < 0 ? "Moved down" : "Moved up"}</dt>
-            <dd className="tnum" style={{ color: delta < 0 ? "var(--color-band-mixed)" : "var(--color-band-solid)" }}>
-              {delta > 0 ? "+" : ""}
-              {Math.round(delta * 100)}
+            <dt>Now</dt>
+            <dd className="text-right" style={{ color: BAND_COLOR[band] }}>
+              {BAND_LABEL[band]}
             </dd>
           </div>
         ) : null}

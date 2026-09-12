@@ -1,4 +1,5 @@
 import { COURSES } from "@/lib/courses";
+import { bandLabelFor } from "@/lib/mastery";
 import type { ConceptMastery, LearningEvent } from "@/lib/types";
 
 /**
@@ -106,7 +107,7 @@ function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<stri
         return {
           kind,
           concept: m,
-          why: `Your record shows ${wrong} incorrect answer${wrong === 1 ? "" : "s"}${conf > 0 ? ` and ${conf} confusion${conf === 1 ? "" : "s"}` : ""} on “${nameOf(m.conceptId)}” — clear it before it sticks.`,
+          why: `You got “${nameOf(m.conceptId)}” wrong ${wrong === 1 ? "once" : `${wrong} times`}${conf > 0 ? ` and flagged it as confusing ${conf === 1 ? "once" : `${conf} times`}` : ""} — clear it before it sticks.`,
         };
       });
   }
@@ -146,7 +147,7 @@ function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<stri
     .map((m) => ({
       kind,
       concept: m,
-      why: `You were confused by “${nameOf(m.conceptId)}” and corrected it (now ${Math.round(m.mastery * 100)}%) — prove you can explain it.`,
+      why: `You were confused by “${nameOf(m.conceptId)}” and corrected it — now ${bandLabelFor(m)}. Prove you can explain it.`,
     }));
 }
 
@@ -228,6 +229,10 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
       action: "teachback",
     });
   }
+
+  // Nothing has happened yet: an honest empty plan beats a one-line plan that
+  // implies a session took place. The screen says so in its own words.
+  if (path.length === 0) return [];
 
   path.push({
     kind: "summary",

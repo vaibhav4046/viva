@@ -82,7 +82,6 @@ export class PgEventStore implements EventStore {
     const course = COURSES[courseId];
     if (!course) return;
     await this.seedCourseRows(userId, course);
-    await this.seedPriors(userId, course);
   }
 
   /** Rows for one course or subject: course, sources, chunks, concepts, edges. */
@@ -123,43 +122,6 @@ export class PgEventStore implements EventStore {
   }
 
   /**
-   * A starter's labelled opening map and its one remembered sentence. Both
-   * come from the course record, so no single subject is named in here.
-   */
-  private async seedPriors(userId: string, course: Course): Promise<void> {
-    const now = new Date().toISOString();
-    const scopedCourse = scopeId(course.id, userId, course.id);
-    for (const [conceptId, prior] of Object.entries(course.priors ?? {})) {
-      const base = blankMastery(conceptId, now);
-      await dbQuery(
-        `INSERT INTO mastery_state(user_id, concept_id, exposure_count, successful_recall_count, failed_recall_count,
-          confusion_count, misconception_count, last_seen_at, last_successful_recall_at, mastery, confidence, review_priority)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-         ON CONFLICT (user_id, concept_id) DO NOTHING`,
-        [userId, scopeId(conceptId, userId, course.id), prior.exposureCount ?? base.exposureCount,
-         prior.successfulRecallCount ?? 0, prior.failedRecallCount ?? 0, prior.confusionCount ?? 0,
-         prior.misconceptionCount ?? 0, now, prior.recalled ? now : null,
-         prior.mastery ?? base.mastery, prior.confidence ?? base.confidence, prior.reviewPriority ?? base.reviewPriority]
-      );
-    }
-    const opening = course.opening;
-    const source = opening ? course.sources.find((s) => s.chunks.some((c) => c.id === opening.chunkId)) : undefined;
-    if (!opening || !source) return;
-    await dbQuery(
-      `INSERT INTO learning_events(id, user_id, session_id, course_id, source_id, idempotency_key, transcript,
-        cleaned_transcript, origin, transcription_confidence, intent, concept_ids, primary_concept_id,
-        importance, confusion, interpretation_confidence, evidence_ids, requested_action, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'voice',0.97,'remember',$9,$10,0.7,0.1,0.85,$11,'store','grounded')
-       ON CONFLICT (user_id, idempotency_key) DO NOTHING`,
-      [`evt_seed_001::${userId}`, userId, `sess_demo::${userId}`, scopedCourse,
-       scopeId(source.id, userId, course.id), "seed-001", opening.text, opening.text,
-       JSON.stringify([scopeId(opening.conceptId, userId, course.id)]),
-       scopeId(opening.conceptId, userId, course.id),
-       JSON.stringify([scopeId(opening.chunkId, userId, course.id)])]
-    );
-  }
-
-  /**
    * Persist a subject the learner built. The document holds the parts only
    * this subject knows (questions, explainers, keyterms); its passages and
    * concepts also land in the normal tables, so retrieval, the map and the
@@ -173,17 +135,8 @@ export class PgEventStore implements EventStore {
       [subject.id, userId, JSON.stringify(subject)]
     );
     await this.seedCourseRows(userId, subject);
-    const now = new Date().toISOString();
-    for (const c of subject.concepts) {
-      const base = blankMastery(c.id, now);
-      await dbQuery(
-        `INSERT INTO mastery_state(user_id, concept_id, exposure_count, successful_recall_count, failed_recall_count,
-          confusion_count, misconception_count, last_seen_at, last_successful_recall_at, mastery, confidence, review_priority)
-         VALUES ($1,$2,0,0,0,0,0,$3,NULL,$4,$5,$6)
-         ON CONFLICT (user_id, concept_id) DO NOTHING`,
-        [userId, scopeId(c.id, userId, subject.id), now, base.mastery, base.confidence, base.reviewPriority]
-      );
-    }
+    // No mastery rows: a concept the learner has not touched is "Not yet",
+    // and writing a row at the default 0.5 makes the map claim otherwise.
   }
 
   async getSubject(userId: string, subjectId: string): Promise<Subject | null> {

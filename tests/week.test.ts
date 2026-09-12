@@ -71,10 +71,47 @@ function event(id: string, conceptId: string): LearningEvent {
   };
 }
 
+/** One real turn, recorded the way a route records it. */
+async function say(
+  s: FileEventStore,
+  user: string,
+  conceptId: string,
+  over: { intent?: LearningEvent["intent"]; assessment?: "correct" | "partial" | "incorrect"; confusion?: number } = {}
+): Promise<void> {
+  await s.recordLearning(user, {
+    idempotencyKey: `${conceptId}-${over.intent ?? "claim"}-${over.assessment ?? "none"}`,
+    sessionId: "sess_week",
+    courseId: "course_transformers_w4",
+    sourceId: null,
+    transcript: `about ${conceptId}`,
+    cleanedTranscript: `about ${conceptId}`,
+    origin: "typed",
+    transcriptionConfidence: null,
+    transcriptionLatencyMs: null,
+    transcriptionSessionId: null,
+    intent: over.intent ?? "claim",
+    conceptIds: [conceptId],
+    primaryConceptId: conceptId,
+    importance: 0.6,
+    confusion: over.confusion ?? 0.2,
+    interpretationConfidence: 0.8,
+    evidenceIds: [],
+    requestedAction: "evaluate",
+    status: "responded",
+    sourceLocator: null,
+    assessment: over.assessment ?? null,
+  });
+}
+
+/**
+ * A learner with a real, small history. Nothing here is invented on their
+ * behalf: every number in the projection traces to one of these three turns.
+ */
 async function seededInput(user: string): Promise<PlannerInput> {
   const s = new FileEventStore();
-  // Cold-start creates the shared user doc before any parallel reads.
-  await s.getMastery(user);
+  await say(s, user, "c_position", { assessment: "incorrect", confusion: 0.6 });
+  await say(s, user, "c_qkv", { intent: "confusion", confusion: 0.9 });
+  await say(s, user, "c_self_attention", { assessment: "correct" });
   const [mastery, events, queue, concepts] = await Promise.all([
     s.getMastery(user),
     s.listEvents(user, 50),
@@ -107,14 +144,16 @@ describe("projectWeek", () => {
     expect(first.days[1].label).toBe("Tomorrow");
     expect(first.generatedAt).toBe(FIXED_NOW.toISOString());
 
-    // Day 0 = the same three concepts /api/learner/path selects from this state.
-    expect(first.days[0].segments.map((s) => s.conceptId)).toEqual(["c_multihead", "c_self_attention", "c_qkv"]);
+    // Day 0 = the same concepts /api/learner/path selects from this state:
+    // the wrong answer first, then the weakest thing they touched, then the
+    // one they got right.
+    expect(first.days[0].segments.map((s) => s.conceptId)).toEqual(["c_position", "c_qkv", "c_self_attention"]);
     expect(first.days[0].count).toBe(3);
     expect(first.days[0].segments.every((s) => s.title.length > 0 && s.reason.length > 0)).toBe(true);
 
-    // Queue item due per the store's one-day rule lands on Tomorrow, not Today.
-    expect(first.days[1].segments.map((s) => s.conceptId)).toEqual(["c_position"]);
-    expect(first.days.slice(2).every((d) => d.count === 0)).toBe(true);
+    // Every concept the learner touched is already placed on Today, so no
+    // queue item is left to escalate: the rest of the week is honestly empty.
+    expect(first.days.slice(1).every((d) => d.count === 0)).toBe(true);
 
     // A concept appears at most once across the week.
     const ids = first.days.flatMap((d) => d.segments.map((s) => s.conceptId));
@@ -174,7 +213,9 @@ describe("GET /api/learner/week", () => {
     const body = (await res.json()) as { days: { label: string; count: number }[]; generatedAt: string };
     expect(body.days).toHaveLength(WEEK_DAYS);
     expect(body.days[0].label).toBe("Today");
-    expect(body.days[0].count).toBeGreaterThan(0);
+    // A cold identity has nothing to review, and the week says so rather than
+    // filling itself with a history this person does not have.
+    expect(body.days.every((d) => d.count === 0)).toBe(true);
     expect(typeof body.generatedAt).toBe("string");
 
     const res2 = await weekGet(new NextRequest("http://localhost/api/learner/week"));

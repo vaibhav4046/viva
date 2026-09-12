@@ -20,6 +20,8 @@ export type TurnPlan = {
   openQuestion: ExamQuestion | null;
   /** True when the concept came from an earlier turn, not from these words. */
   inherited: boolean;
+  /** The learner asked to leave the open question. */
+  stopped: boolean;
 };
 
 const INTENT_MAP: Record<LearningIntent, TurnIntent> = {
@@ -48,6 +50,10 @@ export const LEARNING_INTENT: Record<TurnIntent, LearningIntent> = {
   // A graded answer folds as a claim with a verdict attached — that is the
   // path that moves mastery, and why a spoken answer must never land as a note.
   answer: "claim",
+  // Asking for a nudge is not a wrong answer and must not cost anything: the
+  // reducer leaves `note` alone. A product built on students admitting they
+  // are stuck cannot charge them for saying so.
+  hint: "note",
   note: "note",
 };
 
@@ -61,23 +67,67 @@ export function quizQuestionFor(course: Course, conceptId: string | null): ExamQ
 }
 
 /**
- * Replay the last 6 exchanges for this subject. An open question is one the
- * most recent turn asked and nothing has answered yet.
+ * How many graded attempts one question gets before VIVA closes it and moves
+ * on. Without a ceiling a question the learner abandoned stays open forever
+ * and swallows every later sentence.
  */
-export function readHistory(events: LearningEvent[], course: Course): { memory: TurnMemory[]; openQuestion: ExamQuestion | null } {
+export const MAX_ATTEMPTS = 3;
+
+/** "Stop" in the words people actually use. */
+const STOP_RE = /^\s*(stop|cancel|skip|next question|new question|never\s?mind|forget it|move on|i'?m done|done|no more)\b/i;
+
+/** "I'm stuck" in the words people actually use. */
+export const HINT_RE = /\b(hint|clue|stuck|nudge|give me a start|help me out|i give up|no idea)\b/i;
+
+export type OpenState = {
+  question: ExamQuestion | null;
+  /** Graded attempts on it so far. */
+  attempts: number;
+  /** Nudges already asked for on it. */
+  hintsUsed: number;
+};
+
+/**
+ * Is a question still open?
+ *
+ * A question opens when a turn asks one — "quiz me", or a caught claim — and
+ * stays open until the learner clears it, says stop, or runs out of attempts.
+ * It used to be "was the single previous turn a quiz request", which meant a
+ * student got exactly one attempt ever: answer it wrong and the question froze
+ * with the wrong answer recorded, with no way to fix it.
+ */
+export function openStateFrom(events: LearningEvent[], course: Course): OpenState {
+  let asked = -1;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.assessment === "correct" || STOP_RE.test(e.cleanedTranscript)) return { question: null, attempts: 0, hintsUsed: 0 };
+    if (e.requestedAction === "quiz") { asked = i; break; }
+  }
+  if (asked === -1) return { question: null, attempts: 0, hintsUsed: 0 };
+  const since = events.slice(asked + 1);
+  const attempts = since.filter((e) => e.assessment != null).length;
+  const hintsUsed = since.filter((e) => HINT_RE.test(e.cleanedTranscript)).length;
+  if (attempts >= MAX_ATTEMPTS) return { question: null, attempts, hintsUsed };
+  return { question: quizQuestionFor(course, events[asked].primaryConceptId) ?? null, attempts, hintsUsed };
+}
+
+/**
+ * Replay the last 6 exchanges for this subject, and work out whether a
+ * question is still open (see `openStateFrom`).
+ */
+export function readHistory(events: LearningEvent[], course: Course): { memory: TurnMemory[]; openQuestion: ExamQuestion | null; open: OpenState } {
   const mine = events.filter((e) => (e.courseId ?? course.id) === course.id);
   const memory = mine.slice(-6).map<TurnMemory>((e) => {
     const intent = INTENT_MAP[e.intent] ?? "note";
     return {
       intent,
       conceptId: e.primaryConceptId,
-      question: intent === "quiz" ? quizQuestionFor(course, e.primaryConceptId)?.question ?? null : null,
+      question: e.requestedAction === "quiz" ? quizQuestionFor(course, e.primaryConceptId)?.question ?? null : null,
       said: e.cleanedTranscript.slice(0, 240),
     };
   });
-  const last = memory[memory.length - 1];
-  const openQuestion = last?.intent === "quiz" ? quizQuestionFor(course, last.conceptId) ?? null : null;
-  return { memory, openQuestion };
+  const open = openStateFrom(mine, course);
+  return { memory, openQuestion: open.question, open };
 }
 
 const DECLARATIVE = /\b(is|are|was|were|means|happens|works|does|do|has|have|equals|when|because)\b/i;
@@ -102,9 +152,14 @@ export function planTurn(draft: CompileDraft, history: TurnMemory[], openQuestio
     !ASKING.test(draft.cleanedTranscript) &&
     draft.cleanedTranscript.split(/\s+/).length >= 5;
   if (declarative && (intent === "note" || intent === "explain")) intent = "claim";
-  // A question is open: these words are the answer to it, unless the learner
-  // is explicitly asking for a different question.
-  if (openQuestion && intent !== "quiz") intent = "answer";
+  // A question is open: every sentence belongs to it until the learner clears
+  // it or says stop. Asking for a nudge is neither an answer nor a note.
+  let stopped = false;
+  if (openQuestion) {
+    if (STOP_RE.test(draft.cleanedTranscript)) { intent = "note"; stopped = true; }
+    else if (HINT_RE.test(draft.cleanedTranscript)) intent = "hint";
+    else if (intent !== "quiz") intent = "answer";
+  }
 
   let conceptIds = draft.conceptIds;
   let inherited = false;
@@ -115,14 +170,14 @@ export function planTurn(draft: CompileDraft, history: TurnMemory[], openQuestio
       inherited = true;
     }
   }
-  return { intent, conceptIds, primaryConceptId: conceptIds[0] ?? null, openQuestion, inherited };
+  return { intent, conceptIds, primaryConceptId: conceptIds[0] ?? null, openQuestion, inherited, stopped };
 }
 
 const INTENT_SYSTEM = [
   "You label one thing a learner just said while studying.",
   'Reply ONLY as JSON: {"intent": one of confused|claim|explain|quiz|teach|answer|note, "conceptIds": ids from the list given}.',
   "confused = they say they do not get it. claim = they state what they believe. explain = they ask for an explanation.",
-  "quiz = they ask to be tested. teach = they are explaining it back. answer = they are answering the open question. note = anything else worth keeping.",
+  "quiz = they ask to be tested. teach = they are explaining it back. answer = they are answering the open question. hint = they are stuck and want a nudge. note = anything else worth keeping.",
   "Use only concept ids from the list. If they say 'it' or 'that', use the concept from the previous turn.",
 ].join(" ");
 

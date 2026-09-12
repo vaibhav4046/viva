@@ -5,6 +5,10 @@
  * -> a WAV on release. MediaRecorder is deliberately not used: it produces
  * WebM/Opus, and the Dictation endpoint answers 415 to anything compressed.
  *
+ * The frames are buffered here and the whole clip is POSTed once, on release.
+ * Nothing is streamed while recording: /v1/transcribe/live would allow it, but
+ * this build does not do it, so the upload leg grows with clip length.
+ *
  * The AudioContext is only ever constructed inside `start()`, which callers
  * invoke from a pointer or key event, so it is never created outside a user
  * gesture (browsers suspend one that is).
@@ -31,7 +35,21 @@ export type CaptureHandle = {
   readonly startedAt: number;
 };
 
-export const MAX_CLIP_MS = MAX_MS;
+/**
+ * The self-stop, deliberately BELOW the server's rejection threshold.
+ *
+ * These were the same number, so the clip the app stopped on its own landed on
+ * the wrong side of its own validator about half the time: the flush, the WAV
+ * assembly and the upload all happen after the timer fires, and a run measured
+ * at ~122 s came back 413 with a message blaming the learner for talking too
+ * long. Five seconds of headroom means the cap always produces a clip the
+ * server accepts, which is what stopping ourselves was for.
+ */
+export const MAX_CLIP_MS = MAX_MS - 5_000;
+
+/** Hard ceiling on captured samples. The timer can be starved (a background
+ *  tab, a busy main thread) and a late stop must still yield a legal clip. */
+const MAX_SAMPLES = Math.floor((MAX_MS / 1000) * TARGET_RATE);
 
 function captureError(code: string, message: string): CaptureError {
   return { code, message };
@@ -146,7 +164,13 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
         settled = true;
         clearTimeout(guard);
         teardown();
-        const samples = frames.reduce((n, f) => n + f.length, 0);
+        // Keep the newest audio if a starved timer let the buffer overrun:
+        // the end of a sentence is worth more than its beginning, and an
+        // over-length WAV is refused outright.
+        let samples = frames.reduce((n, f) => n + f.length, 0);
+        while (samples > MAX_SAMPLES && frames.length > 1) {
+          samples -= frames.shift()!.length;
+        }
         const durationMs = Math.round((samples / TARGET_RATE) * 1000);
         if (durationMs < MIN_MS) {
           reject(captureError("AUDIO_TOO_SHORT", "That was too short. Hold a little longer and speak."));
@@ -164,8 +188,9 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
     return stopped;
   };
 
-  // 120 s is the endpoint's hard ceiling; stopping ourselves turns a 413 into
-  // a finished clip the learner still gets to send.
+  // 120 s is the endpoint's hard ceiling and MAX_CLIP_MS sits under it, so
+  // stopping ourselves turns a 413 into a finished clip the learner still gets
+  // to send — see the MAX_CLIP_MS note for why the two must not be equal.
   capTimer = setTimeout(() => opts.onCapReached?.(), MAX_CLIP_MS);
 
   return { startedAt, stop, cancel: teardown };

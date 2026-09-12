@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { resolveSubject } from "@/lib/courses/subject";
-import { assessAnswer, gradeAnswer } from "@/lib/tutor";
+import { assessAnswer, gradeAnswer, sealAnswerKey } from "@/lib/tutor";
+import { MAX_ATTEMPTS } from "@/lib/tutor/respond";
+import { bandLabelFor } from "@/lib/mastery";
+import type { LearningEvent } from "@/lib/types";
 import { getStore, learnerDNA } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -15,6 +18,22 @@ const Body = z.object({
   courseId: z.string().max(80).optional(),
   subjectId: z.string().max(80).optional(),
 });
+
+/**
+ * Graded attempts already spent on this question, since the last time it was
+ * cleared. One question gets `MAX_ATTEMPTS` tries; after that it closes and
+ * the learner is told what a full answer covers.
+ */
+function attemptsSpent(events: LearningEvent[], conceptId: string): number {
+  let n = 0;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.primaryConceptId !== conceptId || e.assessment == null) continue;
+    if (e.assessment === "correct") break;
+    n += 1;
+  }
+  return n;
+}
 
 /**
  * POST /api/exam/answer — spoken/typed answer → claim extraction → evidence →
@@ -65,6 +84,12 @@ export async function POST(req: NextRequest) {
       evidenceIds: baseline.evidenceIds,
     },
   });
+  const spent = attemptsSpent(await store.listEvents(identity.userId, 30), q.conceptId);
+  // Cleared, or out of attempts: the question is finished either way, and the
+  // marking key is only ever shown to a finished question. Printing "Expected:
+  // order" above a live retry box makes the retry theatre.
+  const closed = a.verdict === "correct" || spent + 1 >= MAX_ATTEMPTS;
+
   const outcome = await store.recordLearning(identity.userId, {
     idempotencyKey: p.data.clientEventId ?? `exam_${uid("e")}`,
     sessionId: `exam_${Date.now().toString(36)}`,
@@ -93,9 +118,16 @@ export async function POST(req: NextRequest) {
   const events = await store.listEvents(identity.userId, 20);
 
   return done(Response.json({
-    ...a,
+    ...sealAnswerKey(a, closed),
     mastery: outcome.mastery,
     learner: learnerDNA(outcome.mastery, events.filter((e) => e.intent === "confusion").map((e) => e.id), events.length),
+    // The band is what the student is shown. The signed number stays here for
+    // the record, and for the fold that produced it.
+    band: { conceptId: q.conceptId, label: bandLabelFor(outcome.mastery[q.conceptId]) },
+    closed,
+    attemptsUsed: spent + 1,
+    attemptsLeft: closed ? 0 : Math.max(0, MAX_ATTEMPTS - (spent + 1)),
+    canRetry: !closed,
     delta: outcome.delta,
     reason: outcome.reason,
     duplicate: outcome.duplicate,

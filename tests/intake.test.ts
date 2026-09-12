@@ -10,6 +10,7 @@ import { extractSubjectBody } from "@/lib/intake/extract";
 import { buildSubject } from "@/lib/intake/build";
 import { SubjectPlanSchema, WrittenPassagesSchema } from "@/lib/intake/model";
 import { FileEventStore } from "@/lib/store/file";
+import { bandKeyFor } from "@/lib/mastery";
 
 /**
  * Subject intake, both paths.
@@ -233,7 +234,7 @@ describe("buildSubject", () => {
 });
 
 describe("a saved subject behaves like any other", () => {
-  it("resolves, retrieves from its own passages, and starts every concept at 0.5", async () => {
+  it("resolves, retrieves from its own passages, and starts every concept at Not yet", async () => {
     const store = new FileEventStore();
     const user = `u_saved_${Date.now().toString(36)}`;
     try {
@@ -258,10 +259,12 @@ describe("a saved subject behaves like any other", () => {
       expect(hits.every((h) => chunks.some((c) => c.id === h.chunk.id))).toBe(true);
       expect(hits[0].chunk.text.toLowerCase()).toMatch(/steric|tertiary|backside|carbon/);
 
+      // A subject the learner just built carries no record of them using it:
+      // every concept reads "Not yet" until they say something about it.
       const mastery = await store.getMastery(user);
+      expect(mastery).toEqual({});
       for (const c of out.subject.concepts) {
-        expect(mastery[c.id]?.mastery).toBe(0.5);
-        expect(mastery[c.id]?.exposureCount).toBe(0);
+        expect(bandKeyFor(mastery[c.id])).toBe("notyet");
       }
     } finally {
       await store.deleteUserData(user).catch(() => {});

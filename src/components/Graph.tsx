@@ -12,6 +12,23 @@ import type { ConceptMastery } from "@/lib/types";
  * Every node prints its band in words underneath, so the colour is a second
  * signal rather than the only one.
  */
+/** At most two lines of ~17 characters, broken on a space, ellipsis only past that. */
+function labelLines(name: string): string[] {
+  if (name.length <= 17) return [name];
+  const lines = [""];
+  for (const word of name.split(" ")) {
+    const cur = lines[lines.length - 1];
+    if (!cur) lines[lines.length - 1] = word;
+    else if (cur.length + 1 + word.length <= 17) lines[lines.length - 1] = `${cur} ${word}`;
+    else if (lines.length < 2) lines.push(word);
+    else {
+      lines[1] = `${lines[1].slice(0, 16)}…`;
+      break;
+    }
+  }
+  return lines;
+}
+
 export function Graph({
   mastery,
   selected,
@@ -35,9 +52,10 @@ export function Graph({
     pos[c.id] = [Math.round(220 + 130 * Math.cos(angle)), Math.round(190 + 118 * Math.sin(angle))];
   });
 
-  // Names are the learner's, not ours, so they can be any length. Trim the
-  // drawn label and keep the whole thing in the accessible name and a title.
-  const short = (name: string) => (name.length > 17 ? `${name.slice(0, 16)}…` : name);
+  // Names are the learner's, not ours, so they can be any length. Four of six
+  // used to end in an ellipsis — on the one page whose whole job is showing the
+  // map — because a 17-character cap fired whether the label had room or not.
+  // Wrap to a second line instead, and only cut a name that will not fit in two.
 
   const ids = new Set(concepts.map((c) => c.id));
   const seen = new Set<string>();
@@ -113,8 +131,19 @@ export function Graph({
               />
               <circle cx={x} cy={y} r={5} fill={color} />
               <title>{`${c.name}: ${BAND_LABEL[band]}`}</title>
-              <text x={x} y={y - 36} textAnchor="middle" fill="var(--color-paper)" fontSize={12} fontWeight={600}>
-                {short(c.name)}
+              <text
+                x={x}
+                y={y - 36 - (labelLines(c.name).length - 1) * 13}
+                textAnchor="middle"
+                fill="var(--color-paper)"
+                fontSize={12}
+                fontWeight={600}
+              >
+                {labelLines(c.name).map((line, i) => (
+                  <tspan key={line} x={x} dy={i === 0 ? 0 : 13}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
               <text x={x} y={y + 42} textAnchor="middle" fill={color} fontSize={11} fontFamily="var(--font-mono)">
                 {BAND_LABEL[band]}

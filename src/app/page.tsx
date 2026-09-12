@@ -100,7 +100,7 @@ export default async function Home() {
           <ul className="space-y-5">
             {ROWS.map(({ Icon, title, body, aside }, i) => (
               <li key={title}>
-                <Reveal delayMs={i * 60}>
+                <Reveal delayMs={i * 40}>
                   <article className="surface-card flex gap-4 p-6">
                     <span
                       aria-hidden

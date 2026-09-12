@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 const TONE: Record<string, { color: string; label: string }> = {
   correct: { color: "var(--color-cognition)", label: "CORRECT" },
   missing: { color: "var(--color-band-getting)", label: "MISSING" },
-  misconception: { color: "var(--color-band-mixed)", label: "MISCONCEPTION" },
+  misconception: { color: "var(--color-band-mixed)", label: "MIXED UP" },
   next: { color: "var(--color-paper)", label: "NEXT" },
 };
 

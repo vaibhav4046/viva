@@ -6,7 +6,7 @@ import { Graph } from "@/components/Graph";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { ResultBlock } from "@/components/ui/ResultBlock";
+import { QuizQuestion, QuizVerdictPanel } from "@/components/QuizCard";
 import {
   CoursePicker,
   DEFAULT_COURSE_ID,
@@ -40,12 +40,6 @@ type TeachResult = {
   delta: number | null; reason: string | null;
 };
 type Failure = { message: string; retry: () => void };
-
-const VERDICT_CHIP: Record<string, { color: string; label: string }> = {
-  correct: { color: "var(--color-cognition)", label: "CORRECT" },
-  partial: { color: "var(--color-band-getting)", label: "PARTIAL" },
-  incorrect: { color: "var(--color-band-mixed)", label: "MISCONCEPTION" },
-};
 
 export default function ExamPage() {
   const [mode, setMode] = useState<Mode>("exam");
@@ -230,11 +224,9 @@ export default function ExamPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <main id="main" className={focused ? "mx-auto max-w-6xl px-5 py-6" : "mx-auto max-w-6xl px-5 py-8"}>
         {!focused ? (
           <>
             <PageHeader
-              eyebrow="Quiz"
               title={activeCourse ? `${activeCourse.title} quiz` : "Quiz"}
               description="Answer out loud, or type. Every verdict quotes the passage it was scored against."
               actions={
@@ -257,7 +249,8 @@ export default function ExamPage() {
                   aria-selected={mode === m}
                   aria-controls="exam-panel"
                   onClick={() => { setMode(m); setFailure(null); }}
-                  className={mode === m ? "btn-lime !px-4 !py-1.5 text-sm" : "btn-ghost !border-transparent !px-4 !py-1.5 text-sm"}
+                  className={mode === m ? "btn-ghost !px-4 !py-1.5 text-sm font-semibold" : "btn-ghost !border-transparent !px-4 !py-1.5 text-sm"}
+                  style={mode === m ? { background: "var(--color-panel)", color: "var(--color-paper)" } : undefined}
                 >
                   {m === "exam" ? "Answer questions" : "Teach VIVA"}
                 </button>
@@ -266,7 +259,7 @@ export default function ExamPage() {
           </>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="eyebrow">{`{ ${activeCourse?.code ?? "VIVA"} · focused practice }`}</p>
+            <p className="eyebrow">{`${activeCourse?.code ?? "VIVA"} · Focused practice`}</p>
             <button type="button" onClick={exitFocus} className="btn-ghost !px-4 !py-1.5 text-xs">
               Exit focus
             </button>
@@ -304,7 +297,17 @@ export default function ExamPage() {
                       Scored on what you covered, not on how you worded it.
                     </li>
                   </ul>
-                  <button onClick={start} disabled={busy === "start"} className="btn-lime mt-6">
+                  <div className="mt-6">
+                    <MicButton
+                      subjectId={courseId ?? DEFAULT_COURSE_ID}
+                      onSubmit={() => void start()}
+                      busy={busy === "start"}
+                    />
+                  </div>
+                  <p className="mono mt-3 text-xs" style={{ color: "var(--color-ash)" }}>
+                    Say when you are ready and the first question opens straight into listening.
+                  </p>
+                  <button onClick={start} disabled={busy === "start"} className="btn-ghost mt-3 !py-2 text-sm">
                     {busy === "start" ? "Preparing question…" : "Start the quiz"}
                   </button>
                   {busy === "start" ? <div className="mt-4"><LoadingBlock label="Selecting your weakest concept…" lines={2} /></div> : null}
@@ -316,44 +319,27 @@ export default function ExamPage() {
             ) : (
               <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-4">
-                  <section className="surface-card p-6" aria-live="polite">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="eyebrow">QUESTION{conceptName ? ` · ${conceptName}` : ""}</p>
-                      {result ? (
-                        <span className="chip">Marked</span>
-                      ) : (
-                        <VoiceStateChip state={voiceState} scoring={busy === "answer"} />
-                      )}
-                    </div>
-                    <p className="heading mt-2 text-[clamp(1.35rem,3.2vw,2rem)] leading-tight">{q.question}</p>
-                  </section>
+                  <QuizQuestion
+                    large
+                    eyebrow={`Question${conceptName ? ` · ${conceptName}` : ""}`}
+                    question={q.question}
+                    status={result ? <span className="chip">Marked</span> : <VoiceStateChip state={voiceState} scoring={busy === "answer"} />}
+                  />
 
                   {result ? (
-                    <section aria-label="Assessment" aria-live="polite" className="surface-card space-y-3 p-5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="chip" style={{ color: VERDICT_CHIP[result.verdict].color, borderColor: VERDICT_CHIP[result.verdict].color }}>
-                          {VERDICT_CHIP[result.verdict].label}
-                        </span>
-                        <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-                          {typeof result.delta === "number" ? `mastery ${result.delta > 0 ? "+" : ""}${Math.round(result.delta * 100)} pts` : ""}
-                          {result.evidenceIds.length > 0 ? ` · evidence ${result.evidenceIds.length} chunks` : ""}
-                        </span>
-                      </div>
-                      {result.correctPoints.length > 0 ? <ResultBlock tone="correct">{result.correctPoints.join(" ")}</ResultBlock> : null}
-                      {result.missingPoints.length > 0 ? <ResultBlock tone="missing">{result.missingPoints.join(" ")}</ResultBlock> : null}
-                      {result.possibleMisconception ? <ResultBlock tone="misconception">{result.possibleMisconception}</ResultBlock> : null}
-                      <ResultBlock tone="next">
-                        {result.feedback}
-                        <div className="mt-3 flex flex-wrap gap-2">
+                    <QuizVerdictPanel
+                      result={result}
+                      actions={
+                        <>
                           <button onClick={() => void start()} disabled={busy !== null} className="btn-lime !py-2 text-sm">
                             {busy === "start" ? "Preparing…" : "Next question →"}
                           </button>
                           <button onClick={() => setResult(null)} className="btn-ghost !py-2 text-sm">
                             Answer this one again
                           </button>
-                        </div>
-                      </ResultBlock>
-                    </section>
+                        </>
+                      }
+                    />
                   ) : (
                     <>
                       <MicButton
@@ -378,7 +364,17 @@ export default function ExamPage() {
                   VIVA picks your weakest concept and listens while you teach it back.
                   Coverage is scored against your source, not against your wording.
                 </p>
-                <button onClick={startTeach} disabled={busy === "teach"} className="btn-lime mt-6">
+                <div className="mt-6">
+                  <MicButton
+                    subjectId={courseId ?? DEFAULT_COURSE_ID}
+                    onSubmit={() => void startTeach()}
+                    busy={busy === "teach"}
+                  />
+                </div>
+                <p className="mono mt-3 text-xs" style={{ color: "var(--color-ash)" }}>
+                  Say when you are ready and VIVA picks the concept it wants to hear about.
+                </p>
+                <button onClick={startTeach} disabled={busy === "teach"} className="btn-ghost mt-3 !py-2 text-sm">
                   {busy === "teach" ? "Preparing prompt…" : "Teach VIVA"}
                 </button>
                 {busy === "teach" ? <div className="mt-4"><LoadingBlock label="Choosing the concept you know least well…" lines={2} /></div> : null}
@@ -405,7 +401,7 @@ export default function ExamPage() {
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <h2 className="heading text-base">Coverage</h2>
                       <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-                        {typeof teachFb.delta === "number" ? `${teachFb.delta > 0 ? "+" : ""}${Math.round(teachFb.delta * 100)} pts · ` : ""}{teachFb.reason ?? ""}
+                        {teachFb.reason ?? ""}
                       </span>
                     </div>
                     <div className="mt-2 flex items-center gap-3">
@@ -451,7 +447,6 @@ export default function ExamPage() {
             </div>
           )}
         </div>
-      </main>
     </MotionConfig>
   );
 }

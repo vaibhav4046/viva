@@ -295,6 +295,9 @@ describe("an open question wins", () => {
 
   it("a declarative statement is checked, not answered with a shrug", async () => {
     setReasoningProvider(null);
+    // The previous case left a question open on purpose, and an open question
+    // now swallows every sentence until it is cleared. Close it first.
+    await studyTurn(post({ text: "Stop.", origin: "typed", subjectId: COURSE.id }));
     const res = await studyTurn(post({ text: "Self-attention is when every token compares itself to every other token.", origin: "typed", subjectId: COURSE.id }));
     const body = (await res.json()) as { turn: { intent: string; conceptIds: string[] } };
     expect(body.turn.intent).toBe("claim");

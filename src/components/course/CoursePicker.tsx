@@ -71,12 +71,15 @@ export function CoursePicker({
       <span className="mono text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }}>
         {label.toUpperCase()}
       </span>
+      {/* The chevron is ours, not the OS's: globals.css strips `appearance`
+          from every select and paints /ui/chevron-down.svg in its place, and
+          this control keeps the system's own 44 px floor. */}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Select course"
-        className="mono max-w-[15rem] rounded-lg border px-2 py-1.5 text-xs"
-        style={{ background: "var(--color-graphite)", borderColor: "var(--color-hairline)", color: "var(--color-paper)" }}
+        className="mono max-w-[15rem] min-w-0 rounded-lg border px-3 text-xs"
+        style={{ borderColor: "var(--color-hairline)" }}
       >
         {allOption ? <option value="">All courses</option> : null}
         {courses.map((c) => (

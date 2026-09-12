@@ -6,7 +6,9 @@
  * - "dictation": POST ASSEMBLYAI_DICTATION_URL. Contract probed live
  *                2026-09-12: multipart/form-data, `config` part
  *                (application/json) FIRST, then `audio` as raw 16 kHz mono
- *                S16LE PCM. Config keys are `sample_rate`, `channels`,
+ *                S16LE PCM (anything else is downmixed and resampled to that
+ *                before send — the declaration is read as truth upstream).
+ *                Config keys are `sample_rate`, `channels`,
  *                `language_codes`, `keyterms_prompt` (array), `stt_prompt`,
  *                `llm_instruction`. Response carries both `text` (verbatim)
  *                and `llm_response` (cleaned); `llm_error` is not a request
@@ -20,6 +22,8 @@
  * Error bodies from both live endpoints are {status, title, detail}.
  * Production NEVER selects fixture transcription (see resolve + test).
  */
+
+import { TARGET_RATE, toPcm16kMono } from "./audio/wav";
 
 export type TranscriptionMode = "sync" | "dictation" | "async";
 
@@ -196,19 +200,25 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     const url = process.env.ASSEMBLYAI_DICTATION_URL;
     if (!url) throw new TranscriptionError("NO_DICTATION_URL", "Dictation mode needs ASSEMBLYAI_DICTATION_URL.", 503, false);
 
-    // Dictation wants raw 16 kHz mono S16LE PCM: our pipeline hands us a
-    // data-prefixed WAV, so strip the 44-byte RIFF header (validated upstream).
-    const bytes = new Uint8Array(req.audio.buffer, req.audio.byteOffset, req.audio.byteLength);
-    const isRiff = bytes.length >= 44 &&
-      bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-      bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45;
-    const pcm = isRiff ? bytes.subarray(44) : bytes;
+    // Dictation reads the byte stream at the rate the config DECLARES, so the
+    // bytes have to actually be 16 kHz mono S16LE. Normalising here rather than
+    // asserting it is the whole fix for the mislabelling bug: the AudioWorklet
+    // path already produces 16 kHz mono, but every other entry point (a direct
+    // API caller, a browser with no worklet) hands us whatever the machine
+    // recorded, and a 9.5 s 48 kHz stereo clip posted as 16 kHz mono was
+    // consumed as 57 s of nothing — 200, empty transcript, six times the bill.
+    const norm = toPcm16kMono(req.audio, req.contentType);
+    if (!norm.ok) throw new TranscriptionError(norm.code, norm.message, 415, false);
+    const pcm = norm.pcm;
 
     // Verified contract: multipart `config` FIRST (application/json), then
-    // `audio` as raw PCM. Appending in this order is the wire contract, which
-    // is what lets the audio part stream while it is still being recorded.
+    // `audio` as raw PCM. Appending in this order is the wire contract the
+    // endpoint requires; the clip itself is buffered and posted whole on
+    // release, so nothing is streamed while recording (see the note on
+    // `transcribe` above).
     const config: Record<string, unknown> = {
-      sample_rate: 16000,
+      // Guaranteed by toPcm16kMono above, not assumed of the caller.
+      sample_rate: TARGET_RATE,
       channels: 1,
       language_codes: req.languageCodes?.length ? req.languageCodes : ["en"],
       keyterms_prompt: capKeyterms(req.keyterms),

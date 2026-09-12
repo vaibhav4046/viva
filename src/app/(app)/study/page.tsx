@@ -6,10 +6,10 @@ import { Note } from "@/components/Note";
 import { Graph } from "@/components/Graph";
 import { SourceReader } from "@/components/SourceReader";
 import { TutorPanel } from "@/components/TutorPanel";
+import { QuizQuestion, QuizVerdictPanel } from "@/components/QuizCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { ResultBlock } from "@/components/ui/ResultBlock";
 import { announceSaved } from "@/components/AppShell";
 import { BAND_COLOR, BAND_LABEL, BAND_ORDER, bandFor, type BandKey } from "@/components/bands";
 import {
@@ -72,6 +72,26 @@ type Boot = {
   concepts: ConceptLite[];
 };
 
+/**
+ * Where a session lives between reloads.
+ *
+ * A student said three things, pressed F5, and "Your notes" was empty again —
+ * the whole point of the product is that it remembers, and the first thing it
+ * did was forget. The server is the record; this is the copy that survives a
+ * reload whatever the backend is doing, and it is per subject because
+ * switching subjects switches conversations.
+ */
+function convoKey(subjectId: string): string {
+  return `viva.study.${subjectId}`;
+}
+
+type SavedConvo = {
+  notes: { event: LearningEvent; concept: string | null; band: BandKey | null }[];
+  tutor: { text: string; evidenceIds: string[]; strategy: string } | null;
+  quiz: { id: string; question: string } | null;
+  result: Assessment | null;
+};
+
 const TRY_SAYING = [
   "I don't understand why attention needs positional encoding.",
   "Explain it without jargon.",
@@ -91,7 +111,7 @@ export default function StudyPage() {
   const [boot, setBoot] = useState<Boot | null>(null);
   const [bootLoading, setBootLoading] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
-  const [notes, setNotes] = useState<{ event: LearningEvent; concept: string | null; delta: number | null }[]>([]);
+  const [notes, setNotes] = useState<{ event: LearningEvent; concept: string | null; band: BandKey | null }[]>([]);
   const [tutor, setTutor] = useState<{ text: string; evidenceIds: string[]; strategy: string } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -100,8 +120,59 @@ export default function StudyPage() {
   const [result, setResult] = useState<Assessment | null>(null);
   const [courses, setCourses] = useState<CourseMeta[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
+  /** Passage ids in the order the source rail lists them (S-1-10). */
+  const [passageIds, setPassageIds] = useState<string[]>([]);
+  /** null until /api/health/ready answers; false means this device only. */
+  const [durable, setDurable] = useState<boolean | null>(null);
+  /** The subject whose saved conversation is currently in state. */
+  const [convoFor, setConvoFor] = useState<string | null>(null);
   const conceptsRef = useRef<ConceptLite[]>([]);
   const typedRef = useRef<TypedHandle>(null);
+
+  // Does a note written tonight survive the night? The student is told once,
+  // in their own words, and only when the answer is no.
+  useEffect(() => {
+    let alive = true;
+    void fetch("/api/health/ready")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d && typeof d.durable === "boolean") setDurable(d.durable);
+      })
+      .catch(() => {
+        /* Not knowing is not a reason to warn anyone. */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Restore this subject's conversation, then keep it written down. The two
+  // effects are ordered: the restore batches its setStates into one commit, so
+  // by the time the writer sees convoFor === courseId the restored notes are
+  // already the current ones and it cannot overwrite them with the old.
+  useEffect(() => {
+    if (!courseId) return;
+    let saved: SavedConvo | null = null;
+    try {
+      saved = JSON.parse(window.localStorage.getItem(convoKey(courseId)) || "null") as SavedConvo | null;
+    } catch {
+      /* private mode, or something else wrote nonsense there */
+    }
+    setNotes(Array.isArray(saved?.notes) ? saved.notes : []);
+    setTutor(saved?.tutor ?? null);
+    setQuiz(saved?.quiz ?? null);
+    setResult(saved?.result ?? null);
+    setConvoFor(courseId);
+  }, [courseId]);
+
+  useEffect(() => {
+    if (!courseId || convoFor !== courseId) return;
+    try {
+      window.localStorage.setItem(convoKey(courseId), JSON.stringify({ notes, tutor, quiz, result }));
+    } catch {
+      /* storage full or blocked — the server still has the record */
+    }
+  }, [courseId, convoFor, notes, tutor, quiz, result]);
 
   // Resolve the subject once on the client (?subject → ?course → stored → default).
   useEffect(() => {
@@ -158,10 +229,6 @@ export default function StudyPage() {
     } catch {
       /* no window (prerender) */
     }
-    setNotes([]);
-    setTutor(null);
-    setQuiz(null);
-    setResult(null);
     setTurnError(null);
     setSelected(null);
   }
@@ -209,7 +276,10 @@ export default function StudyPage() {
         if (!res.ok) throw new Error("turn failed");
         const out = (await res.json()) as TurnOut;
         const cname = conceptsRef.current.find((c) => c.id === out.event.primaryConceptId)?.name ?? null;
-        setNotes((m) => [{ event: out.event, concept: cname, delta: out.delta }, ...m].slice(0, 8));
+        const cid = out.event.primaryConceptId;
+        const moved = cid ? out.mastery[cid] : undefined;
+        const nowBand = moved ? bandFor(moved.mastery, moved.exposureCount > 0) : null;
+        setNotes((m) => [{ event: out.event, concept: cname, band: nowBand }, ...m].slice(0, 8));
         setTutor({ ...out.tutor, strategy: out.assessment?.verdict ?? out.tutor.strategy });
         setBoot((b) => (b ? { ...b, mastery: out.mastery, events: [...b.events, out.event] } : b));
         if (out.event.primaryConceptId) setSelected(out.event.primaryConceptId);
@@ -241,6 +311,24 @@ export default function StudyPage() {
     [courseId]
   );
 
+  /** "Next question" goes down the same road as typing it, because it is the
+   *  same road: one turn endpoint, one state machine. */
+  const askForAnother = useCallback(async () => {
+    setResult(null);
+    await takeTurn({
+      text: "Quiz me on something else.",
+      verbatim: "Quiz me on something else.",
+      clean: "Quiz me on something else.",
+      origin: "typed",
+      confidence: null,
+      requestTimeMs: null,
+      audioMs: null,
+      sessionId: null,
+      asrMode: null,
+      edited: false,
+    });
+  }, [takeTurn]);
+
   /** Recent turns, oldest first — recognition context for the next clip. */
   const spokenContext = useMemo(
     () => [...notes].reverse().map((n) => n.event.cleanedTranscript),
@@ -259,26 +347,34 @@ export default function StudyPage() {
   const selMastery = selected && boot ? boot.mastery[selected] : null;
 
   return (
-    <main id="main" className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
+    <>
       <PageHeader
         title={subject ? subject.title : "Study"}
         description="Say what you think. VIVA answers from your source and asks the one question that moves you."
         actions={
-          courses.length > 0 ? (
-            <CoursePicker courses={courses} value={courseId ?? DEFAULT_COURSE_ID} onChange={changeSubject} label="Subject" />
-          ) : undefined
+          <div className="flex min-h-11 min-w-0 items-center">
+            {courses.length > 0 ? (
+              <CoursePicker courses={courses} value={courseId ?? DEFAULT_COURSE_ID} onChange={changeSubject} label="Subject" />
+            ) : (
+              <span className="skeleton h-9 w-44" aria-hidden />
+            )}
+          </div>
         }
       />
 
-      {bandCounts.length > 0 ? (
-        <ul className="mt-3 flex flex-wrap items-center gap-2" aria-label="How this subject is going">
-          {bandCounts.map(({ key, count }) => (
-            <li key={key} className="chip" style={{ color: BAND_COLOR[key as BandKey] }}>
-              <span className="tnum">{count}</span> {BAND_LABEL[key as BandKey]}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <div className="mt-3 min-h-[28px]">
+        {bandCounts.length > 0 ? (
+          <ul className="flex flex-wrap items-center gap-2" aria-label="How this subject is going">
+            {bandCounts.map(({ key, count }) => (
+              <li key={key} className="chip" style={{ color: BAND_COLOR[key as BandKey] }}>
+                <span className="tnum">{count}</span> {BAND_LABEL[key as BandKey]}
+              </li>
+            ))}
+          </ul>
+        ) : bootLoading ? (
+          <span className="skeleton block h-[26px] w-52" aria-hidden />
+        ) : null}
+      </div>
 
       {bootError ? (
         <div className="mt-4">
@@ -289,7 +385,7 @@ export default function StudyPage() {
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,34%)_minmax(0,1fr)_320px]">
         {/* Source: last on a phone, first on a wide screen. */}
         <div className="order-3 min-w-0 xl:order-1 xl:col-start-1 xl:row-start-1">
-          <SourceReader highlightIds={tutor?.evidenceIds ?? []} courseId={courseId ?? undefined} />
+          <SourceReader highlightIds={tutor?.evidenceIds ?? []} courseId={courseId ?? undefined} onChunks={setPassageIds} />
         </div>
 
         {/* The conversation. First thing on every screen size. */}
@@ -321,32 +417,63 @@ export default function StudyPage() {
             typedHandleRef={typedRef}
           />
 
+          {durable === false ? (
+            <p className="mono text-xs" style={{ color: "var(--color-ash)" }}>
+              Heads up — tonight&apos;s notes stay on this device only.
+            </p>
+          ) : null}
+
           {turnError ? <ErrorBanner message={turnError.message} onRetry={turnError.retry} retryLabel="Try again" /> : null}
           {busy ? <LoadingBlock label="Thinking…" lines={2} /> : null}
 
-          <TutorPanel text={tutor?.text ?? null} evidenceIds={tutor?.evidenceIds ?? []} strategy={tutor?.strategy} />
+          <TutorPanel
+            text={tutor?.text ?? null}
+            evidenceIds={tutor?.evidenceIds ?? []}
+            passageIds={passageIds}
+            strategy={tutor?.strategy}
+          />
 
           <AnimatePresence initial={false}>
             {quiz ? (
-              <m.section key={quiz.id} aria-label="Quiz question" className="surface-card p-5" {...rise(reduced)}>
-                <p className="eyebrow">Quiz</p>
-                <p className="heading mt-1 text-lg">{quiz.question}</p>
-                <p className="mt-2 text-sm" style={{ color: "var(--color-ash)" }}>
-                  Answer out loud with the mic above, or type it.
-                </p>
+              <m.div key={quiz.id} className="space-y-4" {...rise(reduced)}>
+                <QuizQuestion
+                  eyebrow="Quiz"
+                  question={quiz.question}
+                  status={result ? <span className="chip">Marked</span> : undefined}
+                >
+                  {!result ? (
+                    <p className="mt-2 text-sm" style={{ color: "var(--color-ash)" }}>
+                      Answer out loud with the mic above, or type it.
+                    </p>
+                  ) : null}
+                </QuizQuestion>
+
                 {result ? (
-                  <div className="mt-4 space-y-3">
-                    {result.correctPoints.length > 0 ? <ResultBlock tone="correct">{result.correctPoints.join(" ")}</ResultBlock> : null}
-                    {result.missingPoints.length > 0 ? <ResultBlock tone="missing">{result.missingPoints.join(" ")}</ResultBlock> : null}
-                    {result.possibleMisconception ? <ResultBlock tone="misconception">{result.possibleMisconception}</ResultBlock> : null}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button type="button" className="btn-ghost !py-2 text-sm" onClick={() => { setQuiz(null); setResult(null); }}>
-                        Back to talking
-                      </button>
-                    </div>
-                  </div>
+                  <QuizVerdictPanel
+                    result={result}
+                    actions={
+                      <>
+                        <button type="button" className="btn-lime !py-2 text-sm" disabled={busy} onClick={() => void askForAnother()}>
+                          Next question →
+                        </button>
+                        <button type="button" className="btn-ghost !py-2 text-sm" onClick={() => setResult(null)}>
+                          Answer this one again
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost !py-2 text-sm"
+                          onClick={() => {
+                            setQuiz(null);
+                            setResult(null);
+                          }}
+                        >
+                          Back to talking
+                        </button>
+                      </>
+                    }
+                  />
                 ) : null}
-              </m.section>
+              </m.div>
             ) : null}
           </AnimatePresence>
 
@@ -365,7 +492,7 @@ export default function StudyPage() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1" role="log" aria-live="polite">
                 {notes.map((n) => (
-                  <Note key={n.event.id} event={n.event} conceptName={n.concept} delta={n.delta} />
+                  <Note key={n.event.id} event={n.event} conceptName={n.concept} band={n.band} />
                 ))}
               </div>
             )}
@@ -393,11 +520,11 @@ export default function StudyPage() {
               </p>
               <dl className="mono mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs" style={{ color: "var(--color-ash)" }}>
                 <div>
-                  <dt className="text-[11px] tracking-widest">TIMES YOU GOT IT</dt>
+                  <dt className="text-[11px] tracking-widest">GOT IT</dt>
                   <dd className="tnum" style={{ color: "var(--color-paper)" }}>{selMastery.successfulRecallCount}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] tracking-widest">TIMES YOU MISSED IT</dt>
+                  <dt className="text-[11px] tracking-widest">MISSED</dt>
                   <dd className="tnum">{selMastery.failedRecallCount}</dd>
                 </div>
               </dl>
@@ -405,6 +532,6 @@ export default function StudyPage() {
           ) : null}
         </div>
       </div>
-    </main>
+    </>
   );
 }

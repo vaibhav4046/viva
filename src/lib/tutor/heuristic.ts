@@ -10,6 +10,13 @@ export type Assessment = {
   possibleMisconception: string | null;
   feedback: string;
   evidenceIds: string[];
+  /**
+   * What a full answer covers. Held back while the question is still open —
+   * printing the marking key above a live retry box turns the retry into
+   * theatre: the learner types back the three words they were just shown and
+   * clears a question they cannot answer.
+   */
+  fullAnswerCovers: string[];
 };
 
 const NEG_WORDS = new Set(["not", "no", "never", "cannot", "without", "lacks", "lack", "missing", "fails", "fail", "neither", "nor"]);
@@ -100,6 +107,7 @@ export function assessAnswer(
       feedback:
         "Good instinct — attention does compare tokens. But the missing piece is sequence order: without positional information the model cannot tell first from last. Try that distinction again.",
       evidenceIds: chunks.map((c) => c.id),
+      fullAnswerCovers: q.requiredKeywords,
     };
   }
 
@@ -112,27 +120,58 @@ export function assessAnswer(
       correctPoints: [`Mentioned: ${hits.join(", ")}.`],
       missingPoints: [],
       possibleMisconception: null,
-      feedback: "Correct — that covers the required distinction. Your mastery estimate moves up.",
+      feedback: "Correct — that covers the distinction the source draws.",
       evidenceIds: verdict.support.length > 0 ? verdict.support : chunks.map((c) => c.id),
+      fullAnswerCovers: q.requiredKeywords,
     };
   }
   if (ratio > 0) {
     return {
       verdict: "partial",
       correctPoints: [`You have part of it: ${hits.join(", ")}.`],
-      missingPoints: [`Still missing: ${misses.join(", ")}.`],
+      // The remaining points are the marking key. They are named only once the
+      // question is closed — see `fullAnswerCovers` and `sealAnswerKey`.
+      missingPoints: [`There is ${misses.length === 1 ? "one piece" : `${misses.length} pieces`} still missing.`],
       possibleMisconception: null,
       feedback: `Partly there. ${q.hint}`,
       evidenceIds: chunks.map((c) => c.id),
+      fullAnswerCovers: q.requiredKeywords,
     };
   }
   return {
     verdict: "incorrect",
     correctPoints: [],
-    missingPoints: [`Expected: ${q.requiredKeywords.join(", ")}.`],
-    possibleMisconception: "Answer does not yet match the source evidence.",
-    feedback: `Not quite — and that is useful signal. ${q.hint}`,
+    missingPoints: [],
+    possibleMisconception: sourceDisagrees(chunks),
+    feedback: `Not quite — and that is worth knowing now rather than on Friday. ${q.hint}`,
     evidenceIds: chunks.map((c) => c.id),
+    fullAnswerCovers: q.requiredKeywords,
+  };
+}
+
+/** Where the source disagrees, named by page rather than by category. */
+function sourceDisagrees(chunks: SourceChunk[]): string {
+  const c = chunks[0];
+  if (!c) return "That is not what your source says.";
+  const at = c.locator.page ? `p.${c.locator.page}` : c.locator.section ?? "your source";
+  return `That is not what ${at} says.`;
+}
+
+/**
+ * Response-safe view of a graded answer.
+ *
+ * `closed` means the question is finished — cleared, skipped, or out of
+ * attempts. Only then does the learner see what a full answer covers; while it
+ * is live they get the nudge and nothing else.
+ */
+export function sealAnswerKey<T extends { verdict: string; missingPoints: string[]; fullAnswerCovers?: string[] }>(
+  graded: T,
+  closed: boolean
+): Omit<T, "fullAnswerCovers"> & { missingPoints: string[]; fullAnswerCovers: string[] } {
+  return {
+    ...graded,
+    missingPoints: closed ? graded.missingPoints : [],
+    fullAnswerCovers: closed ? graded.fullAnswerCovers ?? [] : [],
   };
 }
 
@@ -170,8 +209,8 @@ export function tutorRespond(opts: {
     const q = course.examQuestions.find((x) => x.conceptId === opts.conceptId) ?? course.examQuestions[0];
     return {
       text: q
-        ? `${q.question} Answer aloud — can you say it in one or two sentences? I will check it against the source evidence.`
-        : "Say everything you remember in one minute — I will check it against the source evidence.",
+        ? `${q.question} Answer aloud — can you say it in one or two sentences? I will check it against the passage.`
+        : "Say everything you remember in one minute — I will check it against the passage.",
       evidenceIds,
       strategy: "socratic",
       missingConcepts: [],
@@ -198,15 +237,24 @@ export function tutorRespond(opts: {
     };
   }
   if (intent === "claim") {
+    // A checked claim never reaches here — `checkClaim` in ./claim.ts has
+    // already led with the contradiction and the line that shows it. This is
+    // the "nothing caught" case, and it still asks rather than files.
+    const q = course.examQuestions.find((x) => x.conceptId === opts.conceptId);
     return {
-      text: `Stored as your current belief about ${label}. I will check it against the source evidence and tell you what holds and what is missing — say "quiz me" when ready.`,
+      text: q
+        ? `That is your position on ${label}. Nothing in the passage contradicts it, so let's test whether it holds: ${q.question}`
+        : `That is your position on ${label}. Say it once more with the reason attached and I will check it line by line.`,
       evidenceIds,
-      strategy: "hint",
+      strategy: "socratic",
       missingConcepts: [],
     };
   }
   return {
-    text: `Noted. ${evidenceIds.length > 0 ? "Linked to the source below." : ""}`,
+    text:
+      evidenceIds.length > 0
+        ? `Kept, next to the passage it belongs with. Say "quiz me" when you want it tested.`
+        : `Kept. Say "quiz me" when you want it tested.`,
     evidenceIds,
     strategy: "direct",
     missingConcepts: [],

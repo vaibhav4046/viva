@@ -14,8 +14,9 @@ import type { NextRequest } from "next/server";
  *   prop writes inline styles and there is no nonce path for them. (This
  *   note used to blame GSAP and Framer Motion; both were removed and the
  *   justification for a loosened directive should never outlive its cause.)
- * - `connect-src` allowlists the product's real egress: AssemblyAI
- *   Sync/event APIs, Vercel insights iframes/beacons.
+ * - `connect-src` is 'self' plus Vercel insights, and nothing else: the
+ *   browser's only egress is this origin, because every provider call is made
+ *   server-side.
  * - `frame-ancestors 'none'` + `object-src 'none'` + `base-uri 'self'` close
  *   clickjacking, plugin and base-tag injection in one header.
  *
@@ -52,7 +53,12 @@ export function proxy(request: NextRequest) {
     // Privy and walletconnect are gone with the auth removal. Dictation is
     // called server-side, so the browser never talks to AssemblyAI directly —
     // these hosts stay only for the sync fallback probe.
-    "connect-src 'self' https://api.assemblyai.com https://sync.assemblyai.com https://dictation.assemblyai.com https://*.vercel-insights.com",
+    // No provider origins here on purpose. Every AssemblyAI call is
+    // server-side — /api/voice/warm exists precisely so the browser never
+    // needs to reach them — so listing them only widened what an injected
+    // script could talk to. The previous comment said the browser never talks
+    // to AssemblyAI directly and then allowlisted three of its hosts anyway.
+    "connect-src 'self' https://*.vercel-insights.com",
     "frame-src 'none'",
     // The mic capture path loads an AudioWorklet module from a blob: URL.
     "worker-src 'self' blob:",
@@ -78,11 +84,10 @@ export const config = {
      * Everything except:
      * - _next/static, _next/image (build assets — no CSP needed, avoids 431s)
      * - favicon.ico, brand/ (static public assets)
-     * - api/dictation (kept simple for the upload/transcribe boundary)
      * and except prefetch requests (they never render a document).
      */
     {
-      source: "/((?!_next/static|_next/image|favicon.ico|brand/|api/dictation).*)",
+      source: "/((?!_next/static|_next/image|favicon.ico|brand/).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

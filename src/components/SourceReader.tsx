@@ -16,12 +16,32 @@ const STATIC_META: SourceMeta = {
  * (identical to GET /api/sources); every other lab is fetched from
  * /api/sources?courseId=… so the pane always shows the selected course.
  */
-export function SourceReader({ highlightIds = [], courseId }: { highlightIds?: string[]; courseId?: string }) {
+export function SourceReader({
+  highlightIds = [],
+  courseId,
+  onChunks,
+}: {
+  highlightIds?: string[];
+  courseId?: string;
+  /** Passage ids in rail order, so a citation chip can carry the rail's number. */
+  onChunks?: (ids: string[]) => void;
+}) {
   const isDefault = !courseId || courseId === DEMO_SOURCE.courseId;
-  const [chunks, setChunks] = useState<SourceChunk[]>(SOURCE_CHUNKS);
-  const [meta, setMeta] = useState<SourceMeta>(STATIC_META);
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  /*
+   * Seeded with the Transformers passages only when Transformers is what is
+   * being read. It used to seed them unconditionally and correct itself in an
+   * effect, so opening any other subject flashed a screenful of the wrong
+   * source first.
+   */
+  const [chunks, setChunks] = useState<SourceChunk[]>(isDefault ? SOURCE_CHUNKS : []);
+  const [meta, setMeta] = useState<SourceMeta>(isDefault ? STATIC_META : { title: "Your source", line: "Loading…" });
+  const [state, setState] = useState<"idle" | "loading" | "error">(isDefault ? "idle" : "loading");
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    onChunks?.(chunks.map((c) => c.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chunks]);
 
   useEffect(() => {
     if (isDefault) {

@@ -48,7 +48,7 @@ describe("cross-user isolation (IDOR)", () => {
         chunks: [{ text: `A private uploaded chunk ${marker} about positional order.`, section: "private" }],
       });
 
-      // B's event list shows none of A's data (B holds only its own seed).
+      // B's event list shows none of A's data (B has no history at all).
       const bEvents = await s.listEvents(b, 100);
       expect(bEvents.find((e) => e.userId === a)).toBeUndefined();
       expect(bEvents.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(marker))).toBe(false);
@@ -60,13 +60,13 @@ describe("cross-user isolation (IDOR)", () => {
       const aChunks = await s.getCourseChunks(a);
       expect(aChunks.some((c) => c.sourceId === added.sourceId)).toBe(true);
 
-      // deleteUserData isolation: wiping A leaves B untouched, A reseeds clean.
+      // deleteUserData isolation: wiping A leaves B untouched, A comes back empty.
       await s.deleteUserData(a);
       const aAfter = await s.listEvents(a);
-      expect(aAfter.length).toBe(1);
+      expect(aAfter.length).toBe(0);
       expect(aAfter.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(marker))).toBe(false);
       const bAfter = await s.listEvents(b, 100);
-      expect(bAfter.length).toBe(1);
+      expect(bAfter.length).toBe(0);
       const bChunksAfter = await s.getCourseChunks(b);
       expect(bChunksAfter.some((c) => c.text.includes(marker))).toBe(false);
     } finally {

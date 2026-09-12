@@ -1,6 +1,7 @@
 "use client";
-import { useId, useState } from "react";
+import { useId } from "react";
 import Link from "next/link";
+import { Mic } from "lucide-react";
 import { InlineRecall } from "./InlineRecall";
 import type { PathSegment } from "./types";
 
@@ -14,30 +15,36 @@ const KIND: Record<PathSegment["kind"], { label: string; color: string }> = {
 
 /**
  * One Daily Path segment: minutes chip, kind label, concept, why line, action.
- * recall/misconception open an inline mini recall card on this page; the other
- * kinds hand off to /demo (study), /exam (teachback) or /demo (capture) with
- * the selected course threaded through so the right lab opens.
+ * recall/misconception open an inline recall on this page — mic first, typed
+ * underneath — and the other kinds hand off to /study or /exam with the
+ * selected course threaded through so the right subject opens.
+ *
+ * `open` is owned by the page rather than by the card: only one recall may be
+ * open at a time, because each one mounts a mic and a mic owns the Space key.
  */
 export function SegmentCard({
   index,
   segment,
   courseId,
+  open,
+  onToggle,
   onStart,
   onAnswered,
 }: {
   index: number;
   segment: PathSegment;
   courseId?: string;
+  open: boolean;
+  onToggle: () => void;
   onStart?: (minutes: number) => void;
   onAnswered?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const panelId = useId();
   const kind = KIND[segment.kind];
   const inline = segment.kind === "misconception" || segment.kind === "recall";
   const courseParam = courseId ? `?course=${encodeURIComponent(courseId)}` : "";
   const teachHref = `/exam?mode=teach${courseId ? `&course=${encodeURIComponent(courseId)}` : ""}`;
-  const studyHref = `/demo${courseParam}`;
+  const studyHref = `/study${courseParam}`;
 
   return (
     <article className="surface-card p-4 sm:p-5">
@@ -77,10 +84,11 @@ export function SegmentCard({
             aria-controls={open ? panelId : undefined}
             onClick={() => {
               onStart?.(segment.minutes);
-              setOpen((v) => !v);
+              onToggle();
             }}
           >
-            {open ? "Hide recall" : `Start ${segment.minutes}-min recall`}
+            <Mic size={15} aria-hidden />
+            {open ? "Hide" : "Say what you remember"}
           </button>
         ) : segment.kind === "teachback" ? (
           <Link

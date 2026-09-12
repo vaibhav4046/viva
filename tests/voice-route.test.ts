@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { POST, condenseContext, subjectKeyterms } from "@/app/api/voice/transcribe/route";
+import { POST, condenseContext, subjectVoiceConfig } from "@/app/api/voice/transcribe/route";
 import { GET as WARM } from "@/app/api/voice/warm/route";
 import { assemblyAIBreaker } from "@/lib/circuit";
 import { VOICE_MESSAGES } from "@/lib/audio/messages";
@@ -102,8 +102,8 @@ describe("subject keyterms", () => {
   const U = "u_keyterms_probe";
 
   it("come from the subject, not a hardcoded Transformers list", async () => {
-    const transformers = (await subjectKeyterms(U, "course_transformers_w4")).map((t) => t.toLowerCase());
-    const probability = (await subjectKeyterms(U, "course_probability")).map((t) => t.toLowerCase());
+    const transformers = (await subjectVoiceConfig(U, "course_transformers_w4")).keyterms.map((t) => t.toLowerCase());
+    const probability = (await subjectVoiceConfig(U, "course_probability")).keyterms.map((t) => t.toLowerCase());
     expect(transformers).toContain("self-attention");
     expect(probability.some((t) => t.includes("bayes"))).toBe(true);
     // The old build biased every subject towards attention; this is the guard.
@@ -111,13 +111,13 @@ describe("subject keyterms", () => {
   });
 
   it("dedupes and never exceeds the 100-term ceiling", async () => {
-    const terms = await subjectKeyterms(U, "course_transformers_w4");
+    const terms = (await subjectVoiceConfig(U, "course_transformers_w4")).keyterms;
     expect(terms.length).toBeLessThanOrEqual(100);
     expect(new Set(terms.map((t) => t.toLowerCase())).size).toBe(terms.length);
   });
 
   it("an unknown subject falls back to the default rather than sending nothing", async () => {
-    expect((await subjectKeyterms(U, "course_does_not_exist")).length).toBeGreaterThan(0);
+    expect((await subjectVoiceConfig(U, "course_does_not_exist")).keyterms.length).toBeGreaterThan(0);
   });
 });
 

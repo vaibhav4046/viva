@@ -4,7 +4,6 @@ import { DEFAULT_COURSE_ID, getCourse } from "@/lib/courses";
 import type { Subject } from "@/lib/courses/types";
 import { blankMastery, reduceMastery } from "@/lib/mastery";
 import { scoreChunks } from "@/lib/retrieval";
-import { buildSeedDoc } from "./seed";
 import { uid, type ConceptMastery, type LearningEvent, type SourceChunk } from "@/lib/types";
 import type { ConceptDef, EventStore, RecordInput, RecordOutcome } from "./repo";
 
@@ -63,9 +62,43 @@ function userPath(userId: string): string {
   return path.join(dataDir(), `${safe}.json`);
 }
 
+/**
+ * The opening state of a brand-new browser: the starter's material is
+ * available, and the learner's own record is empty.
+ *
+ * It used to arrive pre-filled — four concepts at invented mastery levels and
+ * one utterance nobody had said — so a first-time visitor was told they had
+ * recalled something correctly twice. A product whose whole claim is that it
+ * remembers you cannot open by inventing a you. Subjects are seeded; people
+ * are not.
+ */
 function seedDoc(userId: string): UserDoc {
-  const seed = buildSeedDoc(userId);
-  return { ...seed, tutor: [], uploads: [], subjects: {}, seeds: { [DEFAULT_COURSE_ID]: true }, productEvents: [] };
+  return {
+    userId,
+    events: [],
+    mastery: {},
+    tutor: [],
+    uploads: [],
+    subjects: {},
+    seeds: { [DEFAULT_COURSE_ID]: true },
+    productEvents: [],
+    sessionId: `sess_${userId}`,
+  };
+}
+
+/**
+ * Why this concept is due, in the student's words. Counts are only mentioned
+ * when there is something to count, and they are pluralised — "1 confusions"
+ * on the first screen of the morning is not a rounding error, it is the app
+ * talking to itself out loud.
+ */
+function reviewReason(m: ConceptMastery): string {
+  const parts: string[] = [];
+  if (m.confusionCount > 0) parts.push(`${m.confusionCount} confusion${m.confusionCount === 1 ? "" : "s"}`);
+  if (m.misconceptionCount > 0) {
+    parts.push(m.misconceptionCount === 1 ? "1 time you got it mixed up" : `${m.misconceptionCount} times you got it mixed up`);
+  }
+  return parts.length > 0 ? parts.join(" and ") : "Due for review";
 }
 
 export class FileEventStore implements EventStore {
@@ -165,11 +198,8 @@ export class FileEventStore implements EventStore {
       const doc = await this.load(userId);
       doc.subjects[subject.id] = subject;
       doc.seeds[subject.id] = true;
-      // Every concept starts at 0.5 and unseen, which the map reads as "Not yet".
-      const now = new Date().toISOString();
-      for (const c of subject.concepts) {
-        if (!doc.mastery[c.id]) doc.mastery[c.id] = blankMastery(c.id, now);
-      }
+      // No mastery rows: a concept the learner has not touched is "Not yet",
+      // and writing a row at the default 0.5 makes the map claim otherwise.
       await this.save(doc);
     });
   }
@@ -229,7 +259,7 @@ export class FileEventStore implements EventStore {
         conceptId: m.conceptId,
         dueAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
         priority: m.reviewPriority,
-        reason: `${m.confusionCount} confusions, ${m.misconceptionCount} misconceptions`,
+        reason: reviewReason(m),
       }));
   }
 

@@ -42,12 +42,12 @@ function evt(over: Partial<LearningEvent> & Extra = {}): LearningEvent {
 }
 
 describe("compoundMemory", () => {
-  it("seed-only history → []", async () => {
+  it("a learner with no history → []", async () => {
     const s = new FileEventStore();
     const u = `u_mem_seed_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
     try {
-      const events = await s.listEvents(u); // auto-seeds exactly one seed event
-      expect(events.length).toBe(1);
+      const events = await s.listEvents(u); // a brand-new browser has said nothing
+      expect(events.length).toBe(0);
       expect(await compoundMemory(events)).toEqual([]);
     } finally {
       await s.deleteUserData(u);

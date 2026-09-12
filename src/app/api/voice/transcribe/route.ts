@@ -56,22 +56,28 @@ function fail(code: string, status: number, retryable: boolean, retryAfterSec?: 
 }
 
 /**
- * Recognition bias from the subject itself. The old build shipped a hardcoded
- * Transformers word list, which quietly biased every other subject towards
- * attention and gradients; these come from the subject the learner is in.
+ * Recognition bias and language default, both read from the subject the learner
+ * is actually in. The old build shipped a hardcoded Transformers word list,
+ * which quietly biased every other subject towards attention and gradients;
+ * `resolveSubject` also reaches the learner's own subjects, so a subject built
+ * from their notes biases recognition towards their own vocabulary rather than
+ * the starter lab's.
  */
-export async function subjectKeyterms(userId: string, subjectId: string | null): Promise<string[]> {
+export async function subjectVoiceConfig(
+  userId: string,
+  subjectId: string | null
+): Promise<{ keyterms: string[]; languageCodes: string[] }> {
   const subject = await resolveSubject(getStore(), userId, subjectId);
   const seen = new Set<string>();
-  const out: string[] = [];
+  const keyterms: string[] = [];
   for (const term of subject.keyterms) {
     const key = term.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(term);
-    if (out.length === MAX_KEYTERMS) return out;
+    keyterms.push(term);
+    if (keyterms.length === MAX_KEYTERMS) break;
   }
-  return out;
+  return { keyterms, languageCodes: subject.languageCodes?.length ? subject.languageCodes : ["en"] };
 }
 
 /**
@@ -98,8 +104,8 @@ export function condenseContext(turns: string[], limit = MAX_STT_PROMPT): string
   return kept.join(" ");
 }
 
-function parseLanguageCodes(raw: string | null): string[] {
-  if (!raw) return ["en"];
+function parseLanguageCodes(raw: string | null, fallback: string[]): string[] {
+  if (!raw) return fallback;
   const parsed = raw.trim().startsWith("[")
     ? ((): unknown => { try { return JSON.parse(raw); } catch { return null; } })()
     : raw.split(",");
@@ -109,7 +115,7 @@ function parseLanguageCodes(raw: string | null): string[] {
     .map((c) => c.trim().toLowerCase())
     .filter((c) => /^[a-z]{2}$/.test(c))
     .slice(0, 4);
-  return codes.length ? codes : ["en"];
+  return codes.length ? codes : fallback;
 }
 
 function field(form: FormData, name: string): string | null {
@@ -154,12 +160,15 @@ export async function POST(req: Request): Promise<Response> {
     const subjectId = field(form, "subjectId");
     const { identity } = await resolveIdentity(req);
     const wantsClean = (field(form, "mode") ?? "study") !== "verbatim";
-    const languageCodes = parseLanguageCodes(field(form, "languageCodes"));
+    const voice = await subjectVoiceConfig(identity.userId, subjectId);
+    // The form wins, the subject is the default: a Hindi-English subject keeps
+    // code-switching recognition without the picker having to be touched.
+    const languageCodes = parseLanguageCodes(field(form, "languageCodes"), voice.languageCodes);
     const contextRaw = field(form, "context");
     const request = {
       audio: buf,
       contentType,
-      keyterms: await subjectKeyterms(identity.userId, subjectId),
+      keyterms: voice.keyterms,
       sttPrompt: condenseContext(contextRaw ? contextRaw.split("\n") : []),
       languageCodes,
       ...(wantsClean ? { llmInstruction: STUDY_INSTRUCTION } : {}),

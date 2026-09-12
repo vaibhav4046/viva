@@ -81,16 +81,55 @@ export function VoiceOrbMount({ level = 0, className = "" }: { level?: number; c
       {show ? (
         <VoiceOrb level={level} detail={detail} />
       ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle at 50% 42%, rgb(184 255 90 / 0.28) 0%, rgb(184 255 90 / 0.07) 34%, rgb(14 16 19 / 0.9) 62%, transparent 72%)",
-          }}
-        />
+        <OrbSilhouette />
       )}
     </div>
+  );
+}
+
+/**
+ * The phone's orb.
+ *
+ * three.js never loads below 768 px, and what stood in for it was a CSS
+ * radial gradient — a 177 px soft green cloud with a visible dark ring where
+ * one colour stop met the next. It was the only unfocused object on a page of
+ * razor-sharp type, so it read as a broken asset rather than as a deliberate
+ * trade.
+ *
+ * This is the same icosahedron, drawn instead of blurred: all 30 edges of a
+ * real icosahedron, orthographically projected and tilted 18° / 12° so it
+ * reads as a solid, stroked in cognition lime with a drop-shadow behind it.
+ * The old gradient survives as the inner core at 40 % of the radius, which is
+ * the part of it that was doing any work. Vector, so it is crisp at 3× DPR,
+ * and about 700 bytes of markup instead of a 239 KB chunk.
+ */
+function OrbSilhouette() {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      width="100%"
+      height="100%"
+      aria-hidden
+      focusable="false"
+      style={{ display: "block", filter: "drop-shadow(0 0 18px rgb(184 255 90 / 0.35))" }}
+    >
+      <defs>
+        <radialGradient id="viva-orb-core" cx="50%" cy="42%" r="50%">
+          <stop offset="0%" stopColor="rgb(184 255 90 / 0.30)" />
+          <stop offset="55%" stopColor="rgb(184 255 90 / 0.08)" />
+          <stop offset="100%" stopColor="rgb(184 255 90 / 0)" />
+        </radialGradient>
+      </defs>
+      <circle cx="50" cy="50" r="20" fill="url(#viva-orb-core)" />
+      <path
+        d="M29.8 14.4L75 14.4M29.8 14.4L58.9 39.6M29.8 14.4L44.1 16.4M29.8 14.4L8.8 42.9M29.8 14.4L18 57.1M75 14.4L58.9 39.6M75 14.4L44.1 16.4M75 14.4L82 42.9M75 14.4L91.2 57.1M25 85.6L70.2 85.6M25 85.6L55.9 83.6M25 85.6L41.1 60.4M25 85.6L8.8 42.9M25 85.6L18 57.1M70.2 85.6L55.9 83.6M70.2 85.6L41.1 60.4M70.2 85.6L82 42.9M70.2 85.6L91.2 57.1M55.9 83.6L58.9 39.6M55.9 83.6L91.2 57.1M55.9 83.6L18 57.1M58.9 39.6L91.2 57.1M58.9 39.6L18 57.1M41.1 60.4L44.1 16.4M41.1 60.4L82 42.9M41.1 60.4L8.8 42.9M44.1 16.4L82 42.9M44.1 16.4L8.8 42.9M82 42.9L91.2 57.1M8.8 42.9L18 57.1"
+        fill="none"
+        stroke="var(--color-cognition)"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.8"
+      />
+    </svg>
   );
 }

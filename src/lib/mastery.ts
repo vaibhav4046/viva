@@ -117,3 +117,37 @@ export function masteryState(mastery: number): "strong" | "developing" | "uncert
   if (mastery >= 0.35) return "uncertain";
   return "misconception";
 }
+
+/** The five words a student ever sees for "how well do I know this". */
+export type BandKey = "solid" | "getting" | "shaky" | "mixed" | "notyet";
+
+export const BAND_LABEL: Record<BandKey, string> = {
+  solid: "Solid",
+  getting: "Getting there",
+  shaky: "Shaky",
+  mixed: "Mixed up",
+  notyet: "Not yet",
+};
+
+/**
+ * The band a concept sits in, from its stored record. A concept nobody has
+ * touched is "Not yet" whether or not a row exists for it — a row written at
+ * the default 0.5 is an absence of information, not a measurement of one.
+ *
+ * This is the unit the API returns. The signed point delta stays inside the
+ * reducer: numbers move the model, words move the student.
+ */
+export function bandKeyFor(state: { mastery: number; exposureCount?: number } | null | undefined): BandKey {
+  if (!state || (state.exposureCount ?? 1) === 0) return "notyet";
+  switch (masteryState(state.mastery)) {
+    case "strong": return "solid";
+    case "developing": return "getting";
+    case "uncertain": return "shaky";
+    case "misconception": return "mixed";
+    default: return "notyet";
+  }
+}
+
+export function bandLabelFor(state: { mastery: number; exposureCount?: number } | null | undefined): string {
+  return BAND_LABEL[bandKeyFor(state)];
+}

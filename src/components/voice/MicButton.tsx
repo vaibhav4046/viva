@@ -7,6 +7,7 @@ import { logEvent } from "@/lib/analytics";
 import { EXIT, GENTLE, SNAPPY, SPRING } from "@/lib/motion";
 import { MAX_CLIP_MS, startCapture, warmDictation, type CaptureHandle } from "@/lib/audio/worklet";
 import { voiceMessage } from "@/lib/audio/messages";
+import { ownsSpace } from "@/lib/audio/shortcut";
 import { emptyBurst, foldBurst, type BurstState, type TextOrigin } from "@/lib/audio/burst";
 
 /**
@@ -55,7 +56,11 @@ type TranscribeResponse = {
   requestTimeMs: number | null;
   audioMs: number | null;
   sessionId: string | null;
+  /** "dictation" or "sync" — which endpoint actually answered. */
   mode: string;
+  /** Set when Dictation failed and Sync answered instead, so a downgrade is
+   *  visible on screen rather than only in the JSON. */
+  fellBackFrom: string | null;
   llmError: string | null;
 };
 
@@ -193,11 +198,35 @@ export function MicButton({
       body.append("mode", "study");
       body.append("languageCodes", languages);
       if (context.length) body.append("context", context.slice(-6).join("\n"));
+      const startedAt = performance.now();
       try {
-        const res = await fetch("/api/voice/transcribe", { method: "POST", body });
-        const data = (await res.json()) as TranscribeResponse & { error?: { code?: string } };
-        if (!res.ok) throw new Error(voiceMessage(data?.error?.code));
-        logEvent("dictation_completed", { latencyMs: durationMs });
+        // Every step here can throw something that is NOT ours: fetch rejects
+        // with "Failed to fetch" offline, res.json() rejects with a SyntaxError
+        // on a platform gateway page or an empty body. The old code let those
+        // Error messages reach setError, which put a JavaScript parse error
+        // inside the learner's mic alert. Nothing leaves this function except a
+        // code, and voiceMessage owns every sentence on screen.
+        let res: Response;
+        try {
+          res = await fetch("/api/voice/transcribe", { method: "POST", body });
+        } catch {
+          throw { code: "NETWORK_DOWN" };
+        }
+        const data = (await res.json().catch(() => null)) as (TranscribeResponse & { error?: { code?: string } }) | null;
+        if (!res.ok) throw { code: data?.error?.code };
+        // A 200 whose body never parsed is a truncated response, not a result.
+        if (!data || typeof data.verbatim !== "string") throw { code: "BAD_RESPONSE" };
+        logEvent("dictation_completed", {
+          // The round trip, not the clip length. This event is what any latency
+          // claim is derived from, so it has to measure release-to-transcript;
+          // it used to log durationMs, which is the length of whatever the
+          // learner said — 5 to 30 seconds of pure error in every figure.
+          latencyMs: Math.round(performance.now() - startedAt),
+          audioMs: data.audioMs ?? durationMs,
+          requestTimeMs: data.requestTimeMs ?? 0,
+          mode: data.mode,
+          fellBackFrom: data.fellBackFrom ?? "",
+        });
         setResult(data);
         setDraft(data.clean || data.verbatim);
         setTab(data.clean && data.clean !== data.verbatim ? "clean" : "verbatim");
@@ -205,7 +234,7 @@ export function MicButton({
         setPhase("review");
       } catch (e) {
         logEvent("dictation_failed");
-        setError(e instanceof Error ? e.message : voiceMessage(undefined));
+        setError(voiceMessage((e as { code?: string })?.code));
         setPhase("idle");
       }
     },
@@ -256,20 +285,18 @@ export function MicButton({
     }
   }, [busy, onLevel, phase, stop]);
 
-  // Hold Space anywhere on the page, as long as focus is not in a text field.
+  // Hold Space anywhere on the page, as long as nothing focusable owns it.
   useEffect(() => {
-    const isTextField = (el: EventTarget | null) => {
-      const tag = (el as HTMLElement | null)?.tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement | null)?.isContentEditable === true;
-    };
+    // Hold-Space belongs to the page, not to whatever happens to be focused:
+    // see src/lib/audio/shortcut.ts for what this used to break.
     const down = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || e.repeat || isTextField(e.target)) return;
+      if (e.code !== "Space" || e.repeat || ownsSpace(e.target, document.body)) return;
       e.preventDefault();
       warmDictation();
       void start();
     };
     const up = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || isTextField(e.target)) return;
+      if (e.code !== "Space" || ownsSpace(e.target, document.body)) return;
       e.preventDefault();
       void stop();
     };
@@ -468,7 +495,7 @@ export function MicButton({
                 </div>
                 {result.requestTimeMs !== null && (
                   <span className="chip" title="Time AssemblyAI spent on this clip">
-                    AssemblyAI · {Math.round(result.requestTimeMs)} ms
+                    {result.fellBackFrom ? "AssemblyAI · backup path" : "AssemblyAI"} · {Math.round(result.requestTimeMs)} ms
                   </span>
                 )}
               </div>

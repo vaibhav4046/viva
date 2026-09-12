@@ -42,7 +42,7 @@ describe("file store (§23 idempotency, §68 concurrency, §15 isolation)", () =
     expect(r2.duplicate).toBe(true);
     expect(r2.event.id).toBe(r1.event.id);
     expect(r2.delta).toBeNull();
-    expect((await s.listEvents(u)).length).toBe(2); // seed + 1
+    expect((await s.listEvents(u)).length).toBe(1); // the one real event, nothing invented
     await s.deleteUserData(u);
   });
 
@@ -51,7 +51,7 @@ describe("file store (§23 idempotency, §68 concurrency, §15 isolation)", () =
     const a = `u_${Date.now()}_b1`;
     const b = `u_${Date.now()}_b2`;
     await s.recordLearning(a, input({}));
-    expect(await s.listEvents(b)).toHaveLength(1); // only b's own seed
+    expect(await s.listEvents(b)).toHaveLength(0); // b has said nothing, so b has no history
     expect((await s.listEvents(a)).length).toBeGreaterThan((await s.listEvents(b)).length);
     await s.deleteUserData(a);
     await s.deleteUserData(b);
@@ -62,7 +62,7 @@ describe("file store (§23 idempotency, §68 concurrency, §15 isolation)", () =
     const u = `u_${Date.now()}_c`;
     await Promise.all(Array.from({ length: 10 }, (_, i) => s.recordLearning(u, input({ idempotencyKey: `cc-${i}` }))));
     const events = await s.listEvents(u, 100);
-    expect(events.length).toBe(11); // seed + 10
+    expect(events.length).toBe(10);
     const m = (await s.getMastery(u))["c_position"];
     expect(m.mastery).toBeGreaterThanOrEqual(0);
     expect(m.mastery).toBeLessThanOrEqual(1);
@@ -75,8 +75,9 @@ describe("file store (§23 idempotency, §68 concurrency, §15 isolation)", () =
     const u = `u_${Date.now()}_d`;
     await s.recordLearning(u, input({}));
     await s.deleteUserData(u);
-    // Fresh load reseeds (new identity starts clean with demo course only)
-    expect((await s.listEvents(u)).length).toBe(1);
+    // A fresh load is a fresh learner: the subject is there, the history is not.
+    expect((await s.listEvents(u)).length).toBe(0);
+    expect(await s.getMastery(u)).toEqual({});
     await s.deleteUserData(u);
   });
 });

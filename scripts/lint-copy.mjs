@@ -22,6 +22,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { ACCOUNTING } from "./lint-copy-accounting.mjs";
 
 const ROOT = path.join(process.cwd(), "src");
 
@@ -48,6 +49,18 @@ const BANNED = [
   ["Storage is degraded", "internal state leaked to the UI"],
   ["This store has been suspended", "vendor error leaked to the UI"],
 ];
+
+/**
+ * Internal accounting readouts.
+ *
+ * These are patterns, not words, on purpose. A first pass banned the bare
+ * words "chunks" and "evidence" and immediately flagged seventeen places —
+ * including the Probability course's own prose ("given the evidence, how
+ * should I update") and identifiers like SOURCE_CHUNKS.length. A lint that
+ * cries wolf gets switched off, so each rule below matches the shape of the
+ * leak rather than a word that also appears in honest writing.
+ */
+// Regex rules live in their own module: see the note in that file.
 
 /** Chunk ids such as ch_pos_1 must never be rendered. */
 const NEWLINE = /\n/g;
@@ -119,6 +132,11 @@ function scan(src, rel) {
 
     if (!SQL_LIKE.test(inner)) {
       const lower = inner.toLowerCase();
+      for (const [re, why] of ACCOUNTING) {
+        const m = re.exec(inner);
+        if (!m) continue;
+        hits.push({ rel, line: lineOf(innerStart + m.index), phrase: m[0].trim(), why, text: inner.trim().slice(0, 100) });
+      }
       for (const [phrase, why] of BANNED) {
         const at = lower.indexOf(phrase.toLowerCase());
         if (at === -1) continue;
@@ -170,6 +188,12 @@ const SELF_TEST = [
   { src: '<span title="Deterministic review priority">x</span>', hits: 1, note: "JSX attribute string" },
   { src: 'return `Evidence: ch_rl_2, ch_bp_2; read it`;', hits: 1, note: "chunk id in a sentence" },
   { src: 'return `Evidence: src_mtyo8821_wkygtn_c9; read it`;', hits: 1, note: "subject-scoped passage id in a sentence" },
+  { src: 'const s = ` · evidence ${n} chunks`;', hits: 2, note: "the /exam accounting readout" },
+  { src: 'const s = `mastery -12 pts`;', hits: 2, note: "signed delta plus points" },
+  { src: 'const s = `Moved down -8`;', hits: 1, note: "signed delta in the note log" },
+  { src: '<div className="flex gap-2 pt-1" />', hits: 0, note: "tailwind spacing class is not points" },
+  { src: 'const s = `given the evidence, how should I update my belief?`;', hits: 0, note: "evidence as real study material" },
+  { src: 'const n = SOURCE_CHUNKS.length;', hits: 0, note: "identifier containing CHUNKS" },
   { src: '  evidenceIds: ["src_mtyo8821_wkygtn_c9"],', hits: 0, note: "subject-scoped id as a data key" },
   { src: "  interpretationConfidence: number;", hits: 0, note: "type field name" },
   { src: "  interpretation_confidence, evidence_ids, status)", hits: 0, note: "SQL column name" },

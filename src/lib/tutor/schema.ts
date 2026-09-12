@@ -1,7 +1,12 @@
 import { z } from "zod";
 
-/** The seven things a learner can be doing when they speak (Master prompt 5.1). */
-export const TurnIntentSchema = z.enum(["confused", "claim", "explain", "quiz", "teach", "answer", "note"]);
+/**
+ * What a learner can be doing when they speak (Master prompt 5.1), plus
+ * `hint` — asking for a nudge while a question is open. "I'm stuck" used to
+ * fall through to `note` and come back "Noted.", which is the most dismissive
+ * thing a tutor can say to a stuck student.
+ */
+export const TurnIntentSchema = z.enum(["confused", "claim", "explain", "quiz", "teach", "answer", "hint", "note"]);
 export type TurnIntent = z.infer<typeof TurnIntentSchema>;
 
 /** LLM confirmation of the first-pass reading. Falls back to the first pass. */

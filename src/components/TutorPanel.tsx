@@ -9,17 +9,25 @@ const VERDICT: Record<string, { color: string; label: string }> = {
 /**
  * What VIVA said back.
  *
- * Citations link to the passage they came from. They are numbered rather than
- * shown as stored ids: "ch_pos_1" tells a student nothing, and the number is
- * the only part they need to find the passage on the left.
+ * Citations link to the passage they came from, and they carry the number the
+ * source rail gives that passage — not a per-reply counter.
+ *
+ * The counter was the bug a student caught: every reply cited "Passage 1" and
+ * "Passage 2" while the rail called the same two paragraphs "Passage 5" and
+ * "Passage 6", so clicking Passage 1 landed on Passage 6 and the one genuinely
+ * trustworthy mechanism in the product looked hardcoded. `passageIds` is the
+ * rail's own order; the chip reads its index out of that.
  */
 export function TutorPanel({
   text,
   evidenceIds,
+  passageIds = [],
   strategy,
 }: {
   text: string | null;
   evidenceIds: string[];
+  /** Every passage id in the order the source rail lists them. */
+  passageIds?: string[];
   strategy?: string;
 }) {
   if (!text) {
@@ -55,11 +63,14 @@ export function TutorPanel({
           <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
             From your source
           </span>
-          {evidenceIds.map((id, i) => (
-            <a key={id} href={`#chunk-${id}`} className="chip chip-link min-h-11">
-              Passage {i + 1}
-            </a>
-          ))}
+          {evidenceIds.map((id, i) => {
+            const inRail = passageIds.indexOf(id);
+            return (
+              <a key={id} href={`#chunk-${id}`} className="chip chip-link min-h-11">
+                Passage {inRail >= 0 ? inRail + 1 : i + 1}
+              </a>
+            );
+          })}
         </div>
       ) : null}
     </section>

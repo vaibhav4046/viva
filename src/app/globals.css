@@ -154,6 +154,44 @@ body {
 .nav-link:hover { color: var(--color-paper); background: rgba(242, 240, 234, 0.06); }
 .nav-link[aria-current="page"] { color: var(--color-paper); font-weight: 600; background: rgba(242, 240, 234, 0.09); }
 
+/* ------------------------------ selects ------------------------------ */
+/*
+ * A <select> is the only control a browser paints for us, and both of VIVA's
+ * — the subject picker and the spoken-language picker — were shipping at 32
+ * and 33 px with the OS chevron and `cursor: default`, inside a product where
+ * every other control is a 44 px pill. The rule lives on the element itself so
+ * a third select cannot arrive with the same defaults.
+ *
+ * The two `!important`s are deliberate: the language picker sets `background`
+ * and `min-height` inline and lives in the voice layer, which this file may
+ * not edit. An author !important still beats a non-important inline style.
+ */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 34px;
+  min-height: 44px !important;
+  color: var(--color-paper);
+  background: var(--color-graphite) url("/ui/chevron-down.svg") no-repeat right 12px center / 16px 16px !important;
+}
+/* .chip wins on padding by specificity, so restate it for the round one. */
+select.chip { padding-right: 34px; padding-left: 12px; }
+select:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* --------------------------- cited passage --------------------------- */
+/*
+ * Clicking a citation chip jumps the source rail to the passage it quoted.
+ * The jump alone is invisible when the card is already on screen, so the card
+ * says so for a moment. :target rather than JS — the anchor already exists.
+ */
+[id^="chunk-"] { scroll-margin-top: 3rem; }
+@keyframes viva-jumped {
+  from { border-color: var(--color-cognition); background: rgb(184 255 90 / 0.16); }
+  to   { border-color: var(--color-hairline); background: transparent; }
+}
+[id^="chunk-"]:target { animation: viva-jumped 1600ms var(--ease-out-soft) 1; }
+
 /* ------------------------------- focus ------------------------------- */
 
 :focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 2px; border-radius: 4px; }

@@ -20,9 +20,11 @@ export type Graded = {
   evidenceIds: string[];
   nextQuestion: string | null;
   gradedBy: "model" | "keywords";
+  /** The marking key. Routes reveal it only once the question is closed. */
+  fullAnswerCovers: string[];
 };
 
-export type GradeBaseline = Omit<Graded, "nextQuestion" | "gradedBy">;
+export type GradeBaseline = Omit<Graded, "nextQuestion" | "gradedBy" | "fullAnswerCovers">;
 
 function passageBlock(chunks: SourceChunk[]): string {
   if (chunks.length === 0) return "(no passages retrieved)";
@@ -59,7 +61,7 @@ export async function gradeAnswer(input: {
     schema: AssessmentReplySchema,
     timeoutMs: REASON_TIMEOUT_MS.assessment,
   });
-  if (!result) return { ...input.baseline, nextQuestion: null, gradedBy: "keywords" };
+  if (!result) return { ...input.baseline, nextQuestion: null, gradedBy: "keywords", fullAnswerCovers: input.requiredKeywords };
 
   const r = result.value;
   const covered = input.requiredKeywords.length > 0 && scoreTeachback(input.answer, input.requiredKeywords).coverage === 1;
@@ -74,5 +76,6 @@ export async function gradeAnswer(input: {
     evidenceIds: input.baseline.evidenceIds,
     nextQuestion: r.nextQuestion,
     gradedBy: "model",
+    fullAnswerCovers: input.requiredKeywords,
   };
 }

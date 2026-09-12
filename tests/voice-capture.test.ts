@@ -3,6 +3,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { int16ToWav, validateWavInput } from "@/lib/audio/wav";
 import { BURST_CHARS, BURST_WINDOW_MS, emptyBurst, foldBurst } from "@/lib/audio/burst";
+import { ownsSpace } from "@/lib/audio/shortcut";
+import { MAX_MS } from "@/lib/audio/wav";
+import { MAX_CLIP_MS } from "@/lib/audio/worklet";
 
 /**
  * The two pure pieces of the capture path: the WAV the AudioWorklet frames get
@@ -126,5 +129,58 @@ describe("MicButton's typed box is hydration-safe", () => {
 
   it("reads the value off the DOM node when submitting", () => {
     expect(SRC).toMatch(/typedRef\.current[\s\S]{0,80}\.value/);
+  });
+});
+
+describe("Space belongs to the focused control, not the mic", () => {
+  /**
+   * Element stubs. `ownsSpace` calls `closest` with one fixed selector, so the
+   * stub only has to answer "is the thing the test set up in that selector".
+   */
+  type Stub = { tagName: string; isContentEditable: boolean; closest: (sel: string) => unknown };
+  type Opts = { inside?: string; role?: string; tabindex?: boolean; editable?: boolean };
+  const el = (tagName: string, opts: Opts = {}): Stub => ({
+    tagName,
+    isContentEditable: opts.editable === true,
+    closest: (sel: string) => {
+      // The real closest() matches the element itself before any ancestor.
+      const tags = sel.split(",").map((t) => t.trim().toUpperCase());
+      if (tags.includes(tagName.toUpperCase())) return {};
+      if (opts.role && sel.includes(`[role="${opts.role}"]`)) return {};
+      if (opts.tabindex && sel.includes("[tabindex]")) return {};
+      if (opts.inside && tags.includes(opts.inside)) return {};
+      return null;
+    },
+  });
+  const BODY = el("BODY");
+
+  it("the page body owns the shortcut", () => {
+    expect(ownsSpace(BODY, BODY)).toBe(false);
+    expect(ownsSpace(null, BODY)).toBe(false);
+    expect(ownsSpace(el("DIV"), BODY)).toBe(false);
+    expect(ownsSpace(el("MAIN"), BODY)).toBe(false);
+  });
+
+  it("every control the judge tabbed to keeps its own Space", () => {
+    // 11 of 11 focusable buttons and links started the mic instead of
+    // activating, "Skip to content" included.
+    for (const tag of ["BUTTON", "A", "SELECT", "INPUT", "TEXTAREA", "SUMMARY"]) {
+      expect(ownsSpace(el(tag), BODY), tag).toBe(true);
+    }
+    expect(ownsSpace(el("SPAN", { inside: "BUTTON" }), BODY)).toBe(true);
+    expect(ownsSpace(el("SVG", { inside: "A" }), BODY)).toBe(true);
+    expect(ownsSpace(el("DIV", { role: "button" }), BODY)).toBe(true);
+    expect(ownsSpace(el("DIV", { tabindex: true }), BODY)).toBe(true);
+    expect(ownsSpace(el("DIV", { editable: true }), BODY)).toBe(true);
+  });
+});
+
+describe("the recorder's own cap sits under the server's", () => {
+  it("stopping ourselves cannot produce a clip the server refuses", () => {
+    // These were equal, so a ~122 s clip came back 413 with a message blaming
+    // the learner. Everything after the timer — flush, WAV assembly, upload —
+    // has to fit in the gap.
+    expect(MAX_CLIP_MS).toBeLessThan(MAX_MS);
+    expect(MAX_MS - MAX_CLIP_MS).toBeGreaterThanOrEqual(5_000);
   });
 });

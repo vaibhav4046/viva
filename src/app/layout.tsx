@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import "@/components/orb/orb.css";
+import { OrbHost } from "@/components/orb/Orb";
 
 /*
  * Typography. Two families, both self-hosted by next/font at build time — the
@@ -65,6 +67,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
+        {/* One orb, mounted once, outside the route template. A layoutId
+            handover is impossible here: template.tsx wraps every route in
+            AnimatePresence mode="wait", so the outgoing and incoming elements
+            never coexist, and unmounting the canvas would destroy the WebGL
+            context mid-move. Instead the orb stays put and springs its own
+            transform to whichever slot a page renders. */}
+        <OrbHost />
       </body>
     </html>
   );

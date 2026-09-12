@@ -316,3 +316,143 @@ describe("the audio/pcm door", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+/**
+ * The gates themselves, not just the happy path.
+ *
+ * Mutation testing walked these three and every mutant lived: the rate gate
+ * could be deleted, `channels > 2` widened to `> 3`, and the channel average
+ * replaced by a bare sum — and the whole suite still went green. The reason was
+ * symmetry: every existing case fed identical samples to both channels (so
+ * dropping one is indistinguishable from averaging) or used L/R at +8000/-8000
+ * (so the SUM is also zero). These assert the arithmetic and the refusals.
+ */
+describe("the validator gates", () => {
+  it("refuses a rate AssemblyAI does not read, instead of forwarding it", () => {
+    // 11,025 Hz is a real thing a phone can record and is not in SYNC_RATES.
+    // Delete the gate and this comes back ok with a duration nobody can use.
+    for (const sampleRate of [11025, 12000, 96000, 192000]) {
+      const info = validateWavInput(wav({ sampleRate, channels: 1, ms: 1000 }), "audio/wav");
+      expect(info.ok, `${sampleRate}`).toBe(false);
+      if (info.ok) continue;
+      expect(info.code).toBe("UNSUPPORTED_FORMAT");
+    }
+  });
+
+  it("accepts exactly mono and stereo — three channels is a coded refusal", () => {
+    // `> 2` widened to `> 3` leaves 3-channel audio going upstream, where
+    // downmix reads it as interleaved anything and the transcript is noise.
+    for (const channels of [3, 4, 6]) {
+      const info = validateWavInput(wav({ sampleRate: TARGET_RATE, channels, ms: 500 }), "audio/wav");
+      expect(info.ok, `${channels}ch`).toBe(false);
+      if (info.ok) continue;
+      expect(info.code).toBe("UNSUPPORTED_FORMAT");
+    }
+    for (const channels of [1, 2]) {
+      const info = validateWavInput(wav({ sampleRate: TARGET_RATE, channels, ms: 500 }), "audio/wav");
+      expect(info.ok, `${channels}ch`).toBe(true);
+      if (!info.ok) continue;
+      expect(info.channels).toBe(channels);
+    }
+  });
+
+  it("a zero-channel header is refused by the channel gate, not by a divide by zero", () => {
+    // `channels < 1` relaxed to `< 0` lets this through, and the duration
+    // becomes Infinity — which then trips AUDIO_TOO_LONG and blames the
+    // learner for a header the file wrote. The code is what pins this.
+    const bytes = wav({ sampleRate: TARGET_RATE, channels: 1, ms: 500 });
+    bytes.writeUInt16LE(0, 22); // fmt.channels
+    const info = validateWavInput(bytes, "audio/wav");
+    expect(info.ok).toBe(false);
+    if (info.ok) return;
+    expect(info.code).toBe("UNSUPPORTED_FORMAT");
+  });
+
+  it("counts stereo duration per frame, not per sample", () => {
+    // Drop the `/ fmt.channels` and a 1 s stereo clip reports 500 ms, which is
+    // the figure the review panel and the telemetry line both quote.
+    const info = validateWavInput(wav({ sampleRate: 48000, channels: 2, ms: 1000 }), "audio/wav");
+    expect(info.ok).toBe(true);
+    if (!info.ok) return;
+    expect(info.durationMs).toBe(1000);
+  });
+
+  it("the converter refuses the same channel counts the validator does", () => {
+    for (const channels of [3, 6]) {
+      const out = toPcm16kMono(wav({ sampleRate: TARGET_RATE, channels, ms: 500 }), "audio/wav");
+      expect(out.ok, `${channels}ch`).toBe(false);
+      if (out.ok) continue;
+      expect(out.code).toBe("UNSUPPORTED_FORMAT");
+    }
+  });
+});
+
+describe("downmix arithmetic", () => {
+  /** A stereo WAV with the two channels held at different constant levels. */
+  function stereo(left: number, right: number, frames: number): Buffer {
+    const base = wav({ sampleRate: TARGET_RATE, channels: 2, ms: Math.round((frames / TARGET_RATE) * 1000) });
+    const data = parsedData(base);
+    for (let i = 0; i < frames; i++) {
+      base.writeInt16LE(left, data + i * 4);
+      base.writeInt16LE(right, data + i * 4 + 2);
+    }
+    return base;
+  }
+
+  /** Byte offset of the `data` chunk payload in a WAV the helper above built. */
+  function parsedData(buf: Buffer): number {
+    let off = 12;
+    while (off + 8 <= buf.length) {
+      const id = buf.toString("ascii", off, off + 4);
+      const len = buf.readUInt32LE(off + 4);
+      if (id === "data") return off + 8;
+      off += 8 + len + (len % 2);
+    }
+    throw new Error("no data chunk");
+  }
+
+  const samples = (out: Buffer) => Array.from({ length: out.length / 2 }, (_, i) => out.readInt16LE(i * 2));
+
+  it("averages asymmetric channels rather than summing or dropping one", () => {
+    // The existing +8000/-8000 case cannot tell these apart: mean, sum and
+    // "L+R with no divide" are all 0 there. Here they are 4000, 8000 and 6000.
+    const out = toPcm16kMono(stereo(6000, 2000, 400), "audio/wav");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const values = new Set(samples(out.pcm));
+    expect(values).toEqual(new Set([4000]));
+  });
+
+  it("keeps the left channel's own value when only the left is loud", () => {
+    // Drop channel 1 and this reads 0; drop channel 0 and it reads 0 too.
+    const out = toPcm16kMono(stereo(10000, 0, 400), "audio/wav");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(new Set(samples(out.pcm))).toEqual(new Set([5000]));
+  });
+
+  it("rounds the mean rather than truncating it", () => {
+    // (6001 + 2000) / 2 = 4000.5. Int16Array truncation gives 4000.
+    const out = toPcm16kMono(stereo(6001, 2000, 400), "audio/wav");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(new Set(samples(out.pcm))).toEqual(new Set([4001]));
+  });
+
+  it("does not overflow when both channels are at full scale", () => {
+    // A sum-instead-of-mean mutant writes 65534 into an Int16, which wraps to
+    // -2 — silence where the loudest possible clip was.
+    const out = toPcm16kMono(stereo(32767, 32767, 400), "audio/wav");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(new Set(samples(out.pcm))).toEqual(new Set([32767]));
+  });
+
+  it("mono is passed through sample for sample", () => {
+    const bytes = wav({ sampleRate: TARGET_RATE, channels: 1, ms: 50 });
+    const out = toPcm16kMono(bytes, "audio/wav");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(samples(out.pcm)).toEqual(samples(bytes.subarray(44)));
+  });
+});

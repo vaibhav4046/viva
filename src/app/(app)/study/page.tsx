@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { MicButton, type TypedHandle, type VoiceTurn } from "@/components/voice/MicButton";
+import { OrbSlot, setOrbAnalyser, setOrbLevel } from "@/components/orb/Orb";
+import type { TurnFacts } from "@/components/voice/TurnFacts";
 import { Note } from "@/components/Note";
 import { Graph } from "@/components/Graph";
 import { SourceReader } from "@/components/SourceReader";
@@ -11,7 +13,17 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { announceSaved } from "@/components/AppShell";
+import { DeviceNote } from "@/components/ui/DeviceNote";
 import { BAND_COLOR, BAND_LABEL, BAND_ORDER, bandFor, type BandKey } from "@/components/bands";
+import {
+  mergeLearner,
+  mergeSubjectList,
+  mirroredSubject,
+  rememberEvent,
+  rememberMastery,
+  syncRecord,
+  type LearnerPayload,
+} from "@/components/mirror";
 import {
   CoursePicker,
   DEFAULT_COURSE_ID,
@@ -73,20 +85,23 @@ type Boot = {
 };
 
 /**
- * Where a session lives between reloads.
+ * Where a session's conversation lives between reloads.
  *
  * A student said three things, pressed F5, and "Your notes" was empty again —
  * the whole point of the product is that it remembers, and the first thing it
- * did was forget. The server is the record; this is the copy that survives a
- * reload whatever the backend is doing, and it is per subject because
- * switching subjects switches conversations.
+ * did was forget. This is the rendered conversation: the tutor's words, the open
+ * question and the marked answer, which are the shape of the screen rather than
+ * facts about the learner. The facts — events, mastery, subjects — live in
+ * src/components/mirror.ts and are handed back to the server on load.
+ *
+ * Per subject, because switching subjects switches conversations.
  */
 function convoKey(subjectId: string): string {
   return `viva.study.${subjectId}`;
 }
 
 type SavedConvo = {
-  notes: { event: LearningEvent; concept: string | null; band: BandKey | null }[];
+  notes: { event: LearningEvent; concept: string | null; band: BandKey | null; facts?: TurnFacts | null }[];
   tutor: { text: string; evidenceIds: string[]; strategy: string } | null;
   quiz: { id: string; question: string } | null;
   result: Assessment | null;
@@ -111,40 +126,35 @@ export default function StudyPage() {
   const [boot, setBoot] = useState<Boot | null>(null);
   const [bootLoading, setBootLoading] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
-  const [notes, setNotes] = useState<{ event: LearningEvent; concept: string | null; band: BandKey | null }[]>([]);
+  /*
+   * `facts` rides along with the note. What the Dictation path cost — its own
+   * request_time_ms, the confidence, the verbatim beside the tidied text — used
+   * to exist only inside the pre-send review panel, which auto-sends after
+   * 1.5 s and took all of it with it. A judge watching a ninety-second demo
+   * never saw the evidence for the integration the demo is about.
+   */
+  const [notes, setNotes] = useState<
+    { event: LearningEvent; concept: string | null; band: BandKey | null; facts?: TurnFacts | null }[]
+  >([]);
   const [tutor, setTutor] = useState<{ text: string; evidenceIds: string[]; strategy: string } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [turnError, setTurnError] = useState<{ message: string; retry: () => void } | null>(null);
+  /** `retry` is absent when the server said trying again would not help. */
+  const [turnError, setTurnError] = useState<{ message: string; retry?: () => void } | null>(null);
   const [quiz, setQuiz] = useState<{ id: string; question: string } | null>(null);
   const [result, setResult] = useState<Assessment | null>(null);
   const [courses, setCourses] = useState<CourseMeta[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
   /** Passage ids in the order the source rail lists them (S-1-10). */
   const [passageIds, setPassageIds] = useState<string[]>([]);
-  /** null until /api/health/ready answers; false means this device only. */
-  const [durable, setDurable] = useState<boolean | null>(null);
+  /** The server's own sentence about where this record lives; null when durable. */
+  const [storageNote, setStorageNote] = useState<string | null>(null);
+  /** Set when the open subject only exists in this browser. */
+  const [localOnly, setLocalOnly] = useState(false);
   /** The subject whose saved conversation is currently in state. */
   const [convoFor, setConvoFor] = useState<string | null>(null);
   const conceptsRef = useRef<ConceptLite[]>([]);
   const typedRef = useRef<TypedHandle>(null);
-
-  // Does a note written tonight survive the night? The student is told once,
-  // in their own words, and only when the answer is no.
-  useEffect(() => {
-    let alive = true;
-    void fetch("/api/health/ready")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d && typeof d.durable === "boolean") setDurable(d.durable);
-      })
-      .catch(() => {
-        /* Not knowing is not a reason to warn anyone. */
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // Restore this subject's conversation, then keep it written down. The two
   // effects are ordered: the restore batches its setStates into one commit, so
@@ -177,9 +187,12 @@ export default function StudyPage() {
   // Resolve the subject once on the client (?subject → ?course → stored → default).
   useEffect(() => {
     void (async () => {
+      // Merged with the mirror: after the server has forgotten a self-built
+      // subject, the list it returns does not contain it, and the header then
+      // falls back to the word "Study" over the student's own material.
       await fetchCourses()
-        .then(setCourses)
-        .catch(() => setCourses([]));
+        .then((list) => setCourses(mergeSubjectList(list) as CourseMeta[]))
+        .catch(() => setCourses(mergeSubjectList([]) as CourseMeta[]));
       let fromUrl: string | null = null;
       try {
         fromUrl = new URLSearchParams(window.location.search).get("subject");
@@ -190,17 +203,49 @@ export default function StudyPage() {
     })();
   }, []);
 
+  /**
+   * Open a subject: hand the browser's record in, take the merged view back.
+   *
+   * `syncRecord` replays this student's events and any subject they built into
+   * whichever instance answers, so the reply is a record that knows about both —
+   * which is the difference between a self-built subject opening on its own
+   * material and 404ing. A plain read is the fallback, and the mirror is the
+   * fallback after that: a student who did the work keeps their map on screen
+   * even when nothing answers.
+   */
   const load = useCallback(async (cid: string) => {
     setBootLoading(true);
     setBootError(null);
+    setLocalOnly(false);
     try {
-      const r = await fetch(`/api/learner?courseId=${encodeURIComponent(cid)}`);
-      if (!r.ok) throw new Error("learner fetch failed");
-      const d = await r.json();
+      let payload = (await syncRecord(cid)) as LearnerPayload<ConceptLite> | null;
+      if (payload) {
+        setStorageNote(payload.storageNote ?? null);
+      } else {
+        const r = await fetch(`/api/learner?subject=${encodeURIComponent(cid)}`);
+        if (r.ok) {
+          payload = (await r.json()) as LearnerPayload<ConceptLite>;
+          setStorageNote(payload.storageNote ?? null);
+        }
+      }
+
+      const mine = mirroredSubject(cid);
+      if (!payload) {
+        // Nothing answered. If this subject is one the browser built, draw it
+        // from the copy the browser kept rather than an empty screen.
+        if (!mine) {
+          setBootError("Couldn't open this subject. The server may still be waking up.");
+          return;
+        }
+        setLocalOnly(true);
+      }
+
+      const merged = mergeLearner(payload ?? { mastery: {}, events: [], concepts: [] }, cid);
+      if (!merged.concepts.length && mine) setLocalOnly(true);
       const next: Boot = {
-        mastery: d.mastery,
-        events: Array.isArray(d.events) ? d.events : [],
-        concepts: Array.isArray(d.concepts) ? d.concepts : [],
+        mastery: merged.mastery,
+        events: merged.events,
+        concepts: merged.concepts,
       };
       conceptsRef.current = next.concepts;
       setBoot(next);
@@ -249,6 +294,7 @@ export default function StudyPage() {
       if (!courseId) return;
       setBusy(true);
       setTurnError(null);
+      const clientEventId = crypto.randomUUID();
       try {
         const res = await fetch("/api/study/turn", {
           method: "POST",
@@ -256,9 +302,15 @@ export default function StudyPage() {
           body: JSON.stringify({
             text: t.text,
             subjectId: courseId,
-            // Words a system dictation tool pasted in still arrived through
-            // the typed box, so they are typed as far as the turn is concerned.
-            origin: t.origin === "voice" ? "voice" : "typed",
+            /*
+             * Sent as detected, not flattened. `burst.ts` recognises a paste
+             * that arrived from the student's own dictation tool and tags it
+             * `external-dictation`; collapsing that to "typed" here threw the
+             * tag away at the one call site that could have carried it, and
+             * §4.5 asks for it. VIVA never claims an AssemblyAI path or an
+             * AssemblyAI time for words another recogniser produced.
+             */
+            origin: t.origin,
             asr:
               t.origin === "voice"
                 ? {
@@ -270,18 +322,40 @@ export default function StudyPage() {
                     clean: t.clean,
                   }
                 : undefined,
-            clientEventId: crypto.randomUUID(),
+            clientEventId,
           }),
         });
-        if (!res.ok) throw new Error("turn failed");
+        /*
+         * The server already wrote the sentence and already said whether trying
+         * again would help. Throwing a bare Error here discarded both, so a
+         * refusal the server marked `retryable: false` — words it will reject
+         * identically every time — came back as the generic network line with a
+         * Try again button under it. Read the body; offer the retry only when
+         * the server said one was worth offering.
+         */
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as
+            | { error?: { message?: string; retryable?: boolean } }
+            | null;
+          setTurnError({
+            message:
+              body?.error?.message ?? "That didn't reach VIVA. Nothing was saved — try again.",
+            retry: body?.error?.retryable === false ? undefined : () => void takeTurn(t),
+          });
+          return;
+        }
         const out = (await res.json()) as TurnOut;
         const cname = conceptsRef.current.find((c) => c.id === out.event.primaryConceptId)?.name ?? null;
         const cid = out.event.primaryConceptId;
         const moved = cid ? out.mastery[cid] : undefined;
         const nowBand = moved ? bandFor(moved.mastery, moved.exposureCount > 0) : null;
-        setNotes((m) => [{ event: out.event, concept: cname, band: nowBand }, ...m].slice(0, 8));
+        setNotes((m) => [{ event: out.event, concept: cname, band: nowBand, facts: t }, ...m].slice(0, 8));
         setTutor({ ...out.tutor, strategy: out.assessment?.verdict ?? out.tutor.strategy });
         setBoot((b) => (b ? { ...b, mastery: out.mastery, events: [...b.events, out.event] } : b));
+        // Written down here as well as on whichever lambda answered, carrying the
+        // id the replay dedupes on. This is the copy the next load hands back.
+        rememberEvent(out.event, clientEventId);
+        rememberMastery(out.mastery);
         if (out.event.primaryConceptId) setSelected(out.event.primaryConceptId);
         announceSaved();
         logEvent("thought_mark_created");
@@ -352,7 +426,8 @@ export default function StudyPage() {
         title={subject ? subject.title : "Study"}
         description="Say what you think. VIVA answers from your source and asks the one question that moves you."
         actions={
-          <div className="flex min-h-11 min-w-0 items-center">
+          <div className="orb-dock min-h-11 min-w-0">
+            <OrbSlot className="orb-slot--dock" priority={1} />
             {courses.length > 0 ? (
               <CoursePicker courses={courses} value={courseId ?? DEFAULT_COURSE_ID} onChange={changeSubject} label="Subject" />
             ) : (
@@ -409,17 +484,24 @@ export default function StudyPage() {
 
           {/* Mic and typed box in one: rendering a second typed box here would
               duplicate id="viva-type". */}
-          <MicButton
-            subjectId={courseId ?? DEFAULT_COURSE_ID}
-            onSubmit={takeTurn}
-            busy={busy}
-            context={spokenContext}
-            typedHandleRef={typedRef}
-          />
+          <div>
+            <MicButton
+              subjectId={courseId ?? DEFAULT_COURSE_ID}
+              onSubmit={takeTurn}
+              busy={busy}
+              context={spokenContext}
+              typedHandleRef={typedRef}
+              onLevel={setOrbLevel}
+              onAnalyser={setOrbAnalyser}
+            />
+          </div>
 
-          {durable === false ? (
-            <p className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-              Heads up — tonight&apos;s notes stay on this device only.
+          <DeviceNote note={storageNote} />
+
+          {localOnly ? (
+            <p className="mono text-xs leading-relaxed" style={{ color: "var(--color-band-getting)" }}>
+              This subject is the copy your browser kept. Your map and your notes are here; reload
+              and VIVA will hand it back so it can quote your passages again.
             </p>
           ) : null}
 
@@ -492,7 +574,7 @@ export default function StudyPage() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1" role="log" aria-live="polite">
                 {notes.map((n) => (
-                  <Note key={n.event.id} event={n.event} conceptName={n.concept} band={n.band} />
+                  <Note key={n.event.id} event={n.event} conceptName={n.concept} band={n.band} facts={n.facts} />
                 ))}
               </div>
             )}

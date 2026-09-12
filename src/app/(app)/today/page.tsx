@@ -5,6 +5,8 @@ import { Mic } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { DeviceNote } from "@/components/ui/DeviceNote";
+import { mergeLearner, mergeSubjectList, syncRecord } from "@/components/mirror";
 import { SegmentCard } from "@/components/today/SegmentCard";
 import { InlineRecall } from "@/components/today/InlineRecall";
 import { WeekStrip } from "@/components/today/WeekStrip";
@@ -33,10 +35,11 @@ import {
  * layout shift under a thumb on a phone.
  */
 
-type LearnerResponse = LearnerSnapshot;
+type LearnerResponse = LearnerSnapshot & { storageNote?: string | null };
 
 export default function TodayPage() {
   const [snapshot, setSnapshot] = useState<LearnerResponse | null>(null);
+  const [storageNote, setStorageNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courses, setCourses] = useState<CourseMeta[]>([]);
@@ -46,19 +49,38 @@ export default function TodayPage() {
   useEffect(() => {
     void (async () => {
       await fetchCourses()
-        .then(setCourses)
-        .catch(() => setCourses([]));
+        .then((list) => setCourses(mergeSubjectList(list) as CourseMeta[]))
+        .catch(() => setCourses(mergeSubjectList([]) as CourseMeta[]));
       setCourseId(readCourseParam() || null);
     })();
   }, []);
 
-  const scope = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
+  const scope = courseId ? `?subject=${encodeURIComponent(courseId)}` : "";
 
+  /**
+   * One call, and the browser's own record goes with it.
+   *
+   * The plan is folded from the events this returns, so an instance that has
+   * never seen this student composes nothing — which is how a page that had
+   * just watched two answers land printed "Nothing yet". `syncRecord` replays
+   * the mirror into whichever instance answers and takes the merged snapshot
+   * back; `mergeLearner` then unions it with what the browser holds, so the
+   * plan is never thinner than the session behind it. A read that fails
+   * entirely still yields the mirror, because the student did the work.
+   */
   const fetchSnapshot = useCallback(async (): Promise<LearnerResponse> => {
-    const res = await fetch(`/api/learner${scope}`);
-    if (!res.ok) throw new Error("learner fetch failed");
-    return (await res.json()) as LearnerResponse;
-  }, [scope]);
+    let payload = (await syncRecord(courseId ?? null)) as LearnerResponse | null;
+    if (!payload) {
+      const res = await fetch(`/api/learner${scope}`);
+      if (res.ok) payload = (await res.json()) as LearnerResponse;
+    }
+    if (payload) setStorageNote(payload.storageNote ?? null);
+    const base: LearnerResponse =
+      payload ?? ({ mastery: {}, events: [], concepts: [] } as LearnerResponse);
+    const merged = mergeLearner(base, courseId ?? null);
+    if (!payload && !merged.events.length) throw new Error("learner fetch failed");
+    return { ...base, ...merged } as LearnerResponse;
+  }, [courseId, scope]);
 
   const load = useCallback(async () => {
     if (courseId === undefined) return;
@@ -219,6 +241,10 @@ export default function TodayPage() {
               ))}
             </ol>
           )}
+
+          <div className="mt-4">
+            <DeviceNote note={storageNote} />
+          </div>
         </section>
 
         {/*

@@ -1,5 +1,15 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { AssemblyAIProvider, TranscriptionError, capKeyterms } from "@/lib/assemblyai";
+import {
+  ASYNC_DEADLINE_MS,
+  AssemblyAIProvider,
+  DICTATION_TIMEOUT_MS,
+  ROUTE_BUDGET_MS,
+  SYNC_TIMEOUT_MS,
+  TranscriptionError,
+  capKeyterms,
+} from "@/lib/assemblyai";
 
 /**
  * Dictation contract tests. Pins the wire shape probed against the live
@@ -323,5 +333,64 @@ describe("sync fallback contract", () => {
   it("unexpected shape → BAD_RESPONSE", async () => {
     mockFetch(() => new Response(JSON.stringify({ confidence: 0.9 }), { status: 200 }));
     await rejectsWithCode(() => syncProvider().transcribe({ audio: AUDIO, contentType: "audio/wav" }), "BAD_RESPONSE");
+  });
+});
+
+/**
+ * Abort budgets against the platform ceiling.
+ *
+ * Every abort in assemblyai.ts used to be dead code: 90 s for Dictation plus
+ * 32 s for the Sync retry is up to 122 s inside one request, and `vercel.json`
+ * declares `maxDuration: 60` for the route that hosts both. The platform kills
+ * the invocation first and answers with an HTML gateway page, so the learner
+ * got a parse error where a coded PROVIDER_TIMEOUT belonged — and an
+ * engineering judge reading both files saw a contradiction.
+ *
+ * This reads the real vercel.json rather than restating the number, so raising
+ * one without the other fails here instead of in production.
+ */
+describe("abort budgets vs the declared function ceiling", () => {
+  const vercel = JSON.parse(
+    readFileSync(fileURLToPath(new URL("../vercel.json", import.meta.url)), "utf8")
+  ) as { functions?: Record<string, { maxDuration?: number }> };
+  const declared = vercel.functions?.["src/app/api/voice/transcribe/route.ts"]?.maxDuration;
+
+  it("vercel.json still declares a ceiling for the transcribe route", () => {
+    expect(declared).toBe(ROUTE_BUDGET_MS / 1000);
+  });
+
+  it("the worst path — Dictation aborts, Sync retries — fits inside it", () => {
+    // Sequential, not parallel: the fallback re-sends the same clip after the
+    // first leg gives up, so the SUM is the wall clock the platform sees.
+    expect(DICTATION_TIMEOUT_MS + SYNC_TIMEOUT_MS).toBeLessThan(ROUTE_BUDGET_MS);
+  });
+
+  it("leaves room for the multipart read, WAV validation and the subject lookup", () => {
+    const slack = ROUTE_BUDGET_MS - (DICTATION_TIMEOUT_MS + SYNC_TIMEOUT_MS);
+    expect(slack).toBeGreaterThanOrEqual(5_000);
+  });
+
+  it("the long-audio poll deadline is inside the ceiling too", () => {
+    expect(ASYNC_DEADLINE_MS).toBeLessThan(ROUTE_BUDGET_MS);
+  });
+
+  it("a caller's signal does not replace our budget", async () => {
+    // `signal: req.signal ?? ctrl.signal` handed the request the caller's
+    // signal INSTEAD of the timer's, which silently disabled every number
+    // above for any caller that passed one. Both, or the budget is a comment.
+    const caller = new AbortController();
+    let passed: AbortSignal | null | undefined;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      passed = init?.signal;
+      return new Response(
+        JSON.stringify({ text: "words", llm_response: null, llm_error: null, confidence: 0.9, audio_duration_ms: 1000, session_id: "s" }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    await provider().transcribe({ audio: AUDIO, contentType: "audio/wav", signal: caller.signal });
+    expect(passed).toBeInstanceOf(AbortSignal);
+    expect(passed).not.toBe(caller.signal);
+    expect(passed?.aborted).toBe(false);
   });
 });

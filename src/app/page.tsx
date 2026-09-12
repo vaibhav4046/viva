@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { Keyboard, Mic, Sparkles } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
-import { VoiceOrbMount } from "@/components/VoiceOrbMount";
+import { OrbSlot } from "@/components/orb/Orb";
 import "./landing.css";
 
 /*
@@ -65,7 +65,7 @@ export default async function Home() {
         <section className="vv-hero">
           <div className="vv-glow" aria-hidden />
           <div className="vv-hero-inner" id="hero">
-            <VoiceOrbMount className="vv-orb" />
+            <OrbSlot className="vv-orb" />
             <h1 className="vv-headline">
               <span className="vv-dot">STUDY OUT LOUD.</span>
               <span className="vv-dot">VIVA REMEMBERS.</span>

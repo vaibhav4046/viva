@@ -30,9 +30,32 @@ export const LearningEventSchema = z.object({
   createdAt: z.string(),
   transcript: z.string(),
   cleanedTranscript: z.string(),
-  origin: z.enum(["voice", "typed"]).default("voice"),
+  /**
+   * How the words arrived. `external-dictation` is a student pasting from
+   * their own dictation tool: it was computed and carried all the way here and
+   * then collapsed to "typed" by this enum, which is why the feature was
+   * invisible to anyone testing it.
+   */
+  origin: z.enum(["voice", "typed", "external-dictation"]).default("voice"),
   transcriptionConfidence: z.number().nullable(),
   transcriptionLatencyMs: z.number().nullable(),
+  /**
+   * Which AssemblyAI endpoint answered, and the one it fell back from.
+   *
+   * Stored rather than held on screen because the footer that shows it —
+   * "Dictation · AssemblyAI 554 ms · 99% confident" — is the only evidence a
+   * reader ever gets that this integration is real, and it was visible for one
+   * turn and gone on reload. Evidence that does not survive a refresh is not
+   * evidence.
+   */
+  transcriptionMode: z.enum(["dictation", "sync"]).nullable().optional(),
+  transcriptionFellBackFrom: z.enum(["dictation", "sync"]).nullable().optional(),
+  /**
+   * What the microphone actually heard, before the student edited it.
+   * `transcript` holds the edited text — the thing they meant to send — so
+   * the two cannot share a field: the disclosure shows them side by side.
+   */
+  transcriptVerbatim: z.string().nullable().optional(),
   intent: LearningIntentSchema,
   conceptIds: z.array(z.string()),
   primaryConceptId: z.string().nullable(),
@@ -56,6 +79,14 @@ export const LearningEventSchema = z.object({
   delta: z.number().nullable().optional(),
   reason: z.string().nullable().optional(),
   hint: z.string().nullable().optional(),
+  /**
+   * The direction the tutor reported for this turn. Persisted because the fold
+   * in `src/lib/mastery.ts` reads it: without it, replaying a stored claim
+   * event lands in the "unverified claim" branch and costs the learner 0.02
+   * they never lost the first time, so the same record would fold to two
+   * different maps. An event has to carry everything the fold consumes.
+   */
+  masterySignal: z.enum(["up", "down", "flat"]).nullable().optional(),
 });
 export type LearningEvent = z.infer<typeof LearningEventSchema>;
 

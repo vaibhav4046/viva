@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookOpen, CalendarCheck, CircleHelp, Layers, Network } from "lucide-react";
+import { BookOpen, CalendarCheck, CircleHelp, Layers, Network, Plug } from "lucide-react";
 
 /**
  * The one shell. Every page inside the app group renders through this: a
@@ -12,6 +12,11 @@ import { BookOpen, CalendarCheck, CircleHelp, Layers, Network } from "lucide-rea
  * It replaces two competing header systems (a cream pill nav on the landing
  * and a dark bar in the app) and three different names for the study screen
  * ("Enter VIVA", "Try demo", "Study"). One name each, everywhere.
+ *
+ * Connect is the one link that is not a daily destination — you pair an
+ * assistant once and never come back. It sits in the header, and is left out
+ * of the thumb bar so the five places a student actually goes keep their
+ * width on a 320 px phone.
  */
 
 const LINKS = [
@@ -20,7 +25,10 @@ const LINKS = [
   { href: "/today", label: "Today", Icon: CalendarCheck },
   { href: "/map", label: "Map", Icon: Network },
   { href: "/exam", label: "Quiz", Icon: CircleHelp },
+  { href: "/connect", label: "Connect", Icon: Plug, headerOnly: true },
 ] as const;
+
+const TAB_LINKS = LINKS.filter((l) => !("headerOnly" in l && l.headerOnly));
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
@@ -97,9 +105,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 pb-20 md:pb-0">{children}</div>
 
       {/* Mobile bottom tabs. Fixed so the destinations are always one thumb
-          away, and padded for the home indicator. */}
+          away, and padded for the home indicator.
+
+          Its own name, not the header's. Only one of the two navs is visible at
+          a time, but both are in the accessibility tree at every width, and two
+          landmarks called "Primary" leave a screen-reader user choosing between
+          two identical entries in the landmark list. */}
       <nav
-        aria-label="Primary"
+        aria-label="Primary tabs"
         className="fixed inset-x-0 bottom-0 z-40 border-t hairline md:hidden"
         style={{
           background: "color-mix(in srgb, var(--color-obsidian) 94%, transparent)",
@@ -108,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         <ul className="flex items-stretch justify-around">
-          {LINKS.map(({ href, label, Icon }) => {
+          {TAB_LINKS.map(({ href, label, Icon }) => {
             const active = isActive(pathname, href);
             return (
               <li key={href} className="flex-1">

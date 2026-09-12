@@ -18,8 +18,9 @@ Live: https://viva-five-murex.vercel.app
 1. Open the live URL and press **Start talking**.
 2. Hold the mic (or hold <kbd>Space</kbd>) and say something you half-remember:
    *"I don't really understand why attention needs positional encoding."*
-3. VIVA transcribes it, finds the passage it relates to, and asks you the one
-   question that moves you forward.
+   Your words appear as you say them.
+3. When you let go, VIVA cleans the transcript, finds the passage it relates
+   to, and asks you the one question that moves you forward.
 4. Answer aloud. It grades the answer against the source, not against a vibe.
 5. Come back to **Today** and the thing you got wrong is the first question.
 
@@ -58,6 +59,29 @@ If the Dictation endpoint is unavailable the Sync API answers instead and the
 response says which path served it. With no key at all the mic returns an
 honest 503 and the typed box still works — nothing is ever faked.
 
+### Words while you are still speaking
+
+The clip above is what gets graded. While you hold the mic, the same audio
+also goes to Universal-Streaming, so you can watch the sentence form:
+
+```
+mic → AudioWorklet (one capture) ─┬→ buffered clip → /api/voice/transcribe → Dictation
+                                  └→ wss://streaming.assemblyai.com/v3/ws   → live words
+```
+
+One microphone feeds both. The browser opens the socket itself, because
+relaying every 64 ms frame through a server hop is the exact latency streaming
+exists to remove — it carries a short-lived token from `/api/voice/stream-token`
+and never the API key. Measured in a real browser: the first word paints
+**2.1 s** after you start speaking, then refines every 150-350 ms. Settled text
+is solid, in-flight words are dim, and the buffered transcript is still the one
+that gets marked. If the socket never opens you lose the animation and nothing
+else.
+
+Language is a picker, not a guess: 32 streaming codes plus automatic detection.
+Auto-detect is confident and wrong on marginal audio (a degraded English clip
+came back as German), which is why the picker stays.
+
 ## Reproduce the transcription yourself
 
 ```bash
@@ -91,11 +115,83 @@ above are what the command in this README returns today.)
 
 ---
 
+## Bring a source, or start from the shelf
+
+Thirteen subjects ship with the app — algebra, anatomy, astronomy, biology,
+chemistry, economics, government, physics, psychology, sociology, statistics,
+and two hand-written labs. Eleven are built from OpenStax textbooks under
+CC BY 4.0, each passage keeping the section it came from, and each subject
+saying plainly that a language model read the book and drew the map.
+
+Your own material goes in the same way: paste notes, drop a `.txt`, `.md`,
+`.docx` or `.pdf`, or give a URL. Up to four sources become one subject and
+each keeps its own provenance, so a citation names the document it is in. URL
+fetching resolves every redirect hop and refuses private, loopback, link-local
+and metadata addresses.
+
+## Read your chat history back into your subject
+
+`extension/` is a Manifest V3 browser extension. On a ChatGPT, Claude, Gemini
+or NotebookLM tab — or any article — one click turns what you were reading into
+a VIVA subject, and a small panel lets you answer out loud without leaving the
+page. It holds no credentials: it works inside your own VIVA tab, so every
+request is same-origin and carries the session you already have. Host
+permissions are the two VIVA origins and nothing else, so it is structurally
+unable to read a page you did not act on. Load it unpacked; see
+[extension/README.md](extension/README.md).
+
+## Use VIVA from Claude, Cursor or any assistant
+
+VIVA speaks the Model Context Protocol, so it does not have to be another tab.
+Connect it once and say "quiz me on histology", "keep this", "what am I weak
+on" from wherever you already work. The microphone stays in VIVA; the thinking
+can happen anywhere.
+
+Add it — one line:
+
+```bash
+claude mcp add --transport http viva https://viva-five-murex.vercel.app/api/mcp
+```
+
+Or one entry in Claude Desktop / Cursor's config:
+
+```json
+{
+  "mcpServers": {
+    "viva": {
+      "type": "http",
+      "url": "https://viva-five-murex.vercel.app/api/mcp"
+    }
+  }
+}
+```
+
+Pair it — open [/connect](https://viva-five-murex.vercel.app/connect) in the
+browser you study in, press **Get a connection code**, and paste the code into
+your assistant. The code lasts ten minutes; what comes back is a key for that
+one account. Put it in the connection's `Authorization: Bearer …` header and
+you never paste again.
+
+The code is signed rather than stored, which is what lets a pairing survive a
+redeploy — and means it can be redeemed more than once inside its ten minutes,
+because there is no database in which to mark it spent. Treat it like a
+one-time password you are reading aloud.
+
+Eight tools: list your subjects, build one from pasted notes, say something and
+get VIVA's reply with the line it quoted, start a quiz, answer one, today's ten
+minutes, and what you are mixed up about.
+
+Every tool calls VIVA's own routes — the quiz an assistant asks is the quiz the
+app asks, marked by the same code, and mastery is still written in exactly one
+place. No tool can delete anything, and the marking key never leaves the server.
+VIVA has no sign-in, so pairing is the whole account model: one signed key, one
+study account, and no argument that can point it at anyone else's subjects.
+
 ## How it works
 
 ```
 mic → AudioWorklet (Int16 PCM 16 kHz) → /api/voice/transcribe
-    → AssemblyAI Dictation  (Sync fallback)
+    → AssemblyAI Dictation  (Sync fallback)   ‖  live socket, same frames
     → intent + concept  → retrieval over your subject's passages
     → Socratic reply, every citation resolved to a stored passage
     → append-only turn log → mastery reducer → tomorrow's plan
@@ -138,6 +234,8 @@ Environment:
 | `ASSEMBLYAI_TRANSCRIPTION_MODE` | no | `dictation` (default) or `sync` |
 | `DATABASE_URL` | no | Postgres. Without it, a per-instance file store |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | no | Without them the heuristic tutor answers |
+| `LLM_FALLBACKS` | no | Spare credentials, `baseUrl\|key\|model` separated by commas. Tried in order when the first is rate limited, and skipped for a minute after |
+| `MCP_TOKEN_SECRET` | no | Signs assistant pairing keys. Unset, pairings break on redeploy |
 
 ---
 
@@ -145,8 +243,14 @@ Environment:
 
 Stated plainly, because a demo that hides its edges is not worth trusting.
 
-- **Persistence.** Without `DATABASE_URL` the store is per-instance and does
-  not survive a redeploy. `GET /api/health/ready` reports this as
-  `durable: false` rather than pretending otherwise.
+- **Persistence.** Without `DATABASE_URL` the server store is per-instance and
+  does not survive a redeploy, so the browser holds the record and replays it
+  on every load: your map, your plan and your subjects come back, on that
+  device. `GET /api/health/ready` reports `durable: false` rather than
+  pretending otherwise, and the app says so on screen.
+- **Non-English accuracy is untested.** Streaming accepts 32 languages and the
+  transcript is real, but every clip measured here was English. Nobody has
+  checked a Hindi or Mandarin transcript word by word, so no accuracy claim is
+  made for them.
 - **Screen readers.** Automated accessibility checks pass; a manual pass with a
   real screen reader has not been done.

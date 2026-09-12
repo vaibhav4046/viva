@@ -1,7 +1,7 @@
 import { keytermsFrom } from "@/lib/courses/subject";
-import type { CourseSource, Subject } from "@/lib/courses/types";
+import type { CourseSource, SourceLicence, Subject } from "@/lib/courses/types";
 import { uid } from "@/lib/types";
-import { chunkPages, normalizeText, type IntakePage } from "./chunk";
+import { chunkPages, MAX_CHUNKS, normalizeText, type IntakePage } from "./chunk";
 import { extractSubjectBody, MIN_CONCEPTS } from "./extract";
 import { normalizePlan, planSubject, writePassages } from "./model";
 
@@ -19,10 +19,32 @@ import { normalizePlan, planSubject, writePassages } from "./model";
  * topic with no model available is therefore refused, not faked.
  */
 
+/**
+ * One document inside a subject.
+ *
+ * A subject can be several of these — a lecture PDF, a page from the module
+ * website, the student's own notes — and each keeps its own title, its own
+ * passages and its own licence, so a citation resolves to the document the
+ * sentence is actually in rather than to "the subject".
+ */
+export type IntakeDoc = {
+  title: string;
+  /** How the source pane labels it: pdf, web, notes, written, text, doc. */
+  type: string;
+  pages: IntakePage[];
+  /** What a citation says when a passage carried no heading of its own. */
+  fallbackSection?: string;
+  /** Where it was fetched from, when it came off the web. */
+  url?: string;
+  /** Set when somebody else wrote it and their terms travel with the words. */
+  licence?: SourceLicence;
+};
+
 export type IntakeInput =
   | { kind: "paste"; title: string; text: string }
   | { kind: "pdf"; title: string; pages: IntakePage[] }
-  | { kind: "named"; title: string };
+  | { kind: "named"; title: string }
+  | { kind: "docs"; title: string; origin: Subject["origin"]; docs: IntakeDoc[] };
 
 export type IntakeFailure = { code: "TOO_THIN" | "NEEDS_TEXT" | "NO_TEXT_IN_PDF"; message: string };
 
@@ -59,7 +81,35 @@ export function cleanTitle(raw: unknown, fallback: string): string {
 function sourceTitleFor(input: IntakeInput): string {
   if (input.kind === "pdf") return input.title;
   if (input.kind === "paste") return `${input.title} — your notes`;
+  if (input.kind === "docs") return input.title;
   return `${input.title} — written for you`;
+}
+
+/**
+ * Every document becomes its own source, and the total is capped once.
+ *
+ * The per-document cap already lives in `chunkPages`; without a cap across
+ * documents, five uploads would quietly become five times the ceiling.
+ */
+function sourcesFrom(docs: IntakeDoc[], baseId: string, single: boolean): CourseSource[] {
+  const sources: CourseSource[] = [];
+  let budget = MAX_CHUNKS;
+  for (const [i, doc] of docs.entries()) {
+    if (budget <= 0) break;
+    const id = single ? baseId : `${baseId}_s${i + 1}`;
+    const chunks = chunkPages(doc.pages, id, doc.fallbackSection ?? doc.title).slice(0, budget);
+    if (!chunks.length) continue;
+    budget -= chunks.length;
+    sources.push({
+      id,
+      title: doc.title,
+      type: doc.type,
+      chunks,
+      ...(doc.url ? { url: doc.url } : {}),
+      ...(doc.licence ? { licence: doc.licence } : {}),
+    });
+  }
+  return sources;
 }
 
 export async function buildSubject(
@@ -75,8 +125,16 @@ export async function buildSubject(
   let pages: IntakePage[];
   let origin: Subject["origin"];
   let written = false;
+  let docs: IntakeDoc[] | null = null;
 
-  if (input.kind === "named") {
+  if (input.kind === "docs") {
+    docs = input.docs.filter((d) => d.pages.some((p) => p.text.trim().length > 0));
+    if (!docs.length) {
+      return { ok: false, error: { code: "TOO_THIN", message: "VIVA could not find any readable text in that." } };
+    }
+    pages = docs.flatMap((d) => d.pages);
+    origin = input.origin;
+  } else if (input.kind === "named") {
     onProgress("Writing a starting set of notes…");
     const drafted = await writePassages(title);
     if (!drafted) {
@@ -111,18 +169,21 @@ export async function buildSubject(
     };
   }
 
-  onProgress("Reading your notes…");
-  const chunks = chunkPages(pages, sourceId, written ? "Written for you" : "Your notes");
+  onProgress(docs && docs.length > 1 ? "Reading your sources…" : "Reading your notes…");
+  const sources = sourcesFrom(
+    docs ?? [{
+      title: sourceTitleFor(input),
+      type: input.kind === "pdf" ? "pdf" : input.kind === "named" ? "written" : "notes",
+      pages,
+      fallbackSection: written ? "Written for you" : "Your notes",
+    }],
+    sourceId,
+    !docs || docs.length === 1
+  );
+  const chunks = sources.flatMap((s) => s.chunks);
   if (chunks.length === 0) {
     return { ok: false, error: { code: "TOO_THIN", message: "VIVA could not find any readable text in that." } };
   }
-
-  const source: CourseSource = {
-    id: sourceId,
-    title: sourceTitleFor(input),
-    type: input.kind === "pdf" ? "pdf" : input.kind === "named" ? "written" : "notes",
-    chunks,
-  };
 
   // --- 2. Make the map -----------------------------------------------------
   onProgress("Finding the ideas in it…");
@@ -131,7 +192,7 @@ export async function buildSubject(
   const base = {
     id: subjectId,
     code: codeFor(title),
-    sources: [source],
+    sources,
     ownerId,
     createdAt: new Date().toISOString(),
     demo: false,

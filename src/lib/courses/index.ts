@@ -1,13 +1,20 @@
+import { CORPUS } from "@/lib/corpus";
 import type { Course } from "./types";
 import { TRANSFORMERS } from "./transformers";
 import { PROBABILITY } from "./probability";
 
-export type { Course, ConceptDef, ExamQuestion, Explainer, Trap, CourseSource } from "./types";
+export type { Course, ConceptDef, ExamQuestion, Explainer, Trap, CourseSource, SourceLicence } from "./types";
 
-/** First-class labs, keyed by course id. Add new labs here only. */
+/**
+ * Everything VIVA ships, keyed by course id: the two labs written for this
+ * project, then the preloaded library built from openly licensed textbooks
+ * (src/lib/corpus). Add hand-written labs here; add library subjects by
+ * re-running scripts/seed-corpus.mjs.
+ */
 export const COURSES: Record<string, Course> = {
   [TRANSFORMERS.id]: TRANSFORMERS,
   [PROBABILITY.id]: PROBABILITY,
+  ...Object.fromEntries(CORPUS.map((c) => [c.id, c])),
 };
 
 export const DEFAULT_COURSE_ID = "course_transformers_w4";

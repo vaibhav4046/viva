@@ -1,0 +1,184 @@
+/*
+ * The orb layer and the app's ground. Imported by src/components/orb/Orb.tsx,
+ * nothing else. Deliberately separate from globals.css and landing.css: this
+ * is one object's stylesheet and it should be deletable in one move.
+ *
+ * Rules of the house apply — transform and opacity only, no animated
+ * box-shadow, `prefers-reduced-motion` honoured, and nothing here is ever
+ * allowed to paint over text (the host sits at z-index 0 and only ever
+ * occupies the empty box a page reserved for it).
+ */
+
+/* ------------------------------------------------------------------ host */
+
+.orb-host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 240px;
+  z-index: 0;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  /* Hidden until the host has measured a slot, so the server-rendered markup
+     never shows up parked at the top-left corner of the document. */
+  opacity: 0;
+  /* Only the transform changes per frame; opacity changes at route edges. */
+  will-change: transform;
+  transition: opacity 240ms var(--ease-out-soft, ease-out);
+  /* Layout containment only. `contain: strict` also clips paint, which cut the
+     halo into a visible lighter square around the orb — the box is 240px and
+     the halo deliberately bleeds past it. The host is absolutely positioned at
+     a fixed size, so it cannot dirty page layout anyway. */
+  contain: layout style;
+}
+
+/* A soft pool of light under the orb, brightening with the voice. The glow is
+   a sibling element rather than a filter on the canvas: a drop-shadow on a
+   240px canvas re-rasterises every frame, a static radial does not. */
+.orb-halo {
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(184 255 90 / 0.22) 0%,
+    rgb(184 255 90 / 0.07) 42%,
+    transparent 70%
+  );
+  opacity: calc(0.55 + var(--orb-level, 0) * 0.75);
+  transform: scale(calc(0.92 + var(--orb-low, 0) * 0.18));
+  will-change: transform, opacity;
+}
+
+/* ------------------------------------------------------------- fallback */
+
+.orb-svg {
+  display: block;
+  position: relative;
+  filter: drop-shadow(0 0 18px rgb(184 255 90 / 0.35));
+  transform: scale(calc(1 + var(--orb-low, 0) * 0.06));
+}
+
+.orb-svg__core {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(calc(1 + var(--orb-level, 0) * 0.35));
+}
+
+/* -------------------------------------------------------------- the slots */
+
+/* A page reserves space with one of these and the orb flies to it. The box is
+   empty and inert; giving it a size is the whole job. */
+.orb-slot {
+  width: clamp(132px, 21vh, 228px);
+  aspect-ratio: 1;
+  contain: strict;
+}
+
+/* Docked in the app: the size of a control, not of a hero. */
+.orb-slot--dock {
+  width: 76px;
+  height: 76px;
+  aspect-ratio: 1;
+  contain: strict;
+}
+
+/* Sits the docked orb beside the mic without either overlapping the other,
+   so the button keeps every pixel of its own hit area. */
+.orb-dock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Page content rides above the backdrop, and above the orb, so a decoration
+   can never cover a word. */
+.orb-above {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------- backdrop */
+
+.orb-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* The same dot lattice the landing headline is cut out of, at 4% — the room
+   the orb is standing in, rather than a second decoration. */
+.orb-backdrop__lattice {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 50% 50%, rgb(184 255 90 / 0.055) 0 1px, transparent 1.4px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 22%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 22%, #000 0%, transparent 78%);
+}
+
+/* Two slow pools of light. Transform only, so they stay on the compositor and
+   never touch layout or paint. */
+.orb-backdrop__pool {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.orb-backdrop__pool--a {
+  background: radial-gradient(circle, rgb(184 255 90 / 0.075) 0%, rgb(184 255 90 / 0.02) 40%, transparent 68%);
+  transform: translate3d(-18vmax, -26vmax, 0);
+  animation: orbDriftA 54s ease-in-out infinite alternate;
+}
+
+.orb-backdrop__pool--b {
+  background: radial-gradient(circle, rgb(143 162 255 / 0.055) 0%, rgb(143 162 255 / 0.015) 42%, transparent 68%);
+  transform: translate3d(58vmax, 34vmax, 0) scale(0.82);
+  animation: orbDriftB 78s ease-in-out infinite alternate;
+}
+
+@keyframes orbDriftA {
+  from { transform: translate3d(-18vmax, -26vmax, 0) scale(1); }
+  to   { transform: translate3d(22vmax, -8vmax, 0) scale(1.18); }
+}
+
+@keyframes orbDriftB {
+  from { transform: translate3d(58vmax, 34vmax, 0) scale(0.82); }
+  to   { transform: translate3d(24vmax, 52vmax, 0) scale(1.02); }
+}
+
+/* Pulls the corners back down to obsidian so the pools read as light in a
+   room rather than as a gradient background. */
+.orb-backdrop__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 78% 62% at 50% 38%, transparent 0%, rgb(11 11 12 / 0.72) 100%);
+}
+
+/* ------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-backdrop__pool--a,
+  .orb-backdrop__pool--b {
+    animation: none;
+  }
+  .orb-halo,
+  .orb-svg,
+  .orb-svg__core {
+    transform: none;
+  }
+  .orb-halo {
+    opacity: 0.55;
+  }
+  .orb-host {
+    transition: none;
+  }
+}

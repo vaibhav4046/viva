@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VIVA</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; width: 340px;
+    background: #0b0b0c; color: #f2f0ea;
+    font: 400 14px/1.55 ui-sans-serif, system-ui, sans-serif;
+  }
+  header { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; }
+  .mark { width: 9px; height: 9px; border-radius: 2px; background: #b8ff5a; }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+  .where { margin-left: auto; }
+  select {
+    background: #131417; color: #a7abb6; border: 1px solid #262a31; border-radius: 6px;
+    font: inherit; font-size: 11.5px; padding: 3px 6px; max-width: 168px;
+  }
+  main { padding: 0 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .page { color: #a7abb6; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button {
+    all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center;
+    cursor: pointer; border-radius: 8px; padding: 10px; font-weight: 600; font-size: 13px;
+  }
+  .go { background: #b8ff5a; color: #0b0b0c; }
+  .go[disabled] { background: #3a3f47; color: #a7abb6; cursor: default; }
+  .alt { background: #191b1f; color: #f2f0ea; border: 1px solid #262a31; }
+  .alt:hover { border-color: #3a3f47; }
+  button:focus-visible { outline: 2px solid #b8ff5a; outline-offset: 2px; }
+  #log {
+    margin: 0; padding: 10px 12px; border: 1px solid #262a31; border-radius: 8px; background: #131417;
+    font: 400 12px/1.5 ui-monospace, Menlo, monospace; color: #d3d1c9;
+    display: none; white-space: pre-wrap; max-height: 148px; overflow-y: auto;
+  }
+  #log.on { display: block; }
+  #log .err { color: #ff8080; }
+  #log .ok { color: #b8ff5a; }
+  a { color: #b8ff5a; }
+  .note {
+    margin: 0; padding: 11px 16px; border-top: 1px solid #262a31; background: #131417;
+    color: #a7abb6; font-size: 11.5px;
+  }
+  .note b { color: #d3d1c9; font-weight: 600; }
+</style>
+</head>
+<body>
+  <header>
+    <span class="mark" aria-hidden="true"></span>
+    <h1>VIVA</h1>
+    <label class="where">
+      <span class="sr" hidden>Send to</span>
+      <select id="origin" aria-label="Where this goes"></select>
+    </label>
+  </header>
+  <main>
+    <p class="page" id="page">—</p>
+    <button class="go" id="capture">Read this page into VIVA</button>
+    <button class="alt" id="panel">Talk about this page</button>
+    <pre id="log" aria-live="polite"></pre>
+  </main>
+  <p class="note">
+    Nothing is read until you press a button. <b>Read this page</b> sends this page's text, title
+    and address to the destination above, once. <b>Talk about this page</b> puts a box on the page and
+    sends only what you type or say into it. VIVA reads no other tab, and nothing at all in the background.
+  </p>
+  <script src="popup.js"></script>
+</body>
+</html>

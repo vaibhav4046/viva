@@ -1,7 +1,7 @@
 import type { EventStore } from "@/lib/store/repo";
 import { err } from "@/lib/types";
 import { COURSES, getCourse } from "./index";
-import type { Course, Subject } from "./types";
+import type { Course, SourceLicence, Subject } from "./types";
 
 /**
  * One place that answers "what am I studying".
@@ -38,7 +38,9 @@ export function starterSubject(course: Course): Subject {
     ownerId: "system",
     createdAt: "2026-09-01T00:00:00.000Z",
     origin: "starter",
-    builtBy: null,
+    // The two hand-written labs carry nothing; a library subject says a model
+    // wrote its map, because one did.
+    builtBy: course.builtBy ?? null,
     keyterms: keytermsFrom(course.concepts),
     languageCodes: ["en"],
   };
@@ -114,6 +116,13 @@ export type SubjectMeta = {
   chunkCount: number;
   examCount: number;
   trapCount: number;
+  /**
+   * What the licences on this subject's sources oblige VIVA to show. Empty for
+   * anything the student brought and for the labs VIVA wrote itself; one entry
+   * per borrowed source otherwise, and the screen has to render it — that is
+   * the condition on using the material at all.
+   */
+  attribution: SourceLicence[];
 };
 
 export function subjectMeta(s: Subject): SubjectMeta {
@@ -130,6 +139,7 @@ export function subjectMeta(s: Subject): SubjectMeta {
     chunkCount: s.sources.reduce((n, src) => n + src.chunks.length, 0),
     examCount: s.examQuestions.length,
     trapCount: s.traps.length,
+    attribution: s.sources.map((src) => src.licence).filter((l): l is SourceLicence => Boolean(l)),
   };
 }
 

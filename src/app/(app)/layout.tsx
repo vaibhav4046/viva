@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { OrbBackdrop } from "@/components/orb/Orb";
 
 /**
  * Application routes: /study, /subjects, /today, /map, /exam.
@@ -24,10 +25,12 @@ export const dynamic = "force-dynamic";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell>
-      <main id="main" className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
-        {children}
-      </main>
-    </AppShell>
+    <OrbBackdrop>
+      <AppShell>
+        <main id="main" className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
+          {children}
+        </main>
+      </AppShell>
+    </OrbBackdrop>
   );
 }

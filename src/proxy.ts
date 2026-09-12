@@ -50,15 +50,21 @@ export function proxy(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    // Privy and walletconnect are gone with the auth removal. Dictation is
-    // called server-side, so the browser never talks to AssemblyAI directly —
-    // these hosts stay only for the sync fallback probe.
-    // No provider origins here on purpose. Every AssemblyAI call is
-    // server-side — /api/voice/warm exists precisely so the browser never
-    // needs to reach them — so listing them only widened what an injected
-    // script could talk to. The previous comment said the browser never talks
-    // to AssemblyAI directly and then allowlisted three of its hosts anyway.
-    "connect-src 'self' https://*.vercel-insights.com",
+    // One provider origin, and only because a WebSocket leaves no alternative.
+    //
+    // Every batch call is still server-side: /api/voice/transcribe posts the
+    // clip, /api/voice/warm exists precisely so the browser never reaches
+    // AssemblyAI for that path, and no HTTPS origin of theirs is listed here.
+    // Live streaming is the exception. Relaying a socket through a Next route
+    // would put a server hop in front of every 64 ms audio frame and every
+    // partial word, which is the exact latency streaming exists to remove, so
+    // the browser opens the socket itself. What it carries is a short-lived
+    // streaming-only token from /api/voice/stream-token, never the API key.
+    //
+    // Scoped as tightly as the mechanism allows: the exact host, and `wss:`
+    // only — an injected script gets a WebSocket to AssemblyAI's streaming
+    // endpoint and no new fetch target anywhere.
+    "connect-src 'self' https://*.vercel-insights.com wss://streaming.assemblyai.com",
     "frame-src 'none'",
     // The mic capture path loads an AudioWorklet module from a blob: URL.
     "worker-src 'self' blob:",

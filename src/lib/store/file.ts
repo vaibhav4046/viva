@@ -153,7 +153,7 @@ export class FileEventStore implements EventStore {
       if (dupe) {
         return { event: dupe, mastery: doc.mastery, delta: null, reason: "duplicate suppressed", duplicate: true };
       }
-      const createdAt = new Date().toISOString();
+      const createdAt = input.createdAt ?? new Date().toISOString();
       let delta: number | null = null;
       let reason: string | null = null;
       if (input.primaryConceptId) {
@@ -171,14 +171,22 @@ export class FileEventStore implements EventStore {
         courseId: input.courseId, sourceId: input.sourceId, createdAt,
         transcript: input.transcript, cleanedTranscript: input.cleanedTranscript, origin: input.origin,
         transcriptionConfidence: input.transcriptionConfidence, transcriptionLatencyMs: input.transcriptionLatencyMs,
+        transcriptionMode: input.transcriptionMode ?? null,
+        transcriptionFellBackFrom: input.transcriptionFellBackFrom ?? null,
+        transcriptVerbatim: input.transcriptVerbatim ?? null,
         intent: input.intent, conceptIds: input.conceptIds, primaryConceptId: input.primaryConceptId,
         importance: input.importance, confusion: input.confusion, confidenceSelfReport: null,
         sourceLocator: input.sourceLocator, interpretationConfidence: input.interpretationConfidence,
         evidenceIds: input.evidenceIds, requestedAction: input.requestedAction, status: input.status,
         assessment: input.assessment ?? null, delta, reason, hint: input.hint ?? null,
+        masterySignal: input.masterySignal ?? null,
         idempotencyKey: input.idempotencyKey,
       };
       doc.events.push(event);
+      // A replay can carry an event older than one already stored, and
+      // `listEvents` hands out the tail — so the tail has to be the newest
+      // events, not the most recently written ones.
+      doc.events.sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
       await this.save(doc);
       return { event, mastery: doc.mastery, delta, reason, duplicate: false };
     });

@@ -218,12 +218,6 @@ export async function POST(req: Request): Promise<Response> {
       return fail("NO_SPEECH", 422, false);
     }
 
-    // A clip with no speech in it is a normal outcome — a muted headset, the
-    // wrong input device — and the provider answers 200 with "". Returned as a
-    // success it became a review box the learner could not send and could not
-    // clear, promising to send on its own forever. It is a coded failure, so
-    // the mic says one true sentence and goes back to idle.
-
     serverLog("voice.completed", trace.id, {
       mode: result.mode, fellBackFrom: fellBackFrom ?? "", audioMs: result.audioDurationMs,
       requestTimeMs: result.requestTimeMs, latencyMs: result.latencyMs, confidence: result.confidence,

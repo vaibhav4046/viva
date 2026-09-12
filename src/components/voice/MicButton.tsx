@@ -9,6 +9,8 @@ import { MAX_CLIP_MS, startCapture, warmDictation, type CaptureHandle } from "@/
 import { voiceMessage } from "@/lib/audio/messages";
 import { ownsSpace } from "@/lib/audio/shortcut";
 import { emptyBurst, foldBurst, type BurstState, type TextOrigin } from "@/lib/audio/burst";
+import { EMPTY_LIVE, openTranscriptSocket, type LiveState, type TranscriptSocket } from "@/lib/audio/stream";
+import { LiveTranscript } from "@/components/voice/LiveTranscript";
 
 /**
  * The mic. Hold Space or hold the button on a pointer device, tap to toggle on
@@ -44,6 +46,11 @@ export type VoiceTurn = {
   sessionId: string | null;
   /** Whether the words came back from Dictation or the Sync fallback. */
   asrMode: string | null;
+  /** The Dictation error code that forced the Sync fallback, when one did.
+   *  Carried on the turn so the conversation footer can say "backup path"
+   *  rather than the vendor name alone, long after the review panel is gone.
+   *  Optional so a synthetic turn (a suggestion chip) need not spell it out. */
+  fellBackFrom?: string | null;
   edited: boolean;
 };
 
@@ -102,6 +109,7 @@ export function MicButton({
   context = [],
   onPhaseChange,
   onLevel,
+  onAnalyser,
   typedHandleRef,
 }: {
   subjectId: string;
@@ -113,6 +121,12 @@ export function MicButton({
   onPhaseChange?: (phase: Phase | "thinking") => void;
   /** Live RMS 0..1 while listening — for the orb on the page behind this. */
   onLevel?: (level: number) => void;
+  /**
+   * The AnalyserNode this capture already runs for its own level meter, so a
+   * visualiser can read real frequency bands instead of a single scalar. Null
+   * on teardown. Nothing opens a second microphone for it.
+   */
+  onAnalyser?: (node: AnalyserNode | null) => void;
   /** Lets a page drop a suggestion into the typed box. */
   typedHandleRef?: Ref<TypedHandle>;
 }) {
@@ -133,7 +147,9 @@ export function MicButton({
 
   const typedRef = useRef<HTMLInputElement>(null);
   const typedLenRef = useRef(0);
+  const [live, setLive] = useState<LiveState>(EMPTY_LIVE);
   const captureRef = useRef<CaptureHandle | null>(null);
+  const socketRef = useRef<TranscriptSocket | null>(null);
   const startingRef = useRef(false);
   const burstRef = useRef<BurstState>(emptyBurst());
   const typedOriginRef = useRef<TextOrigin>("typed");
@@ -179,6 +195,7 @@ export function MicButton({
   useEffect(() => () => {
     cancelAutosend();
     captureRef.current?.cancel();
+    void socketRef.current?.close();
   }, [cancelAutosend]);
 
   const send = useCallback(
@@ -268,6 +285,12 @@ export function MicButton({
   const stop = useCallback(async () => {
     const capture = captureRef.current;
     if (!capture) return;
+    // The close is not awaited: it waits for the server's own Termination to
+    // release the session slot politely, and the button must not hold the
+    // learner there. The buffered POST below is the transcript that counts;
+    // the streamed words were only ever the live picture.
+    void socketRef.current?.close();
+    socketRef.current = null;
     captureRef.current = null;
     try {
       const { wav, durationMs } = await capture.stop();
@@ -290,6 +313,15 @@ export function MicButton({
     setResult(null);
     logEvent("dictation_started");
     try {
+      // One microphone feeds both paths. The socket takes each frame as the
+      // worklet produces it; the same frames are buffered into the clip the
+      // POST sends. Opening a second capture for the socket meant two
+      // getUserMedia calls and two AudioWorklets on one device, which crashed
+      // the renderer. Started from the gesture, never an effect, so
+      // StrictMode cannot open two sockets on one mic.
+      setLive(EMPTY_LIVE);
+      const socket = openTranscriptSocket({ language: languages, onState: setLive });
+      socketRef.current = socket;
       const capture = await startCapture({
         onLevel: (l) => {
           setLevel(l);
@@ -297,17 +329,22 @@ export function MicButton({
         },
         onElapsed: setElapsed,
         onCapReached: () => void stop(),
+        onFrame: (frame) => socket.send(frame),
+        onAnalyser,
       });
       captureRef.current = capture;
       setPhase("listening");
     } catch (e) {
       const code = (e as { code?: string })?.code;
+      // The mic failed, so the socket has nothing to carry.
+      void socketRef.current?.close();
+      socketRef.current = null;
       setError(voiceMessage(code));
       setPhase("idle");
     } finally {
       startingRef.current = false;
     }
-  }, [busy, onLevel, phase, stop]);
+  }, [busy, languages, onAnalyser, onLevel, phase, stop]);
 
   // Hold Space anywhere on the page, as long as nothing focusable owns it.
   useEffect(() => {
@@ -357,6 +394,7 @@ export function MicButton({
       audioMs: result.audioMs,
       sessionId: result.sessionId,
       asrMode: result.mode,
+      fellBackFrom: result.fellBackFrom,
       edited,
     });
   }
@@ -375,6 +413,7 @@ export function MicButton({
       audioMs: null,
       sessionId: null,
       asrMode: null,
+      fellBackFrom: null,
       edited: false,
     });
     if (el) el.value = "";
@@ -427,6 +466,10 @@ export function MicButton({
     <div className="w-full">
       <div className="surface-card flex flex-col items-center gap-3 px-6 py-5" aria-live="polite">
         <Waveform level={listening ? level : 0} active={listening} reduced={reduced} />
+
+        {listening && (
+          <LiveTranscript committed={live.committed} words={live.words} listening className="w-full" />
+        )}
 
         <div className="relative">
           {listening && !reduced && (

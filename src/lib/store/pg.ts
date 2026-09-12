@@ -24,9 +24,12 @@ function toEvent(r: Record<string, unknown>): LearningEvent {
     createdAt: (r.created_at as Date).toISOString(),
     transcript: r.transcript as string,
     cleanedTranscript: r.cleaned_transcript as string,
-    origin: (r.origin as "voice" | "typed") ?? "voice",
+    origin: (r.origin as LearningEvent["origin"]) ?? "voice",
     transcriptionConfidence: (r.transcription_confidence as number) ?? null,
     transcriptionLatencyMs: (r.transcription_latency_ms as number) ?? null,
+    transcriptionMode: (r.transcription_mode as LearningEvent["transcriptionMode"]) ?? null,
+    transcriptionFellBackFrom: (r.transcription_fell_back_from as LearningEvent["transcriptionFellBackFrom"]) ?? null,
+    transcriptVerbatim: (r.transcript_verbatim as string | null) ?? null,
     intent: r.intent as LearningEvent["intent"],
     conceptIds: strArr(r.concept_ids),
     primaryConceptId: r.primary_concept_id ? stripScope(r.primary_concept_id as string) : null,
@@ -42,6 +45,7 @@ function toEvent(r: Record<string, unknown>): LearningEvent {
     delta: r.delta === null || r.delta === undefined ? null : Number(r.delta),
     reason: (r.reason as string | null) ?? null,
     hint: (r.hint as string | null) ?? null,
+    masterySignal: (r.mastery_signal as LearningEvent["masterySignal"]) ?? null,
   };
 }
 
@@ -175,15 +179,20 @@ export class PgEventStore implements EventStore {
           transcript, cleaned_transcript, origin, transcription_confidence, transcription_latency_ms,
           transcription_session_id, intent, concept_ids, primary_concept_id, importance, confusion,
           interpretation_confidence, evidence_ids, requested_action, status, source_locator,
-          assessment, hint)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+          assessment, hint, mastery_signal, transcription_mode, transcription_fell_back_from,
+          transcript_verbatim, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
+                 $26,$27,$28,COALESCE($29::timestamptz, now()))
          ON CONFLICT (user_id, idempotency_key) DO NOTHING RETURNING *`,
         [uid("evt"), userId, input.sessionId, courseId, sourceId, input.idempotencyKey,
          input.transcript, input.cleanedTranscript, input.origin, input.transcriptionConfidence,
          input.transcriptionLatencyMs, input.transcriptionSessionId, input.intent,
          JSON.stringify(conceptIds), cid, input.importance, input.confusion,
          input.interpretationConfidence, JSON.stringify(evidenceIds), input.requestedAction,
-         input.status, JSON.stringify(input.sourceLocator), input.assessment ?? null, input.hint ?? null]
+         input.status, JSON.stringify(input.sourceLocator), input.assessment ?? null, input.hint ?? null,
+         input.masterySignal ?? null, input.transcriptionMode ?? null,
+         input.transcriptionFellBackFrom ?? null, input.transcriptVerbatim ?? null,
+         input.createdAt ?? null]
       );
       if (ins.rows.length === 0) {
         // Duplicate retry (§23): return the original, never a second Thought Mark.
@@ -197,7 +206,7 @@ export class PgEventStore implements EventStore {
       let reason: string | null = null;
       if (cid) {
         const row = await client.query("SELECT * FROM mastery_state WHERE user_id=$1 AND concept_id=$2 FOR UPDATE", [userId, cid]);
-        const prev = row.rows.length ? toMastery(row.rows[0]) : blankMastery(stripScope(cid as string), new Date().toISOString());
+        const prev = row.rows.length ? toMastery(row.rows[0]) : blankMastery(stripScope(cid as string), event.createdAt);
         const { next, delta: d, reason: r } = reduceMastery(prev, {
           intent: input.intent, createdAt: event.createdAt, assessment: input.assessment ?? null, teachbackScore: input.teachbackScore ?? null,
           masterySignal: input.masterySignal ?? null,

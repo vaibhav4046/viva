@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import { HeuristicProvider, recordProviderLatency, resolveReasoningProvider } from "./provider";
+import { HeuristicProvider, ProviderError, recordProviderLatency, recordProviderOutcome, resolveReasoningProvider } from "./provider";
 
 /** Master prompt 5.6. One budget per surface, so a slow model never stalls a turn. */
 export const REASON_TIMEOUT_MS = { tutor: 8_000, assessment: 10_000, intake: 45_000 } as const;
@@ -38,9 +38,13 @@ export async function reasonObject<T>(input: {
     });
     const latencyMs = Date.now() - started;
     recordProviderLatency(latencyMs);
+    recordProviderOutcome("ok");
     return { value, latencyMs };
   } catch (error) {
     recordProviderLatency(Date.now() - started);
+    // The class, not the message: readiness reports this, and an upstream
+    // message can carry a body. The message still goes to the server log.
+    recordProviderOutcome(error instanceof ProviderError ? error.code : "PROVIDER_ERROR");
     console.error("[reason] falling back to the heuristic path:", error instanceof Error ? error.message : error);
     return null;
   }

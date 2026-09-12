@@ -25,9 +25,20 @@ mic ──► AudioWorklet ──► /api/voice/transcribe ──► AssemblyAI 
 
 `public/worklets/pcm16.js` resamples the microphone to 16 kHz mono Int16 in the
 audio thread, carrying the fractional read position and the previous quantum's
-tail across 128-sample boundaries. The clip is assembled into a WAV on release
-and POSTed whole — it is **not** streamed while recording, despite the endpoint
-supporting it.
+tail across 128-sample boundaries.
+
+One capture feeds two paths. Frames are buffered into a WAV that is POSTed
+whole on release — that clip is what gets graded — and the same frames go, as
+they are produced, to a Universal-Streaming socket the browser opens itself so
+the learner can watch the sentence form. `startCapture`'s `onFrame` is the tee;
+opening a second capture for the socket meant two `getUserMedia` calls and two
+AudioWorklets on one device, which crashed the renderer outright.
+
+`GET /api/voice/stream-token` mints a streaming-only token (expiry clamped
+server-side to 60-600 s, same rate-limit bucket as transcription). The API key
+stays on the server; `src/proxy.ts` allows exactly `wss://streaming.assemblyai.com`
+in `connect-src` and no new fetch target. If the socket never opens, the
+buffered path is unaffected.
 
 `POST /api/voice/transcribe` (multipart: `audio`, `subjectId`, `mode`) builds
 the Dictation request from the learner's actual subject:
@@ -37,7 +48,7 @@ the Dictation request from the learner's actual subject:
 | `keyterms_prompt` | concept names + aliases of the resolved subject |
 | `stt_prompt` | last few turns, speaker labels stripped |
 | `llm_instruction` | `study` keeps hedges and negations, removes filler; `verbatim` omits it |
-| `language_codes` | the subject's languages, 19 supported |
+| `language_codes` | the subject's languages; streaming accepts 32 codes plus automatic detection, and anything outside that set maps to auto rather than killing the session |
 
 Speaker labels are stripped from `stt_prompt` because a prompt beginning
 `Student:` produced a transcript beginning `Student:` — probed live, pinned by
@@ -113,3 +124,54 @@ npm run verify   # typecheck + copy lint + tests + build
 student-facing strings — it scans rendered text only (string literals, template
 literals, JSX text), exempts identifiers and SQL, and ships a self-test so the
 rules cannot silently stop firing.
+
+## Subjects
+
+`src/lib/corpus/library.json` ships 11 subjects built from CC BY 4.0 OpenStax
+books, registered through `src/lib/corpus/index.ts` into the same course
+registry the hand-written labs use, so retrieval, quizzing and teach-back need
+no special case. Each carries a `SourceLicence` that the UI is required to
+render — that is the condition on using the material, not a nicety.
+
+A learner's own subject comes from pasted text, a `.txt`/`.md`/`.docx`/`.pdf`
+(dispatched on magic bytes, not the filename), or a URL. URL fetching resolves
+every redirect hop and refuses private, loopback, link-local and metadata
+addresses, caps the body at 3 MB and the request at 12 s, and refuses a page
+with too little prose rather than guessing. Up to four sources make one
+subject and each keeps its own provenance.
+
+## The record lives in the browser
+
+Without `DATABASE_URL` the server store is per-instance, so the browser is the
+authority: `src/components/mirror.ts` keeps events, mastery and whole subjects
+in `localStorage` and `POST /api/learner/sync` replays them into whichever
+instance answers. Replay is idempotent on `clientEventId`, and mastery is
+never taken from the client — it is recomputed by folding the replayed events
+through `src/lib/mastery.ts`, so a reload cannot move the map.
+
+## Reasoning
+
+`src/lib/ai/provider.ts` resolves an ordered chain: `LLM_*` first, then each
+`LLM_FALLBACKS` entry. A credential that returns 429 is skipped for a minute
+rather than retried every turn. This exists because it happened — one key hit
+its daily token cap and every turn silently answered from the heuristic path
+for hours. `/api/health/ready` now reports the failure class, never the
+upstream message.
+
+Every prompt that asks for a schema-shaped object names its keys. The one that
+did not (`TUTOR_SYSTEM`) produced sensible content under invented key names,
+failed validation, and fell back silently 100% of the time.
+
+## Other surfaces
+
+- `src/app/api/mcp/route.ts` — Model Context Protocol over Streamable HTTP.
+  Eight tools, all calling VIVA's own routes, so an assistant's quiz is marked
+  by the same code. Pairing is an HMAC-signed code (10 min) exchanged for an
+  account key (30 days).
+- `extension/` — Manifest V3, no build step, no credentials. It works inside
+  the learner's own VIVA tab, so requests are same-origin; host permissions
+  are the two VIVA origins only.
+- `src/components/orb/` — one WebGL orb for the whole app, mounted in the root
+  layout outside `template.tsx`. Pages render an empty `OrbSlot`; the host
+  measures the active slot and springs its own transform. Phones get a drawn
+  SVG and never download three.

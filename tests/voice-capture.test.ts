@@ -6,6 +6,7 @@ import { BURST_CHARS, BURST_WINDOW_MS, emptyBurst, foldBurst } from "@/lib/audio
 import { ownsSpace } from "@/lib/audio/shortcut";
 import { MAX_MS } from "@/lib/audio/wav";
 import { MAX_CLIP_MS } from "@/lib/audio/worklet";
+import { pathTitle, turnFactsLine, type TurnFacts } from "@/components/voice/TurnFacts";
 
 /**
  * The two pure pieces of the capture path: the WAV the AudioWorklet frames get
@@ -223,5 +224,70 @@ describe("MicButton refuses to park the learner in a dead review panel", () => {
   it("sends the completed-dictation event somewhere readable", () => {
     // The in-tab counters were the whole record of a latency claim.
     expect(SRC).toMatch(/"\/api\/voice\/telemetry"/);
+  });
+});
+
+/**
+ * The per-turn footer line.
+ *
+ * The Clean/Verbatim toggle, the path chip and the real request_time_ms all
+ * lived in the review panel, which auto-sends after 1.5 s; measured on live,
+ * the conversation that remained contained no ms figure and no path name at
+ * all. This is the line that survives, so what it says has to be exact — and
+ * the number it prints is AssemblyAI's own, never our round trip.
+ */
+describe("turnFactsLine", () => {
+  const voice = (over: Partial<TurnFacts> = {}): TurnFacts => ({
+    origin: "voice",
+    asrMode: "dictation",
+    requestTimeMs: 554,
+    confidence: 0.989,
+    ...over,
+  });
+
+  it("names the path, the provider's own time and the confidence", () => {
+    expect(turnFactsLine(voice())).toBe("Dictation · AssemblyAI 554 ms · 99% confident");
+  });
+
+  it("says backup path when Dictation fell over, even with no time to show", () => {
+    // The one case the label exists for is the one that used to render nothing:
+    // a Sync answer carries request_time_ms only if the endpoint returns it.
+    expect(turnFactsLine(voice({ fellBackFrom: "AUTH_FAILED", asrMode: "sync", requestTimeMs: null })))
+      .toBe("Backup path · 99% confident");
+  });
+
+  it("says backup path for a Sync answer even when nothing failed loudly", () => {
+    expect(turnFactsLine(voice({ asrMode: "sync", fellBackFrom: null }))).toBe(
+      "Backup path · AssemblyAI 554 ms · 99% confident"
+    );
+  });
+
+  it("never invents a number it does not have", () => {
+    expect(turnFactsLine(voice({ requestTimeMs: null, confidence: null }))).toBe("Dictation");
+    expect(turnFactsLine(voice({ requestTimeMs: Number.NaN }))).not.toContain("NaN");
+  });
+
+  it("claims nothing for words another tool dictated", () => {
+    // §4.5: the burst came from Wispr Flow or Windows dictation, so no
+    // AssemblyAI path and no AssemblyAI timing belong on it.
+    const line = turnFactsLine({ origin: "external-dictation", asrMode: null, requestTimeMs: 900, confidence: 0.9 });
+    expect(line).toBe("Dictated elsewhere");
+  });
+
+  it("renders nothing for typed text — the Note already says Typed", () => {
+    expect(turnFactsLine({ origin: "typed", asrMode: null, requestTimeMs: null, confidence: null })).toBeNull();
+  });
+
+  it("rounds rather than truncating, and reads percent not a fraction", () => {
+    expect(turnFactsLine(voice({ requestTimeMs: 554.6, confidence: 0.5 }))).toBe(
+      "Dictation · AssemblyAI 555 ms · 50% confident"
+    );
+  });
+
+  it("the tooltip labels whose figure the number is", () => {
+    // A judge measured 1166 ms wall against 554 ms upstream. Printing the round
+    // trip as the provider's figure would be a number this product cannot back.
+    expect(pathTitle(voice())).toContain("not the browser round trip");
+    expect(pathTitle(voice({ fellBackFrom: "PROVIDER_BUSY" }))).toContain("backup path");
   });
 });

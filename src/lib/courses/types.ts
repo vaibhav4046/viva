@@ -34,11 +34,42 @@ export type Trap = {
   correct: string;
 };
 
+/**
+ * Where a source came from and what its licence obliges VIVA to say.
+ *
+ * Openly licensed does not mean unattributed. Every passage VIVA ships that
+ * somebody else wrote carries the work's title, its authors, the licence and a
+ * link to both the licence and the page the words are on — which is exactly
+ * what CC BY asks for, and it is shown to the student rather than buried in a
+ * file. A source with no licence recorded is one VIVA wrote or the student
+ * gave it, and carries nothing.
+ */
+export type SourceLicence = {
+  /** Short name a person reads: "CC BY 4.0". */
+  name: string;
+  /** The licence deed. */
+  url: string;
+  /** Who wrote it, credited as the licence requires. */
+  attribution: string;
+  /** The exact page these passages were taken from. */
+  sourceUrl: string;
+  /** The work these passages are an excerpt of. */
+  workTitle: string;
+  /** ShareAlike: anything built on these passages carries the same licence. */
+  shareAlike: boolean;
+  /** NonCommercial: these passages may not be used commercially. */
+  nonCommercial: boolean;
+};
+
 export type CourseSource = {
   id: string;
   title: string;
   type: string;
   chunks: SourceChunk[];
+  /** Where the passages were fetched from, when they came off the web. */
+  url?: string;
+  /** Present on everything VIVA did not write itself. */
+  licence?: SourceLicence;
 };
 
 /**
@@ -50,8 +81,14 @@ export type Course = {
   code: string;
   title: string;
   subject: string;
-  /** true for the two starters we ship; false for a learner's own subject. */
+  /** true for everything VIVA ships; false for a learner's own subject. */
   demo: boolean;
+  /**
+   * Who wrote the map for a shipped course. Omitted on the two labs a person
+   * wrote by hand; "model" on the library subjects, where a model read the
+   * textbook's passages and produced the concepts and questions.
+   */
+  builtBy?: SubjectBuiltBy | null;
   sources: CourseSource[];
   concepts: ConceptDef[];
   examQuestions: ExamQuestion[];
@@ -75,8 +112,13 @@ export type Course = {
   opening?: { conceptId: string; chunkId: string; text: string };
 };
 
-/** How a subject came to exist. `starter` is one we wrote and ship. */
-export type SubjectOrigin = "starter" | "paste" | "pdf" | "named";
+/**
+ * How a subject came to exist. `starter` is one VIVA ships — either a lab
+ * written for this project or a chapter of an openly licensed textbook;
+ * `url` is a page the student pointed VIVA at; `file` is a text, markdown or
+ * Word document they uploaded.
+ */
+export type SubjectOrigin = "starter" | "paste" | "pdf" | "named" | "url" | "file";
 
 /**
  * Who did the reading. `model` = a language model read the text and wrote the
@@ -87,13 +129,13 @@ export type SubjectBuiltBy = "model" | "reading";
 
 /**
  * A subject is a course that may belong to one student.
- * `demo: true` marks the two starters we ship; everything else is theirs.
+ * `demo: true` marks everything VIVA ships; everything else is theirs.
  */
 export type Subject = Course & {
   ownerId: string;
   createdAt: string;
   origin: SubjectOrigin;
-  /** null for the starters — a person wrote those. */
+  /** null for the labs a person wrote; set on everything else. */
   builtBy: SubjectBuiltBy | null;
   /** Recognition bias for the dictation call (≤100 terms). */
   keyterms: string[];

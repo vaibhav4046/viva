@@ -14,11 +14,17 @@ export type CourseMeta = {
   code: string;
   title: string;
   subject: string;
+  /** true for everything VIVA ships; false or absent for the student's own. */
+  demo?: boolean;
   conceptCount: number;
   chunkCount: number;
   examCount: number;
   trapCount: number;
 };
+
+/** The two names the whole product uses for the two kinds of subject. */
+export const SHIPPED_GROUP = "VIVA's subjects";
+export const OWN_GROUP = "Your subjects";
 
 export async function fetchCourses(): Promise<CourseMeta[]> {
   const res = await fetch("/api/courses");
@@ -66,6 +72,20 @@ export function CoursePicker({
   allOption?: boolean;
   label?: string;
 }) {
+  /*
+   * Two groups, because the list is thirteen shipped subjects long now and a
+   * flat thirteen-line menu makes a student read every line to find the one
+   * they built. Order is preserved inside each group — the server already
+   * returns starters first, then the newest of their own.
+   */
+  const shipped = courses.filter((c) => c.demo !== false);
+  const own = courses.filter((c) => c.demo === false);
+  const option = (c: CourseMeta) => (
+    <option key={c.id} value={c.id}>
+      {c.code} · {c.title}
+    </option>
+  );
+
   return (
     <label className="flex min-w-0 items-center gap-2">
       <span className="mono text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }}>
@@ -82,11 +102,16 @@ export function CoursePicker({
         style={{ borderColor: "var(--color-hairline)" }}
       >
         {allOption ? <option value="">All courses</option> : null}
-        {courses.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.code} · {c.title}
-          </option>
-        ))}
+        {/* One group collapses to a plain list, so a student with nothing of
+            their own never sees a heading over a single section. */}
+        {own.length === 0 || shipped.length === 0 ? (
+          courses.map(option)
+        ) : (
+          <>
+            <optgroup label={SHIPPED_GROUP}>{shipped.map(option)}</optgroup>
+            <optgroup label={OWN_GROUP}>{own.map(option)}</optgroup>
+          </>
+        )}
       </select>
     </label>
   );

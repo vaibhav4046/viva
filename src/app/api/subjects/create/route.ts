@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { clientIp, withIdentityCookie } from "@/lib/http";
-import { buildSubject, cleanTitle, type IntakeInput } from "@/lib/intake/build";
-import { PDF_MAX_BYTES, readPdfPages } from "@/lib/intake/pdf";
+import type { Subject } from "@/lib/courses/types";
+import { buildSubject, cleanTitle, type IntakeDoc, type IntakeInput } from "@/lib/intake/build";
+import { PDF_MAX_BYTES } from "@/lib/intake/pdf";
+import { docFromFile, docFromUrl, MAX_DOCS } from "@/lib/intake/sources";
 import { checkLimit, limitKey } from "@/lib/limits";
 import { getStore, storeDurability } from "@/lib/store";
 
@@ -31,23 +33,37 @@ type Line =
         concepts: number;
         questions: number;
         passages: number;
-        /** False when this subject may not be readable on the next request. */
+        /** False when nothing durable is behind this deployment. */
         durable: boolean;
         /** The sentence to show beside the result when it is not durable. */
         storageNote: string | null;
       };
+      /**
+       * The whole built subject, for the browser to keep.
+       *
+       * A judge built a subject, was told "is ready · 10 concepts · 8
+       * questions", and then every one of eleven reads that followed came back
+       * without it — because with no database the write went to one lambda's
+       * /tmp. The browser is the authority now, so the subject leaves with the
+       * response and comes back through POST /api/learner/sync on the next
+       * load, which is what makes "is ready" a true sentence.
+       */
+      record: Subject;
       redirect: string;
     }
   | { error: { code: string; message: string } };
 
 /**
  * The three sentences the student sees when there is nowhere durable to write.
- * They say what is true — no database, this page only, may be gone on reload —
- * and they arrive before and after the work rather than instead of it.
+ *
+ * They used to say the subject might be gone on the next page load, which was
+ * true and is not any more: the subject travels back in the response, the
+ * browser keeps it, and it is handed in again on the next load. What is still
+ * true is the part these now say — this browser, not this account.
  */
-const NO_DATABASE = "Before you start: VIVA has no database here, so a subject you build may not survive the next page load.";
-const KEEPING = "Keeping it for this session — there is no database here to save it to.";
-const NOT_KEPT = "Built, but not stored anywhere lasting: if it is gone when you come back, that is why.";
+const NO_DATABASE = "Before you start: VIVA keeps what you build in this browser, so it comes back here and not on your other devices.";
+const KEEPING = "Keeping it in this browser — that is where your subjects live.";
+const NOT_KEPT = "Kept in this browser. Open VIVA here again and it is waiting; open it somewhere else and it will not be.";
 
 function encoder(controller: ReadableStreamDefaultController<Uint8Array>) {
   const enc = new TextEncoder();
@@ -78,38 +94,52 @@ export async function POST(req: NextRequest) {
     if (Number.isFinite(declared) && declared > PDF_MAX_BYTES) return done(tooLarge());
     let form: FormData;
     try { form = await req.formData(); } catch { return done(bad("BAD_REQUEST", "VIVA could not read that upload.")); }
-    const file = form.get("file");
-    if (!(file instanceof File)) return done(bad("NO_FILE", "Attach a PDF, or paste your notes instead."));
-    if (file.size > PDF_MAX_BYTES) return done(tooLarge());
-    const parsed = await readPdfPages(Buffer.from(await file.arrayBuffer()));
-    if (!parsed.ok) {
-      if (parsed.code === "FILE_TOO_LARGE") return done(tooLarge());
-      if (parsed.code === "NOT_A_PDF") return done(bad("BAD_FILE", "That is not a PDF. Upload a PDF, or paste your notes instead.", 415));
-      if (parsed.code === "PARSE_TIMEOUT") {
-        return done(bad(
-          "PARSE_TIMEOUT",
-          "That PDF took too long to read. Try a shorter one, or paste the part you are studying.",
-          504
-        ));
-      }
-      if (parsed.code === "NO_TEXT") {
-        return done(bad(
-          "NO_TEXT_IN_PDF",
-          "There is no text in that PDF — it looks like scanned pages or images. VIVA will not guess at what they say. Paste the text instead and it will read that.",
-          422
-        ));
-      }
-      return done(bad("PARSE_FAILED", "VIVA could not open that PDF. Try another file, or paste the text.", 422));
+    const files = form.getAll("file").filter((f): f is File => f instanceof File).slice(0, MAX_DOCS);
+    if (!files.length) return done(bad("NO_FILE", "Attach a file, or paste your notes instead."));
+    if (files.reduce((n, f) => n + f.size, 0) > PDF_MAX_BYTES) return done(tooLarge());
+
+    const docs: IntakeDoc[] = [];
+    for (const file of files) {
+      const read = await docFromFile(file.name, Buffer.from(await file.arrayBuffer()));
+      // One unreadable file fails the request. Building a subject out of the
+      // other three and saying nothing about the one that did not open is how
+      // a student ends up revising from half their material without knowing.
+      if (!read.ok) return done(bad(read.error.code, read.error.message, read.error.status));
+      docs.push(read.doc);
     }
-    input = { kind: "pdf", title: cleanTitle(form.get("title") || file.name, "Your PDF"), pages: parsed.pages };
+    const title = cleanTitle(form.get("title") || files[0].name, "Your file");
+    input = docs.length === 1 && docs[0].type === "pdf"
+      ? { kind: "pdf", title, pages: docs[0].pages }
+      : { kind: "docs", title, origin: "file", docs };
   } else {
-    let body: { kind?: string; title?: string; text?: string };
+    let body: { kind?: string; title?: string; text?: string; url?: string; urls?: unknown };
     try { body = (await req.json()) as typeof body; } catch { return done(bad("BAD_REQUEST", "Expected JSON.")); }
-    const kind = body.kind === "named" ? "named" : "paste";
+    const kind = body.kind === "named" ? "named" : body.kind === "url" ? "url" : "paste";
     const title = cleanTitle(body.title, kind === "named" ? "Your subject" : "Your notes");
     if (kind === "named") {
       if (!body.title || String(body.title).trim().length < 3) return done(bad("BAD_REQUEST", "Give the topic a name first."));
       input = { kind: "named", title };
+    } else if (kind === "url") {
+      const urls = [...(Array.isArray(body.urls) ? body.urls : []), ...(body.url ? [body.url] : [])]
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean)
+        .slice(0, MAX_DOCS);
+      if (!urls.length) return done(bad("BAD_REQUEST", "Paste the address of the page you want to study."));
+      const docs: IntakeDoc[] = [];
+      for (const url of urls) {
+        const read = await docFromUrl(url);
+        if (!read.ok) return done(bad(read.error.code, read.error.message, read.error.status));
+        docs.push(read.doc);
+      }
+      input = {
+        kind: "docs",
+        // The page names itself unless the student named the subject. The
+        // slashes go first: cleanTitle treats them as path separators and
+        // would turn "Photosynthesis / Biology" into "Biology".
+        title: body.title ? title : cleanTitle(docs[0].title.replace(/[\\/]+/g, " · "), "That page"),
+        origin: "url",
+        docs,
+      };
     } else {
       const text = String(body.text ?? "");
       if (text.trim().length < 200) return done(bad("BAD_REQUEST", "Paste a bit more — a few paragraphs is enough."));
@@ -158,6 +188,7 @@ export async function POST(req: NextRequest) {
             durable,
             storageNote: durable ? null : NOT_KEPT,
           },
+          record: s,
           redirect: `/study?subject=${encodeURIComponent(s.id)}`,
         });
       } catch (error) {

@@ -12,6 +12,8 @@ tsconfig.tsbuildinfo
 *.log
 .DS_Store
 .next-prod/
+# Agents build into their own dist dir so a build never clobbers a running server.
+.next-*/
 .claude/
 .data-test-fallback/
 

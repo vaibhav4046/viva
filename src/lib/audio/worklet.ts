@@ -25,6 +25,20 @@ export type Capture = {
   onElapsed?: (ms: number) => void;
   /** Fired when the 120 s cap stops the recording on its own. */
   onCapReached?: () => void;
+  /**
+   * Every 16 kHz Int16 frame, as it is produced, in addition to being buffered
+   * for the clip. This exists so live streaming rides the microphone that is
+   * already open: a second startCapture meant a second getUserMedia, a second
+   * AudioContext and a second AudioWorklet on one device, which crashed the
+   * renderer outright in headless Chromium and is a real risk on a phone.
+   */
+  onFrame?: (frame: Int16Array) => void;
+  /**
+   * The AnalyserNode this capture is already running for level metering, so a
+   * visualiser can read real frequency bands without opening anything of its
+   * own. Called with null on teardown.
+   */
+  onAnalyser?: (node: AnalyserNode | null) => void;
 };
 
 export type CaptureHandle = {
@@ -95,6 +109,7 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
     if (capTimer) clearTimeout(capTimer);
     if (tickTimer) clearInterval(tickTimer);
     node?.disconnect();
+    opts.onAnalyser?.(null);
     stream.getTracks().forEach((t) => t.stop());
     void ctx.close().catch(() => {});
   };
@@ -109,7 +124,9 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
   const source = ctx.createMediaStreamSource(stream);
   node = new AudioWorkletNode(ctx, "pcm16", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
   node.port.onmessage = (e: MessageEvent<WorkletMessage>) => {
-    if (e.data.type === "pcm") frames.push(e.data.frame);
+    if (e.data.type !== "pcm") return;
+    frames.push(e.data.frame);
+    opts.onFrame?.(e.data.frame);
   };
 
   // A worklet is only pulled while its output reaches the destination, so the
@@ -124,9 +141,12 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
   // Level metering is a separate branch: an AnalyserNode is cheaper and
   // smoother for the UI than deriving RMS from the PCM frames.
   const analyser = ctx.createAnalyser();
-  analyser.fftSize = 512;
+  // 1024 rather than 512: at 512 the lowest band a visualiser can read is only
+  // four bins wide, which is not enough to separate a phrase from a syllable.
+  analyser.fftSize = 1024;
   source.connect(analyser);
   const meter = new Float32Array(analyser.fftSize);
+  opts.onAnalyser?.(analyser);
   if (opts.onLevel) {
     const tick = () => {
       if (closed) return;

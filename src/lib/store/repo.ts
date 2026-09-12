@@ -13,10 +13,14 @@ export type RecordInput = {
   sourceId: string | null;
   transcript: string;
   cleanedTranscript: string;
-  origin: "voice" | "typed";
+  origin: "voice" | "typed" | "external-dictation";
   transcriptionConfidence: number | null;
   transcriptionLatencyMs: number | null;
   transcriptionSessionId: string | null;
+  /** Which endpoint answered, the one it fell back from, and what it heard. */
+  transcriptionMode?: "dictation" | "sync" | null;
+  transcriptionFellBackFrom?: "dictation" | "sync" | null;
+  transcriptVerbatim?: string | null;
   intent: LearningIntent;
   conceptIds: string[];
   primaryConceptId: string | null;
@@ -33,6 +37,14 @@ export type RecordInput = {
   masterySignal?: "up" | "down" | "flat" | null;
   /** The hint text the learner was shown for the question they answered. */
   hint?: string | null;
+  /**
+   * When this happened, when the caller knows better than the clock here.
+   * Only a replay does: the browser holds a record made minutes or days ago,
+   * and stamping it "now" on the way back in would rewrite the learner's
+   * history to say everything happened two seconds ago. Omit it and the store
+   * uses its own clock, which is right for every live turn.
+   */
+  createdAt?: string | null;
 };
 
 export type RecordOutcome = {

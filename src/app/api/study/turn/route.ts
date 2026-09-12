@@ -31,8 +31,8 @@ const Body = z.object({
   transcript: z.string().min(1).max(MAX_TEXT).optional(),
   subjectId: z.string().max(80).optional(),
   courseId: z.string().max(80).optional(),
-  origin: z.enum(["voice", "typed"]).optional(),
-  inputKind: z.enum(["voice", "typed"]).optional(),
+  origin: z.enum(["voice", "typed", "external-dictation"]).optional(),
+  inputKind: z.enum(["voice", "typed", "external-dictation"]).optional(),
   confidence: z.number().nullable().optional(),
   latencyMs: z.number().nullable().optional(),
   transcriptionSessionId: z.string().nullable().optional(),
@@ -44,6 +44,10 @@ const Body = z.object({
       audioMs: z.number().nullable().optional(),
       sessionId: z.string().nullable().optional(),
       clean: z.string().max(MAX_TEXT).nullable().optional(),
+      /** The endpoint that failed first, when Dictation handed off to Sync. */
+      fellBackFrom: z.enum(["dictation", "sync"]).nullable().optional(),
+      /** What the microphone heard, before the student edited it. */
+      verbatim: z.string().max(MAX_TEXT).nullable().optional(),
     })
     .optional(),
   selection: z.string().optional(),
@@ -92,6 +96,11 @@ export async function POST(req: NextRequest) {
   const asrConfidence = input.asr?.confidence ?? input.confidence ?? null;
   const asrLatency = input.asr?.requestTimeMs ?? input.latencyMs ?? null;
   const asrSession = input.asr?.sessionId ?? input.transcriptionSessionId ?? null;
+  // Only a turn VIVA dictated carries AssemblyAI evidence. A student pasting
+  // from their own tool is `external-dictation`, and claiming a confidence
+  // number for a transcript this app never made would be the same lie in a
+  // new costume.
+  const dictated = origin === "voice";
 
   const store = getStore();
   const course = await resolveSubject(store, identity.userId, input.subjectId ?? input.courseId).catch(subjectMissing);
@@ -166,6 +175,10 @@ export async function POST(req: NextRequest) {
     assessment = graded.verdict;
     misconception = graded.possibleMisconception;
     source = graded.gradedBy === "model" ? "model" : "heuristic";
+    // Reported for every model call, not just the tutor ones: a graded answer
+    // came back `{"source":"model","latencyMs":null}`, which reads as a model
+    // that answered in no time at all.
+    latencyMs = graded.latencyMs;
   } else if (plan.intent === "hint" && !plan.openQuestion) {
     // Stuck, with nothing open to be stuck on. Offer the way in rather than
     // filing the request as a statement about whatever retrieval returned.
@@ -295,9 +308,15 @@ export async function POST(req: NextRequest) {
     transcript: raw,
     cleanedTranscript: draft.cleanedTranscript,
     origin,
-    transcriptionConfidence: origin === "voice" ? asrConfidence : null,
-    transcriptionLatencyMs: origin === "voice" ? asrLatency : null,
-    transcriptionSessionId: origin === "voice" ? asrSession : null,
+    transcriptionConfidence: dictated ? asrConfidence : null,
+    transcriptionLatencyMs: dictated ? asrLatency : null,
+    transcriptionSessionId: dictated ? asrSession : null,
+    transcriptionMode: dictated ? input.asr?.mode ?? null : null,
+    transcriptionFellBackFrom: dictated ? input.asr?.fellBackFrom ?? null : null,
+    // Stored only when it says something the transcript does not: an unedited
+    // answer would otherwise write every sentence into the record twice.
+    transcriptVerbatim:
+      dictated && input.asr?.verbatim && input.asr.verbatim !== raw ? input.asr.verbatim : null,
     intent: LEARNING_INTENT[plan.intent],
     conceptIds: plan.conceptIds,
     primaryConceptId: plan.primaryConceptId,
@@ -391,9 +410,9 @@ export async function POST(req: NextRequest) {
     duplicate: outcome.duplicate,
     transcription: {
       transcript: raw,
-      confidence: origin === "voice" ? asrConfidence : null,
-      latencyMs: origin === "voice" ? asrLatency : null,
-      sessionId: origin === "voice" ? asrSession : null,
+      confidence: dictated ? asrConfidence : null,
+      latencyMs: dictated ? asrLatency : null,
+      sessionId: dictated ? asrSession : null,
       origin,
     },
     reasoning: { source, latencyMs },

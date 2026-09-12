@@ -10,8 +10,13 @@ export const CHUNK_CHARS = 800;
 export const CHUNK_OVERLAP = 120;
 export const MAX_CHUNKS = 120;
 
-/** One unit of the input: a whole pasted note, or one page of a PDF. */
-export type IntakePage = { text: string; page?: number };
+/**
+ * One unit of the input: a whole pasted note, one page of a PDF, or one
+ * headed section of a web page, a Word file or a textbook chapter. `section`
+ * is what a citation shows the student, so it carries the heading the passage
+ * actually sat under when the input had one.
+ */
+export type IntakePage = { text: string; page?: number; section?: string };
 
 export function normalizeText(raw: string): string {
   return raw
@@ -43,10 +48,20 @@ function windows(text: string): string[] {
   return out.filter(Boolean);
 }
 
+/** Section first, then the page number, then the source's own name. */
+function locatorFor(page: IntakePage, fallbackSection: string): SourceChunk["locator"] {
+  const section = page.section?.trim();
+  if (section && page.page) return { section, page: page.page };
+  if (section) return { section };
+  if (page.page) return { section: `Page ${page.page}`, page: page.page };
+  return { section: fallbackSection };
+}
+
 /**
  * Passages for one source, ordered, each carrying its page when the input had
- * one. `section` is what the source pane groups by, so it is the page label
- * for a PDF and the source title for pasted text.
+ * one. `section` is what the source pane groups by, so it is the heading for a
+ * web page or chapter, the page label for a PDF, and the source title for
+ * pasted text.
  */
 export function chunkPages(pages: IntakePage[], sourceId: string, fallbackSection: string): SourceChunk[] {
   const chunks: SourceChunk[] = [];
@@ -59,7 +74,7 @@ export function chunkPages(pages: IntakePage[], sourceId: string, fallbackSectio
         sourceId,
         ordinal,
         text,
-        locator: page.page ? { section: `Page ${page.page}`, page: page.page } : { section: fallbackSection },
+        locator: locatorFor(page, fallbackSection),
       });
       ordinal += 1;
     }

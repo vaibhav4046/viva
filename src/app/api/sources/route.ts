@@ -17,11 +17,26 @@ export async function GET(req: NextRequest) {
     store.getConcepts(identity.userId, course.id),
   ]);
   const first = course.sources[0];
+  /*
+   * `source` is the first one, which is what the reader has always shown. A
+   * subject can now be composed of several documents — a lecture PDF, a page
+   * from the module site, the student's own notes — and a passage cites the
+   * document it is actually in, so the whole list travels too, each with the
+   * licence it was taken under. Showing that attribution is the condition on
+   * using openly licensed material at all, so it cannot be optional here.
+   */
+  const sources = course.sources.map((s) => ({
+    id: s.id,
+    courseId: course.id,
+    title: s.title,
+    type: s.type,
+    url: s.url ?? null,
+    licence: s.licence ?? null,
+  }));
   return withIdentityCookie(Response.json({
     course: { id: course.id, code: course.code, title: course.title, subject: course.subject, demo: course.demo },
-    source: first
-      ? { id: first.id, courseId: course.id, title: first.title, type: first.type }
-      : null,
+    source: first ? sources[0] : null,
+    sources,
     chunks,
     concepts,
   }), setCookie);

@@ -95,8 +95,35 @@ function apiKey(): string {
   return k;
 }
 
+/**
+ * Abort budgets, measured against the platform ceiling rather than the vendor's.
+ *
+ * `vercel.json` declares `maxDuration: 60` for /api/voice/transcribe. Vercel
+ * kills the invocation at that point and answers with an HTML gateway page, so
+ * an abort set past 60 s never fires: the learner gets a parse error where a
+ * coded PROVIDER_TIMEOUT should have been, and every `ctrl.abort()` below is
+ * dead code. The two legs run in sequence on the worst path (Dictation fails,
+ * Sync retries the same clip), so their SUM is what has to fit, with room left
+ * over for the multipart read, WAV validation and the subject lookup.
+ *
+ * 28 + 20 = 48 s worst case. The headroom is deliberate and large: a 120 s clip
+ * is 3.84 MB of 16 kHz mono PCM posted from a datacentre, and measured
+ * `request_time_ms` on a 9.5 s clip is 320-580 ms.
+ */
+export const ROUTE_BUDGET_MS = 60_000;
+export const DICTATION_TIMEOUT_MS = 28_000;
+export const SYNC_TIMEOUT_MS = 20_000;
+/** Long-audio path. Not mounted on a route today; kept inside the same ceiling
+ *  so nothing in this file can outlive a function that hosts it later. */
+export const ASYNC_DEADLINE_MS = 45_000;
+
 async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Our budget AND the caller's cancellation — never one in place of the other. */
+function budgetedSignal(budget: AbortSignal, caller: AbortSignal | undefined): AbortSignal {
+  return caller ? AbortSignal.any([caller, budget]) : budget;
 }
 
 function mapSyncError(status: number, body: unknown, retryAfterHeader: string | null): TranscriptionError {
@@ -167,13 +194,15 @@ export class AssemblyAIProvider implements TranscriptionProvider {
       timestamps: false,
     }));
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 32_000);
+    const timer = setTimeout(() => ctrl.abort(), SYNC_TIMEOUT_MS);
     try {
       const res = await fetch(`${syncBase()}/transcribe`, {
         method: "POST",
         headers: { Authorization: apiKey(), "X-AAI-Model": "universal-3-5-pro" },
         body: form,
-        signal: req.signal ?? ctrl.signal,
+        // Both signals, not the caller's instead of ours: `req.signal ?? ctrl.signal`
+        // meant any caller passing a signal silently disabled the budget above.
+        signal: budgetedSignal(ctrl.signal, req.signal),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -241,14 +270,15 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     form.append("audio", new Blob([pcm as unknown as BlobPart], { type: "audio/pcm" }), "clip.pcm");
 
     const ctrl = new AbortController();
-    // 90 s ceiling per the published contract; a 6-10 s clip returns in ~1 s.
-    const timer = setTimeout(() => ctrl.abort(), 90_000);
+    // The vendor contract allows 90 s; the function this runs in does not.
+    // See DICTATION_TIMEOUT_MS. A 6-10 s clip returns in about a second.
+    const timer = setTimeout(() => ctrl.abort(), DICTATION_TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { Authorization: apiKey() },
         body: form,
-        signal: req.signal ?? ctrl.signal,
+        signal: budgetedSignal(ctrl.signal, req.signal),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -335,7 +365,7 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     });
     if (!sub.ok) throw new TranscriptionError("SUBMIT_FAILED", `Submit failed (${sub.status}).`, 502, true, 2);
     const { id } = (await sub.json()) as { id: string };
-    const deadline = Date.now() + 100_000;
+    const deadline = Date.now() + ASYNC_DEADLINE_MS;
     while (Date.now() < deadline) {
       await sleep(2500);
       const poll = await fetch(`${baseUrl()}/v2/transcript/${id}`, { headers: { Authorization: key } });

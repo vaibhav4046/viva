@@ -190,9 +190,12 @@ export function planTurn(draft: CompileDraft, history: TurnMemory[], openQuestio
   return { intent, conceptIds, primaryConceptId: conceptIds[0] ?? null, openQuestion, inherited, stopped };
 }
 
-const INTENT_SYSTEM = [
+export const INTENT_SYSTEM = [
   "You label one thing a learner just said while studying.",
-  'Reply ONLY as JSON: {"intent": one of confused|claim|explain|quiz|teach|answer|note, "conceptIds": ids from the list given}.',
+  // `hint` was described on the next line but missing from this enum, so the
+  // one intent the schema accepts and the prompt hid was the one a stuck
+  // learner needs. The schema is the list; the prompt now says the same list.
+  'Reply ONLY as one JSON object with EXACTLY these two keys: {"intent": one of confused|claim|explain|quiz|teach|answer|hint|note, "conceptIds": [ids from the list given]}.',
   "confused = they say they do not get it. claim = they state what they believe. explain = they ask for an explanation.",
   "quiz = they ask to be tested. teach = they are explaining it back. answer = they are answering the open question. hint = they are stuck and want a nudge. note = anything else worth keeping.",
   "Use only concept ids from the list. If they say 'it' or 'that', use the concept from the previous turn.",
@@ -202,8 +205,20 @@ const INTENT_SYSTEM = [
  * Let the model confirm the first pass. The first pass wins whenever the model
  * is unavailable, and always for `answer`: a question is open or it is not, and
  * that is not a judgement call.
+ *
+ * With a question open there is nothing left for this call to decide, so it is
+ * not made. The intent it returns is discarded two lines down (`plan.intent`
+ * wins), and the only other thing it can do is replace the concept the open
+ * question already fixed with a guess — worse on both counts. It also costs a
+ * round trip on the one turn that needs its budget for grading the answer:
+ * the live provider allows 8,000 tokens a minute (measured), one turn spends
+ * roughly a thousand per model call, and every turn was making two. When that
+ * ceiling is hit the provider answers 429 and the learner silently gets the
+ * heuristic — so a call that cannot change the outcome is not free, it is a
+ * call that pushes a later real one over the line.
  */
 export async function confirmPlan(plan: TurnPlan, opts: { text: string; course: Course; history: TurnMemory[] }): Promise<TurnPlan> {
+  if (plan.openQuestion) return plan;
   const known = new Set(opts.course.concepts.map((c) => c.id));
   const result = await reasonObject({
     system: INTENT_SYSTEM,
@@ -211,7 +226,8 @@ export async function confirmPlan(plan: TurnPlan, opts: { text: string; course: 
       `Subject: ${opts.course.title}`,
       `Concept ids: ${opts.course.concepts.map((c) => `${c.id} (${c.name})`).join(", ")}`,
       `Previous turns:\n${historyBlock(opts.history)}`,
-      plan.openQuestion ? `Open question: "${plan.openQuestion.question}"` : "Open question: none",
+      // Always none: the guard above returns before this when one is open.
+      "Open question: none",
       `They just said: ${opts.text}`,
       `First reading: ${plan.intent}${plan.primaryConceptId ? ` about ${plan.primaryConceptId}` : ""}`,
     ].join("\n\n"),
@@ -221,9 +237,8 @@ export async function confirmPlan(plan: TurnPlan, opts: { text: string; course: 
   if (!result) return plan;
 
   const conceptIds = result.value.conceptIds.filter((id) => known.has(id));
-  const intent = plan.openQuestion ? plan.intent : result.value.intent;
   const merged = conceptIds.length > 0 ? conceptIds : plan.conceptIds;
-  return { ...plan, intent, conceptIds: merged, primaryConceptId: merged[0] ?? null };
+  return { ...plan, intent: result.value.intent, conceptIds: merged, primaryConceptId: merged[0] ?? null };
 }
 
 function historyBlock(history: TurnMemory[]): string {
@@ -233,11 +248,33 @@ function historyBlock(history: TurnMemory[]): string {
     .join("\n");
 }
 
-const TUTOR_SYSTEM = [
-  'You are VIVA, a Socratic study partner. Reply ONLY as the JSON schema.',
-  "Rules: at most 90 words across fields; confirm only what a given passage actually shows, and if none of them settles it say you could not check it rather than implying the source agrees; name what is wrong or missing in one line and cite the passage id that shows it;",
-  "ask exactly one question that makes the learner do the thinking (never answer it yourself); plain English, no course codes, no praise words like \"great job\";",
-  "if the passages do not support a correction, set wrong=null and ask a question that would reveal the gap. Never invent citations: every chunkId must be one of the ids given.",
+/*
+ * The keys are spelled out because "Reply ONLY as the JSON schema" does not
+ * tell a model what the schema IS.
+ *
+ * Measured against the live provider (Groq, openai/gpt-oss-120b): the old
+ * prompt came back `{"wrong":…,"correction":…,"citation":[…],"question":…}` —
+ * sensible content under invented key names — which failed the parse, failed
+ * the one repair retry, and dropped every tutor turn to the heuristic path.
+ * Three model turns in a row, three silent downgrades. The two prompts that
+ * already listed their keys (intent, assessment) were the two that worked, so
+ * this is the difference, not the model. With the keys named, three of three
+ * probes parsed first time.
+ */
+export const TUTOR_SYSTEM = [
+  "You are VIVA, a Socratic study partner.",
+  "Reply ONLY as one JSON object with EXACTLY these seven keys, every one of them present every time:",
+  '{"right": string or null, "wrong": string or null, "question": string or null,',
+  ' "citations": [{"chunkId": string, "quote": string}],',
+  ' "misconception": string or null, "masterySignal": "up" | "down" | "flat",',
+  ' "strategy": "probe" | "contrast" | "analogy" | "recall" | "teachback"}',
+  "right = what they got right, or null. Put something there ONLY if they actually said it — never credit them for a thing you inferred they must know. \"Explain it simply\" is a request, not an answer, so right is null.",
+  "wrong = what is wrong or missing, one line, or null. question = the single question you ask them.",
+  "citations = at most 2, each chunkId copied exactly from the passage ids given, each quote at most 160 characters taken from that passage.",
+  "misconception = the mistaken belief in one line, or null. masterySignal = up if they showed they know it, down if they got it wrong, flat if you could not tell.",
+  "Rules: at most 90 words across right, wrong and question; confirm only what a given passage actually shows, and if none of them settles it say you could not check it rather than implying the source agrees;",
+  "ask exactly one question that makes the learner do the thinking (never answer it yourself); speak TO the learner as \"you\", never about them as \"they\"; plain English, no course codes, no praise words like \"great job\";",
+  "if the passages do not support a correction, set wrong to null and ask a question that would reveal the gap. Never invent citations: every chunkId must be one of the ids given.",
 ].join(" ");
 
 const NO_SOURCE_LINE = "I can't find that in your source, so here's what I'd check.";

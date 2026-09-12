@@ -49,33 +49,46 @@ async function lines(res: Response): Promise<Record<string, unknown>[]> {
 }
 
 describe("POST /api/subjects/create — storage honesty", () => {
-  it("warns before the work and after it when nothing durable is behind it", async () => {
+  it("says where the subject actually lives when nothing durable is behind it", async () => {
     durable.value = false;
     const out = await lines(await POST(paste(NOTES)));
     const said = out.filter((l) => typeof l.line === "string").map((l) => String(l.line));
     // Before: said while the student is still watching, not after the fact.
-    expect(said[0]).toMatch(/no database/i);
+    expect(said[0]).toMatch(/in this browser/i);
     // Instead of "Saving it to your subjects…", which was the false promise.
-    expect(said.some((l) => /no database here to save it to/i.test(l))).toBe(true);
+    expect(said.some((l) => /that is where your subjects live/i.test(l))).toBe(true);
     expect(said.some((l) => /Saving it to your subjects/i.test(l))).toBe(false);
-    expect(said.some((l) => /not stored anywhere lasting/i.test(l))).toBe(true);
+    // And no longer a threat it cannot keep: the record travels back with the
+    // response and is handed in again on the next load, so "it might be gone"
+    // would now be the untrue sentence.
+    expect(said.some((l) => /Open VIVA here again and it is waiting/i.test(l))).toBe(true);
+    expect(said.some((l) => /not survive|not stored anywhere lasting/i.test(l))).toBe(false);
 
-    const done = out.find((l) => l.subject) as { subject: Record<string, unknown> } | undefined;
+    const done = out.find((l) => l.subject) as { subject: Record<string, unknown>; record?: Record<string, unknown> } | undefined;
     expect(done).toBeTruthy();
     // The success payload carries the truth too, so a screen cannot miss it.
     expect(done?.subject.durable).toBe(false);
-    expect(String(done?.subject.storageNote)).toMatch(/not stored anywhere lasting/i);
+    expect(String(done?.subject.storageNote)).toMatch(/in this browser/i);
+    // The whole subject comes with it, which is the only reason the browser can
+    // hand it back through POST /api/learner/sync on the next load.
+    expect(done?.record?.id).toBe(done?.subject.id);
+    expect(Array.isArray(done?.record?.concepts)).toBe(true);
+    expect((done?.record?.concepts as unknown[]).length).toBe(done?.subject.concepts);
+    expect(Array.isArray(done?.record?.sources)).toBe(true);
   });
 
   it("says none of that when a write really will survive", async () => {
     durable.value = true;
     const out = await lines(await POST(paste(NOTES)));
     const said = out.filter((l) => typeof l.line === "string").map((l) => String(l.line));
-    expect(said.some((l) => /no database/i.test(l))).toBe(false);
+    expect(said.some((l) => /in this browser/i.test(l))).toBe(false);
     expect(said.some((l) => /Saving it to your subjects/i.test(l))).toBe(true);
-    const done = out.find((l) => l.subject) as { subject: Record<string, unknown> } | undefined;
+    const done = out.find((l) => l.subject) as { subject: Record<string, unknown>; record?: Record<string, unknown> } | undefined;
     expect(done?.subject.durable).toBe(true);
     expect(done?.subject.storageNote).toBeNull();
+    // The browser gets its copy either way — a durable write is not a reason to
+    // make the client fetch back what it just built.
+    expect(done?.record?.id).toBe(done?.subject.id);
   });
 });
 

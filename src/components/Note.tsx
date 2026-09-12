@@ -3,6 +3,7 @@ import { m, useReducedMotion } from "motion/react";
 import { Keyboard, Mic } from "lucide-react";
 import { SNAPPY, FADE_ONLY } from "@/lib/motion";
 import { BAND_COLOR, BAND_LABEL, type BandKey } from "@/components/bands";
+import { TurnFooter, type TurnFacts } from "@/components/voice/TurnFacts";
 import type { LearningEvent } from "@/lib/types";
 
 /**
@@ -25,6 +26,10 @@ const KIND: Record<string, { color: string; label: string }> = {
   review_request: { color: "var(--color-band-solid)", label: "Asked to review" },
   connection: { color: "var(--color-band-getting)", label: "Linked two ideas" },
   correction: { color: "var(--color-paper)", label: "Corrected yourself" },
+  // `hint` is a real intent (src/lib/types.ts) and had no entry here, so asking
+  // for a nudge fell through to "Note" — the one label that says nothing about
+  // what the student did.
+  hint: { color: "var(--color-band-getting)", label: "Asked for a hint" },
   note: { color: "var(--color-ash)", label: "Note" },
 };
 
@@ -32,9 +37,16 @@ export function Note({
   event,
   conceptName,
   band,
+  facts,
 }: {
   event: LearningEvent;
   conceptName?: string | null;
+  /**
+   * What the voice path cost on this turn, kept where it can be read again.
+   * Absent on a typed turn and on a note restored from an older session, and
+   * the footer renders nothing in both cases.
+   */
+  facts?: TurnFacts | null;
   /**
    * Where the concept sits now — never the signed move that got it there.
    *
@@ -59,7 +71,8 @@ export function Note({
    * follow-up question comes back with requestedAction "quiz" too, and that
    * note does belong to a passage.
    */
-  const process = event.intent === "quiz_request" || event.intent === "review_request";
+  const process =
+    event.intent === "quiz_request" || event.intent === "review_request" || event.intent === "hint";
   const where = event.sourceLocator && !process
     ? `${event.sourceLocator.section ?? ""}${event.sourceLocator.page ? ` · p.${event.sourceLocator.page}` : ""}`.trim()
     : "";
@@ -103,6 +116,7 @@ export function Note({
           </div>
         ) : null}
       </dl>
+      <TurnFooter facts={facts} />
     </m.article>
   );
 }

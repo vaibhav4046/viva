@@ -8,7 +8,7 @@ import type { ZodType } from "zod";
 export interface ReasoningProvider {
   name: string;
   generateText(input: { system: string; user: string; timeoutMs?: number }): Promise<string>;
-  generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback: T; timeoutMs?: number }): Promise<T>;
+  generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback?: T; timeoutMs?: number }): Promise<T>;
 }
 
 export class ProviderError extends Error {
@@ -37,10 +37,13 @@ export class HeuristicProvider implements ReasoningProvider {
     return `${prefix}${summary}`;
   }
 
-  async generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback: T; timeoutMs?: number }): Promise<T> {
+  async generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback?: T; timeoutMs?: number }): Promise<T> {
     void input.system;
     void input.user;
     void input.timeoutMs;
+    if (input.fallback === undefined) {
+      throw new ProviderError("CONFIG_MISSING", "No reasoning provider is configured.", false);
+    }
     return input.schema.parse(input.fallback);
   }
 }
@@ -100,7 +103,7 @@ export class OpenAICompatibleProvider implements ReasoningProvider {
     }, input.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   }
 
-  async generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback: T; timeoutMs?: number }): Promise<T> {
+  async generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback?: T; timeoutMs?: number }): Promise<T> {
     const timeout = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const base: ChatMessage[] = [
       { role: "system", content: input.system },
@@ -126,6 +129,11 @@ export class OpenAICompatibleProvider implements ReasoningProvider {
     }, timeout);
     const second = tryParseSchema(repair, input.schema);
     if (second.ok) return second.value;
+    // Repair failed. With no caller fallback the honest move is to fail so the
+    // caller can answer from the heuristic path instead of shipping junk.
+    if (input.fallback === undefined) {
+      throw new ProviderError("PROVIDER_ERROR", "Reasoning provider returned output that did not match the schema.", false);
+    }
     return input.schema.parse(input.fallback);
   }
 }
@@ -138,16 +146,52 @@ function tryParseSchema<T>(raw: string, schema: ZodType<T>): { ok: true; value: 
   }
 }
 
-/** "openai-compatible" when AI_PROVIDER says so (requires LLM_* env), else heuristic default. */
+/** Injected provider (tests, and any future in-process model). */
+let injected: ReasoningProvider | null = null;
+let lastLatencyMs: number | null = null;
+
+/** Test seam: pass a stub provider, pass null to restore env resolution. */
+export function setReasoningProvider(provider: ReasoningProvider | null): void {
+  injected = provider;
+  lastLatencyMs = null;
+}
+
+/** Called by the reasoning helper after every provider round trip. */
+export function recordProviderLatency(ms: number): void {
+  lastLatencyMs = ms;
+}
+
+/**
+ * What /api/health/ready reports. `configured` answers "would a turn use the
+ * model right now", so a partially-filled env reads as not configured rather
+ * than as a promise the product cannot keep.
+ */
+export function providerStatus(): { configured: boolean; model: string | null; lastLatencyMs: number | null } {
+  if (injected) return { configured: true, model: injected.name, lastLatencyMs };
+  const envConfigured = Boolean(process.env.LLM_BASE_URL && process.env.LLM_API_KEY && process.env.LLM_MODEL);
+  return {
+    configured: envConfigured,
+    model: envConfigured ? (process.env.LLM_MODEL ?? null) : null,
+    lastLatencyMs,
+  };
+}
+
+/**
+ * The provider a turn will actually use.
+ *
+ * Three filled-in LLM_* vars are enough — a deployment that has credentials
+ * should not answer from the heuristic path because AI_PROVIDER was forgotten.
+ * Setting AI_PROVIDER explicitly makes an incomplete set an error instead of a
+ * silent downgrade.
+ */
 export function resolveReasoningProvider(): ReasoningProvider {
-  if (process.env.AI_PROVIDER === "openai-compatible") {
-    const baseUrl = process.env.LLM_BASE_URL;
-    const apiKey = process.env.LLM_API_KEY;
-    const model = process.env.LLM_MODEL;
-    if (!baseUrl || !apiKey || !model) {
-      throw new ProviderError("CONFIG_MISSING", "AI_PROVIDER=openai-compatible needs LLM_BASE_URL, LLM_API_KEY, and LLM_MODEL.", false);
-    }
-    return new OpenAICompatibleProvider(baseUrl, apiKey, model);
+  if (injected) return injected;
+  const baseUrl = process.env.LLM_BASE_URL;
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL;
+  if (process.env.AI_PROVIDER === "openai-compatible" && !(baseUrl && apiKey && model)) {
+    throw new ProviderError("CONFIG_MISSING", "AI_PROVIDER=openai-compatible needs LLM_BASE_URL, LLM_API_KEY, and LLM_MODEL.", false);
   }
+  if (baseUrl && apiKey && model) return new OpenAICompatibleProvider(baseUrl, apiKey, model);
   return new HeuristicProvider();
 }

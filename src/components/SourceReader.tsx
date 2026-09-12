@@ -8,7 +8,7 @@ type SourceMeta = { title: string; line: string };
 
 const STATIC_META: SourceMeta = {
   title: DEMO_SOURCE.title,
-  line: `Transformers — Week 4 · COMP532 · ${SOURCE_CHUNKS.length} citable chunks`,
+  line: `Transformers — Week 4 · COMP532 · ${SOURCE_CHUNKS.length} passages`,
 };
 
 /**
@@ -46,7 +46,7 @@ export function SourceReader({ highlightIds = [], courseId }: { highlightIds?: s
         setChunks(list);
         setMeta({
           title: d.source?.title ?? "Course source",
-          line: `${d.course.code} · ${d.course.title} · ${list.length} citable chunks`,
+          line: `${d.course.code} · ${d.course.title} · ${list.length} passages`,
         });
         setState("idle");
       } catch {
@@ -68,29 +68,29 @@ export function SourceReader({ highlightIds = [], courseId }: { highlightIds?: s
   }
 
   return (
-    <section aria-label="Course source" className="surface-card flex max-h-[calc(100vh-8rem)] flex-col p-5 xl:sticky xl:top-20 xl:self-start">
+    <section aria-label="Your source" className="surface-card flex max-h-[calc(100vh-8rem)] flex-col p-5 xl:sticky xl:top-20 xl:self-start">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="eyebrow">{"{ source }"}</p>
+          <p className="eyebrow">Your source</p>
           <h3 className="heading mt-1 text-lg leading-snug">{meta.title}</h3>
           <p className="mono mt-1 text-xs" style={{ color: "var(--color-ash)" }}>
             {meta.line}
           </p>
         </div>
         <span className="mono shrink-0 pt-1 text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }} aria-hidden>
-          SCROLL ↓
+          Scroll
         </span>
       </div>
       {state === "loading" ? (
         <div className="mt-3">
-          <LoadingBlock label="Loading this lab's source text…" lines={4} />
+          <LoadingBlock label="Loading your source…" lines={4} />
         </div>
       ) : state === "error" ? (
         <div
           className="mt-3 rounded-lg border border-dashed px-4 py-5 text-sm leading-relaxed"
           style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
         >
-          Couldn&apos;t load this lab&apos;s source text — nothing is faked in its place.{" "}
+          Couldn&apos;t load your source. Nothing is made up in its place.{" "}
           <button
             type="button"
             className="btn-ghost inline-flex min-h-11 items-center !px-3 !py-1 text-sm"
@@ -104,7 +104,7 @@ export function SourceReader({ highlightIds = [], courseId }: { highlightIds?: s
           className="scroll-pane mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1"
           tabIndex={0}
           role="region"
-          aria-label="Course passages, grouped by section"
+          aria-label="Your source, grouped by section"
         >
           {sections.map((s) => (
             <div key={s.name}>
@@ -117,6 +117,7 @@ export function SourceReader({ highlightIds = [], courseId }: { highlightIds?: s
               <div className="mt-3 space-y-3">
                 {s.chunks.map((c) => {
                   const hot = highlightIds.includes(c.id);
+                  const number = chunks.indexOf(c) + 1;
                   return (
                     <article
                       key={c.id}
@@ -133,8 +134,8 @@ export function SourceReader({ highlightIds = [], courseId }: { highlightIds?: s
                           §{c.locator.section ?? "—"} · p.{c.locator.page ?? "—"}
                         </p>
                         <span id={`cite-${c.id}`} className={hot ? "chip chip-hot" : "chip"}>
-                          {hot ? <span className="font-semibold">CITED · </span> : null}
-                          {c.id}
+                          {hot ? <span className="font-semibold">Quoted · </span> : null}
+                          Passage {number}
                         </span>
                       </div>
                     </article>

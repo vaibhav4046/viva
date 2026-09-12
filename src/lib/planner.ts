@@ -120,7 +120,7 @@ function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<stri
       .map(({ m }) => ({
         kind,
         concept: m,
-        why: `Lowest VIVA estimate among concepts you have touched (${Math.round(m.mastery * 100)}%) — steady exposure moves it.`,
+        why: `The one you are least sure of so far. A few minutes here moves it.`,
       }));
   }
 

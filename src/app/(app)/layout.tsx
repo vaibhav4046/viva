@@ -1,11 +1,20 @@
+import { AppShell } from "@/components/AppShell";
+
 /**
- * Passthrough layout for the application routes.
+ * Application routes: /study, /subjects, /today, /map, /exam.
  *
- * This route group changes no URLs: /demo, /exam, /learn, /memory and /today
- * are unaffected by the "(app)" segment. It exists purely to keep that
- * grouping in place now that the auth provider it used to mount is gone —
- * identity is the HttpOnly `viva_did` cookie, resolved server-side.
+ * The route group changes no URLs; it exists so every app page gets the same
+ * shell — one header, one mobile tab bar, one "Saved" state — without each
+ * page mounting its own navigation.
+ *
+ * Rendered per request. src/proxy.ts serves a `script-src 'nonce-…'
+ * 'strict-dynamic'` policy, and only a dynamic document has Next's bootstrap
+ * scripts stamped with that nonce — prerender these routes and the browser
+ * blocks every chunk, so the page paints once and never hydrates. These pages
+ * all fetch per-learner data on mount anyway, so there is nothing to cache.
  */
+export const dynamic = "force-dynamic";
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AppShell>{children}</AppShell>;
 }

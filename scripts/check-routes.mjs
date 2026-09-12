@@ -79,16 +79,7 @@ function check(name, cond, extra = "") {
   check("review shape {queue,compound,backend}", r.status === 200 && Array.isArray(r.body.queue) && Array.isArray(r.body.compound) && typeof r.body.backend === "string");
 }
 
-// 6. Delete-my-data scoping: delete → history resets to seed only.
-{
-  await call("/api/events/compile", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcript: "Remember backprop.", inputKind: "typed", clientEventId: `del-${Date.now()}` }),
-  });
-  const del = await call("/api/me/data", { method: "DELETE" });
-  const after = await call("/api/events");
-  check("DELETE wipes to seed-only", del.status === 200 && after.body.count === 1, `count=${after.body?.count}`);
-}
+// 6. (Delete-my-data check removed with /api/me/data in the Phase 0 purge.)
 
 // 7. Sustained burst → clean 429s, zero 5xx.
 {

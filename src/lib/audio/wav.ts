@@ -37,12 +37,11 @@ function wavError(code: string, message: string) {
   return Object.assign(new Error(message), { code });
 }
 
-export function pcm16ToWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
-  const buf = new ArrayBuffer(44 + samples.length * 2);
-  const v = new DataView(buf);
+/** 44-byte canonical RIFF/WAVE header for mono 16-bit PCM. */
+function writeWavHeader(v: DataView, sampleCount: number, sampleRate: number): void {
   const wstr = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
   wstr(0, "RIFF");
-  v.setUint32(4, 36 + samples.length * 2, true);
+  v.setUint32(4, 36 + sampleCount * 2, true);
   wstr(8, "WAVE");
   wstr(12, "fmt ");
   v.setUint32(16, 16, true);
@@ -53,10 +52,34 @@ export function pcm16ToWav(samples: Float32Array, sampleRate: number): ArrayBuff
   v.setUint16(32, 2, true);
   v.setUint16(34, 16, true);
   wstr(36, "data");
-  v.setUint32(40, samples.length * 2, true);
+  v.setUint32(40, sampleCount * 2, true);
+}
+
+export function pcm16ToWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(buf);
+  writeWavHeader(v, samples.length, sampleRate);
   for (let i = 0; i < samples.length; i++) {
     const s = Math.max(-1, Math.min(1, samples[i]));
     v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return buf;
+}
+
+/**
+ * Wrap Int16 frames straight from the AudioWorklet. No float round-trip: the
+ * worklet already quantised, and re-scaling would only add error.
+ */
+export function int16ToWav(frames: readonly Int16Array[], sampleRate = TARGET_RATE): ArrayBuffer {
+  let total = 0;
+  for (const f of frames) total += f.length;
+  const buf = new ArrayBuffer(44 + total * 2);
+  writeWavHeader(new DataView(buf), total, sampleRate);
+  const body = new Int16Array(buf, 44, total);
+  let at = 0;
+  for (const f of frames) {
+    body.set(f, at);
+    at += f.length;
   }
   return buf;
 }

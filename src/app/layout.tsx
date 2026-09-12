@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -7,17 +7,14 @@ import "./globals.css";
  * generated @font-face points at /_next/static/media, so there is no runtime
  * request to Google and `font-src 'self'` in the CSP stays untouched.
  *
- * Geist is the face named in the product visual identity (section 18); Plex
- * Mono is what the long-dangling --font-plex-mono token was always reaching
- * for. Before this, --font-display resolved to itself (a cyclic var, i.e.
- * invalid) and --font-body / --font-plex-mono were never defined at all, so
- * every surface silently rendered in the system UI sans.
+ * Geist carries the interface; Plex Mono carries numbers, labels and
+ * transcripts. The dot-matrix display treatment on the landing headline is
+ * CSS over Geist, not a third font.
  */
 const geist = Geist({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-geist",
-  // Landing display type sits at 600; body runs 400/500.
   weight: ["400", "500", "600", "700"],
 });
 
@@ -29,22 +26,32 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://viva-vaibhav4046s-projects.vercel.app"),
-  title: "VIVA · The AI that learns how you think",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://viva-five-murex.vercel.app"),
+  title: "VIVA · Study out loud",
   description:
-    "Speak while you learn. VIVA turns questions, confusion and explanations into a living model of what you actually know.",
-  icons: { icon: "/brand/viva-mark.svg" },
+    "The study partner you talk to. Think out loud while you study; VIVA catches what you got wrong, asks the one question that fixes it, and quizzes you tomorrow.",
+  applicationName: "VIVA",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
-    title: "VIVA · AI tutors remember your notes. VIVA remembers your misunderstandings.",
-    description:
-      "Hold Space, speak while you learn, and watch every thought become a Thought Mark on your Misconception Graph.",
+    title: "VIVA · Study out loud",
+    description: "Talk through what you're learning. VIVA remembers what you got wrong and asks you again tomorrow.",
+    siteName: "VIVA",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "VIVA · The AI that learns how you think",
-    description: "Voice-first learning: speech → learning event → mastery. AssemblyAI Dictation inside.",
+    title: "VIVA · Study out loud",
+    description: "Talk through what you're learning. VIVA remembers what you got wrong and asks you again tomorrow.",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b0b0c",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -57,8 +64,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        {/* Auth lives in src/app/(app)/layout.tsx, not here — the landing has
-            no auth surface and should not mount a third-party provider. */}
         {children}
       </body>
     </html>

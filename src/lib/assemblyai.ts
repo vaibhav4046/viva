@@ -2,41 +2,55 @@
  * TranscriptionProvider — AssemblyAI behind a stable interface.
  * Key never reaches the browser; all calls are server-side.
  *
- * Modes (ASSEMBLYAI_TRANSCRIPTION_MODE, default "sync"):
- * - "sync":            POST {syncBase}/transcribe, multipart audio+config,
- *                       X-AAI-Model: universal-3-5-pro. Verified contract.
- * - "event-dictation":  POST ASSEMBLYAI_DICTATION_URL (event beta endpoint).
- *                       Verified contract (AssemblyAI/blurt, 2026-09-08/09):
- *                       multipart/form-data, `config` part (application/json)
- *                       FIRST, then `audio` as raw 16 kHz mono S16LE PCM.
- *                       Response {text, llm_response, llm_error}; missing
- *                       `text` is an honest BAD_RESPONSE, never a guess.
- * - "async":            /v2/upload + /v2/transcript poll. NOT the hold-to-talk
- *                       path (poll loops don't belong in the hot path);
- *                       retained for long audio (lecture uploads).
+ * Modes (ASSEMBLYAI_TRANSCRIPTION_MODE, default "dictation"):
+ * - "dictation": POST ASSEMBLYAI_DICTATION_URL. Contract probed live
+ *                2026-09-12: multipart/form-data, `config` part
+ *                (application/json) FIRST, then `audio` as raw 16 kHz mono
+ *                S16LE PCM. Config keys are `sample_rate`, `channels`,
+ *                `language_codes`, `keyterms_prompt` (array), `stt_prompt`,
+ *                `llm_instruction`. Response carries both `text` (verbatim)
+ *                and `llm_response` (cleaned); `llm_error` is not a request
+ *                failure — fall back to `text`.
+ * - "sync":      POST {syncBase}/transcribe, multipart audio+config,
+ *                X-AAI-Model: universal-3-5-pro. The fallback path.
+ * - "async":     /v2/upload + /v2/transcript poll. NOT the hold-to-talk path
+ *                (poll loops don't belong in the hot path); retained for long
+ *                audio (lecture uploads).
  *
+ * Error bodies from both live endpoints are {status, title, detail}.
  * Production NEVER selects fixture transcription (see resolve + test).
  */
 
-export type TranscriptionMode = "sync" | "event-dictation" | "async";
+export type TranscriptionMode = "sync" | "dictation" | "async";
 
 export type TranscriptionRequest = {
   audio: Buffer;
   contentType: string; // audio/wav or audio/pcm (validated upstream)
+  /** Recognition bias terms (concept names + aliases). Capped before send. */
   keyterms?: string[];
-  prompt?: string;
-  languageCode?: string;
-  conversationContext?: string[];
+  /** Conversation context, plain prose. Speaker labels leak into the
+   *  transcript (probed live), so callers must strip them. Capped at 6000. */
+  sttPrompt?: string;
+  /** Cleanup instruction for the rewrite pass. Omit for verbatim-only. */
+  llmInstruction?: string;
+  /** BCP-47-ish codes, e.g. ["en"] or ["en","hi"]. */
+  languageCodes?: string[];
   signal?: AbortSignal;
 };
 
 export type TranscriptionResult = {
+  /** What was actually said, filler words and all. */
   text: string;
+  /** The rewrite pass output, or null when it was not asked for or failed. */
+  clean: string | null;
+  /** "timeout" | "error" | null — never a request failure on its own. */
+  llmError: string | null;
   confidence: number | null;
   words?: { text: string; confidence: number }[];
   audioDurationMs: number | null;
   sessionId: string | null;
   requestTimeMs: number | null;
+  syncTimeMs: number | null;
   latencyMs: number;
   provider: "assemblyai" | "fixture";
   mode: TranscriptionMode;
@@ -60,17 +74,6 @@ export class TranscriptionError extends Error {
   }
 }
 
-const COURSE_KEYTERMS = [
-  "self-attention", "positional encoding", "positional information",
-  "queries", "keys", "values", "multi-head attention",
-  "backpropagation", "gradient descent", "learning rate",
-  "policy iteration", "value iteration", "Bellman equation",
-];
-
-const COURSE_PROMPT =
-  "A university student thinking aloud while studying neural networks (Transformers, attention, optimization, reinforcement learning). " +
-  "Transcribe verbatim including technical terms, numbers, and negations.";
-
 function baseUrl(): string {
   return (process.env.ASSEMBLYAI_BASE_URL ?? "https://api.assemblyai.com").replace(/\/$/, "");
 }
@@ -90,12 +93,16 @@ async function sleep(ms: number) {
 }
 
 function mapSyncError(status: number, body: unknown, retryAfterHeader: string | null): TranscriptionError {
-  const b = (body ?? {}) as { error_code?: string; message?: string; detail?: string };
-  const msg = b.message ?? b.detail ?? `AssemblyAI request failed (${status}).`;
+  // Live error body (probed 2026-09-12): {status, title, detail}.
+  const b = (body ?? {}) as { error?: string; error_code?: string; message?: string; detail?: string };
+  const msg = b.message ?? b.detail ?? b.error ?? `AssemblyAI request failed (${status}).`;
   const retryAfterSec = retryAfterHeader ? Math.max(1, parseInt(retryAfterHeader, 10) || 1) : undefined;
   switch (status) {
     case 400: return new TranscriptionError("BAD_AUDIO", msg, 400, false);
     case 401: return new TranscriptionError("AUTH_FAILED", "AssemblyAI rejected the API key.", 502, false);
+    // 404 on these endpoints means the key is not enabled for them, not a
+    // missing route — same remedy as 401, and the same trigger to fall back.
+    case 404: return new TranscriptionError("AUTH_FAILED", "AssemblyAI rejected the API key.", 502, false);
     case 413: return new TranscriptionError("AUDIO_TOO_LONG", "Clip exceeds 120 s / 40 MB.", 413, false);
     case 415: return new TranscriptionError("UNSUPPORTED_FORMAT", msg, 415, false);
     case 429: return new TranscriptionError("RATE_LIMITED", "AssemblyAI rate limit hit. Try again shortly.", 429, true, retryAfterSec ?? 5);
@@ -105,31 +112,22 @@ function mapSyncError(status: number, body: unknown, retryAfterHeader: string | 
   }
 }
 
-/** Dictation `word_boost`: flat array of terms, ≤2048 chars total (UTF-8). */
-function dictationWordBoost(keyterms: string[] | undefined): string[] {
+/** `keyterms_prompt` is an ARRAY (a string is a 400); ≤100 terms, ≤2048 chars. */
+export function capKeyterms(keyterms: string[] | undefined): string[] {
   const out: string[] = [];
   let budget = 2048;
-  for (const t of (keyterms ?? COURSE_KEYTERMS)) {
-    if (t.length + 1 > budget) break;
-    out.push(t);
-    budget -= t.length + 1;
+  for (const t of (keyterms ?? []).slice(0, MAX_KEYTERMS)) {
+    const term = t.trim();
+    if (!term || term.length + 1 > budget) continue;
+    out.push(term);
+    budget -= term.length + 1;
   }
   return out;
 }
 
-/** Dictation `conversation_context`: ordered array, trimmed to ≤4096 chars. */
-function dictationContext(ctx: string[] | undefined): string[] {
-  if (!ctx?.length) return [];
-  const out: string[] = [];
-  let budget = 4096;
-  for (let i = ctx.length - 1; i >= 0; i--) {
-    const s = ctx[i];
-    if (s.length > budget) break;
-    out.unshift(s);
-    budget -= s.length;
-  }
-  return out;
-}
+export const MAX_KEYTERMS = 100;
+export const MAX_STT_PROMPT = 6000;
+export const MAX_LLM_INSTRUCTION = 2048;
 
 export class AssemblyAIProvider implements TranscriptionProvider {
   readonly name = "assemblyai";
@@ -138,29 +136,21 @@ export class AssemblyAIProvider implements TranscriptionProvider {
   transcribe(req: TranscriptionRequest): Promise<TranscriptionResult> {
     switch (this.mode) {
       case "sync": return this.transcribeSync(req);
-      case "event-dictation": return this.transcribeEvent(req);
+      case "dictation": return this.transcribeDictation(req);
       case "async": return this.transcribeAsync(req);
     }
   }
 
+  /** Fallback path. Config keys verified live 2026-09-12 (`language_codes`). */
   private async transcribeSync(req: TranscriptionRequest): Promise<TranscriptionResult> {
     const started = Date.now();
     const form = new FormData();
     const bytes = new Uint8Array(req.audio.buffer, req.audio.byteOffset, req.audio.byteLength);
     form.append("audio", new Blob([bytes as unknown as BlobPart], { type: "audio/wav" }), "clip.wav");
-    // keyterms_prompt is an ARRAY of terms (≤2048 chars total), not a string.
-    const terms: string[] = [];
-    let budget = 2048;
-    for (const t of (req.keyterms ?? COURSE_KEYTERMS)) {
-      if (t.length + 1 > budget) break;
-      terms.push(t);
-      budget -= t.length + 1;
-    }
     form.append("config", JSON.stringify({
-      prompt: req.prompt ?? COURSE_PROMPT,
-      keyterms_prompt: terms,
-      language_code: req.languageCode ?? "en",
-      conversation_context: req.conversationContext?.slice(-6),
+      language_codes: req.languageCodes?.length ? req.languageCodes : ["en"],
+      keyterms_prompt: capKeyterms(req.keyterms),
+      prompt: (req.sttPrompt ?? "").slice(0, MAX_STT_PROMPT) || undefined,
       timestamps: false,
     }));
     const ctrl = new AbortController();
@@ -178,13 +168,18 @@ export class AssemblyAIProvider implements TranscriptionProvider {
       }
       const data = (await res.json()) as {
         text: string; confidence: number; words?: { text: string; confidence: number }[];
-        audio_duration_ms: number; session_id: string; request_time_ms?: number;
+        audio_duration_ms: number; session_id: string; request_time_ms?: number; sync_time_ms?: number;
       };
       if (typeof data.text !== "string") throw new TranscriptionError("BAD_RESPONSE", "AssemblyAI returned an unexpected shape.", 502, false);
       return {
-        text: data.text, confidence: data.confidence ?? null,
+        text: data.text,
+        // Sync has no rewrite pass: the caller shows verbatim in both tabs.
+        clean: null,
+        llmError: null,
+        confidence: data.confidence ?? null,
         words: data.words, audioDurationMs: data.audio_duration_ms ?? null,
         sessionId: data.session_id ?? null, requestTimeMs: data.request_time_ms ?? null,
+        syncTimeMs: data.sync_time_ms ?? null,
         latencyMs: Date.now() - started, provider: "assemblyai", mode: "sync", demoFixture: false,
       };
     } catch (e) {
@@ -196,12 +191,12 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     }
   }
 
-  private async transcribeEvent(req: TranscriptionRequest): Promise<TranscriptionResult> {
+  private async transcribeDictation(req: TranscriptionRequest): Promise<TranscriptionResult> {
     const started = Date.now();
     const url = process.env.ASSEMBLYAI_DICTATION_URL;
-    if (!url) throw new TranscriptionError("NO_DICTATION_URL", "Event dictation mode needs ASSEMBLYAI_DICTATION_URL.", 503, false);
+    if (!url) throw new TranscriptionError("NO_DICTATION_URL", "Dictation mode needs ASSEMBLYAI_DICTATION_URL.", 503, false);
 
-    // Live dictation wants raw 16 kHz mono S16LE PCM: our pipeline hands us a
+    // Dictation wants raw 16 kHz mono S16LE PCM: our pipeline hands us a
     // data-prefixed WAV, so strip the 44-byte RIFF header (validated upstream).
     const bytes = new Uint8Array(req.audio.buffer, req.audio.byteOffset, req.audio.byteLength);
     const isRiff = bytes.length >= 44 &&
@@ -209,22 +204,26 @@ export class AssemblyAIProvider implements TranscriptionProvider {
       bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45;
     const pcm = isRiff ? bytes.subarray(44) : bytes;
 
-    // Verified beta contract: multipart `config` FIRST (application/json),
-    // then `audio` as raw PCM. Appending in this order is the wire contract.
+    // Verified contract: multipart `config` FIRST (application/json), then
+    // `audio` as raw PCM. Appending in this order is the wire contract, which
+    // is what lets the audio part stream while it is still being recorded.
     const config: Record<string, unknown> = {
       sample_rate: 16000,
       channels: 1,
-      word_boost: dictationWordBoost(req.keyterms),
-      llm: { instruction: (req.prompt ?? COURSE_PROMPT).slice(0, 2048) },
+      language_codes: req.languageCodes?.length ? req.languageCodes : ["en"],
+      keyterms_prompt: capKeyterms(req.keyterms),
     };
-    const context = dictationContext(req.conversationContext);
-    if (context.length) config.conversation_context = context;
+    const sttPrompt = (req.sttPrompt ?? "").slice(0, MAX_STT_PROMPT);
+    if (sttPrompt) config.stt_prompt = sttPrompt;
+    if (req.llmInstruction) config.llm_instruction = req.llmInstruction.slice(0, MAX_LLM_INSTRUCTION);
+
     const form = new FormData();
     form.append("config", new Blob([JSON.stringify(config)], { type: "application/json" }), "config.json");
     form.append("audio", new Blob([pcm as unknown as BlobPart], { type: "audio/pcm" }), "clip.pcm");
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 32_000);
+    // 90 s ceiling per the published contract; a 6-10 s clip returns in ~1 s.
+    const timer = setTimeout(() => ctrl.abort(), 90_000);
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -235,62 +234,59 @@ export class AssemblyAIProvider implements TranscriptionProvider {
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         if (res.status === 400) {
-          // Live route: {"error":"request must be multipart/form-data ...","error_code":"bad_request"}
           const b = (body ?? {}) as { error?: string; message?: string; detail?: string };
           throw new TranscriptionError(
             "DICTATION_BAD_REQUEST",
-            b.error ?? b.message ?? b.detail ?? "Dictation request was malformed.",
+            b.detail ?? b.error ?? b.message ?? "Dictation request was malformed.",
             400,
             false
           );
         }
         throw mapSyncError(res.status, body, res.headers.get("retry-after"));
       }
-      const data = (await res.json()) as {
-        text?: unknown;
-        words?: unknown;
-        confidence?: unknown;
-        audio_duration_ms?: unknown;
-        session_id?: unknown;
-        request_time_ms?: unknown;
-        llm_response?: unknown;
-        llm_error?: unknown;
-      };
-      // `text` is the verbatim transcript and the only field we trust for
-      // content. `llm_response` is a best-effort cleanup and never a
-      // substitute — using it would let the model rewrite what the student
-      // actually said, which is the one thing this product must not do.
+      const data = (await res.json()) as Record<string, unknown>;
+      // `text` is the verbatim transcript. `llm_response` is the cleaned
+      // rewrite; both are returned so the learner can see exactly what they
+      // said next to what was tidied - the rewrite never silently replaces it.
       if (typeof data.text !== "string") {
-        throw new TranscriptionError("BAD_RESPONSE", "Event endpoint returned no text.", 502, false);
+        throw new TranscriptionError("BAD_RESPONSE", "Dictation returned no text.", 502, false);
       }
 
-      // The beta endpoint returns the same provenance fields as the sync API
-      // (confidence / session_id / audio_duration_ms), plus per-word scores.
-      // An earlier version of this function discarded all of them and reported
-      // nulls, which is why switching modes used to look like a downgrade.
       const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+      const words = Array.isArray(data.words)
+        ? (data.words as Array<{ text?: unknown; confidence?: unknown }>)
+            .filter((w) => typeof w?.text === "string")
+            .map((w) => ({ text: w.text as string, confidence: num(w.confidence) ?? 0 }))
+        : undefined;
       let confidence = num(data.confidence);
-      if (confidence === null && Array.isArray(data.words)) {
-        const scores = (data.words as Array<{ confidence?: unknown }>)
-          .map((w) => num(w?.confidence))
-          .filter((n): n is number => n !== null);
-        if (scores.length) confidence = scores.reduce((a, b) => a + b, 0) / scores.length;
+      if (confidence === null && words?.length) {
+        confidence = words.reduce((a, w) => a + w.confidence, 0) / words.length;
       }
+      // A failed rewrite is not a failed request: `clean` goes null and the
+      // caller falls back to verbatim rather than showing the learner nothing.
+      const llmError = typeof data.llm_error === "string" ? data.llm_error : null;
+      const clean = typeof data.llm_response === "string" && data.llm_response.trim() ? data.llm_response : null;
 
       return {
         text: data.text,
+        clean,
+        llmError,
         confidence,
+        words,
         audioDurationMs: num(data.audio_duration_ms),
         sessionId: typeof data.session_id === "string" ? data.session_id : null,
         requestTimeMs: num(data.request_time_ms),
+        syncTimeMs: num(data.sync_time_ms),
         latencyMs: Date.now() - started,
         provider: "assemblyai",
-        mode: "event-dictation",
+        mode: "dictation",
         demoFixture: false,
       };
     } catch (e) {
       if (e instanceof TranscriptionError) throw e;
-      if ((e as Error).name === "AbortError") throw new TranscriptionError("PROVIDER_TIMEOUT", "Transcription timed out.", 504, true, 2);
+      if ((e as Error).name === "AbortError" || (e as Error).name === "TimeoutError") {
+        throw new TranscriptionError("PROVIDER_TIMEOUT", "Transcription timed out.", 504, true, 2);
+      }
       throw new TranscriptionError("TRANSCRIPTION_FAILED", e instanceof Error ? e.message : "Transcription failed.", 502, true, 2);
     } finally {
       clearTimeout(timer);
@@ -315,7 +311,7 @@ export class AssemblyAIProvider implements TranscriptionProvider {
         speech_models: ["universal-3-5-pro", "universal-2"],
         language_detection: true,
         disfluencies: false, punctuate: true, format_text: true,
-        keyterms_prompt: req.keyterms ?? COURSE_KEYTERMS,
+        keyterms_prompt: capKeyterms(req.keyterms),
       }),
     });
     if (!sub.ok) throw new TranscriptionError("SUBMIT_FAILED", `Submit failed (${sub.status}).`, 502, true, 2);
@@ -328,8 +324,8 @@ export class AssemblyAIProvider implements TranscriptionProvider {
       const t = (await poll.json()) as { status: string; text?: string; error?: string; confidence?: number };
       if (t.status === "completed") {
         return {
-          text: t.text ?? "", confidence: t.confidence ?? null,
-          audioDurationMs: null, sessionId: id, requestTimeMs: null,
+          text: t.text ?? "", clean: null, llmError: null, confidence: t.confidence ?? null,
+          audioDurationMs: null, sessionId: id, requestTimeMs: null, syncTimeMs: null,
           latencyMs: Date.now() - started, provider: "assemblyai", mode: "async", demoFixture: false,
         };
       }
@@ -354,17 +350,21 @@ export class FixtureTranscriptionProvider implements TranscriptionProvider {
   async transcribe(): Promise<TranscriptionResult> {
     // Provenance is honest: a fixture never claims to be AssemblyAI output.
     return {
-      text: this.text, confidence: null, audioDurationMs: null, sessionId: null,
-      requestTimeMs: null, latencyMs: 0, provider: "fixture", mode: "sync", demoFixture: true,
+      text: this.text, clean: null, llmError: null, confidence: null, audioDurationMs: null,
+      sessionId: null, requestTimeMs: null, syncTimeMs: null, latencyMs: 0,
+      provider: "fixture", mode: "sync", demoFixture: true,
     };
   }
 }
 
+/** Default is dictation: it is the primary path, sync is only the fallback.
+ *  "event-dictation" is still accepted so an already-deployed env var keeps
+ *  selecting the same mode after the rename. */
 export function resolveTranscriptionMode(): TranscriptionMode {
-  const m = (process.env.ASSEMBLYAI_TRANSCRIPTION_MODE ?? "sync").toLowerCase();
-  if (m === "event-dictation" || m === "event" || m === "dictation") return "event-dictation";
+  const m = (process.env.ASSEMBLYAI_TRANSCRIPTION_MODE ?? "dictation").toLowerCase();
+  if (m === "sync") return "sync";
   if (m === "async") return "async";
-  return "sync";
+  return "dictation";
 }
 
 /** Production entry point. No key → coded NO_API_KEY (never a silent fixture). */

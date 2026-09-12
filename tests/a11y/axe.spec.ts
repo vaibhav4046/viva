@@ -5,13 +5,13 @@ import AxeBuilder from "@axe-core/playwright";
  * Automated accessibility audit: 0 serious+ violations on every route.
  * Run: npm run dev -- -p 3110  →  npm run test:accessibility
  */
-const ROUTES = ["/", "/demo", "/exam", "/learn", "/today", "/memory"];
+const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map"];
 
 for (const route of ROUTES) {
   test(`${route} has no serious accessibility violations`, async ({ page }) => {
     await page.goto(route);
-    // Let client hydration + demo boot settle.
-    await page.waitForTimeout(route === "/demo" ? 4000 : 2500);
+    // Let client hydration and the first data fetch settle.
+    await page.waitForTimeout(route === "/study" ? 4000 : 2500);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
       .analyze();
@@ -25,8 +25,8 @@ for (const route of ROUTES) {
   });
 }
 
-test("keyboard reaches the voice fallback and demo controls", async ({ page }) => {
-  await page.goto("/demo");
+test("keyboard reaches the mic and the typed box", async ({ page }) => {
+  await page.goto("/study");
   await page.waitForTimeout(3000);
   // Tab order must reach the typed input and Send without a mouse.
   await page.keyboard.press("Tab");
@@ -42,8 +42,8 @@ test("keyboard reaches the voice fallback and demo controls", async ({ page }) =
   expect(focused).toBe(true);
 });
 
-test("Thought Marks are announced via a polite live region (§80 J5)", async ({ page }) => {
-  await page.goto("/demo");
+test("new notes are announced via a polite live region", async ({ page }) => {
+  await page.goto("/study");
   await page.waitForTimeout(3500);
   // The log region must exist with the right semantics before any thought.
   const region = page.locator('[role="log"][aria-live="polite"]');

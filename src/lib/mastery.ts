@@ -31,6 +31,8 @@ export function reduceMastery(
   event: Pick<LearningEvent, "intent" | "createdAt"> & {
     assessment?: "correct" | "partial" | "incorrect" | null;
     teachbackScore?: number | null;
+    /** Direction only, from the tutor. The number is computed here. */
+    masterySignal?: "up" | "down" | "flat" | null;
   }
 ): { next: ConceptMastery; delta: number; reason: string } {
   const now = event.createdAt;
@@ -78,6 +80,12 @@ export function reduceMastery(
           mastery: m.mastery - 0.12,
         };
         reason = "unsupported claim — possible misconception";
+      } else if (event.masterySignal === "up") {
+        m = { ...m, mastery: m.mastery + 0.04 };
+        reason = "said it right, not yet checked out loud";
+      } else if (event.masterySignal === "down") {
+        m = { ...m, mastery: m.mastery - 0.06 };
+        reason = "that part did not match your source";
       } else {
         m = { ...m, mastery: m.mastery - 0.02 };
         reason = "unverified claim stored";
@@ -85,7 +93,7 @@ export function reduceMastery(
       break;
     case "explain":
     case "question":
-      m = { ...m, mastery: m.mastery - 0.02 };
+      m = { ...m, mastery: m.mastery + (event.masterySignal === "up" ? 0.01 : -0.02) };
       reason = "open question — awaiting evidence";
       break;
     default:

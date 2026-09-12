@@ -1,6 +1,6 @@
-import { getCourse, DEFAULT_COURSE_ID } from "./courses";
-import { scoreChunks, verifyEvidence } from "./retrieval";
-import type { SourceChunk } from "./types";
+import { getCourse, DEFAULT_COURSE_ID } from "../courses";
+import { scoreChunks, verifyEvidence } from "../retrieval";
+import type { SourceChunk } from "../types";
 
 export type Assessment = {
   verdict: "correct" | "partial" | "incorrect";

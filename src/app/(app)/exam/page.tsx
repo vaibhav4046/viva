@@ -1,8 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MotionConfig } from "motion/react";
-import { Nav } from "@/components/Nav";
-import { VoiceButton } from "@/components/VoiceButton";
+import { MicButton } from "@/components/voice/MicButton";
 import { Graph } from "@/components/Graph";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -44,8 +43,8 @@ type Failure = { message: string; retry: () => void };
 
 const VERDICT_CHIP: Record<string, { color: string; label: string }> = {
   correct: { color: "var(--color-cognition)", label: "CORRECT" },
-  partial: { color: "var(--color-signal)", label: "PARTIAL" },
-  incorrect: { color: "var(--color-coral)", label: "MISCONCEPTION" },
+  partial: { color: "var(--color-band-getting)", label: "PARTIAL" },
+  incorrect: { color: "var(--color-band-mixed)", label: "MISCONCEPTION" },
 };
 
 export default function ExamPage() {
@@ -64,6 +63,16 @@ export default function ExamPage() {
   const [courseId, setCourseId] = useState<string | null>(null);
 
   const focused = (mode === "exam" && q !== null) || (mode === "teach" && teach !== null);
+
+  /** The mic reports its own phase; the chip only has three states to show. */
+  const onPhase = useCallback((phase: "idle" | "listening" | "transcribing" | "review" | "thinking") => {
+    setVoiceState(phase === "listening" ? "recording" : phase === "transcribing" || phase === "thinking" ? "working" : "idle");
+  }, []);
+
+  // Stable arrays: a fresh one every render would re-register the mic's
+  // Space-key listeners on each pass.
+  const examContext = useMemo(() => (q ? [q.question] : []), [q]);
+  const teachContext = useMemo(() => (teach ? [teach.prompt] : []), [teach]);
 
   useEffect(() => {
     document.body.dataset.examFocus = focused ? "true" : "false";
@@ -221,17 +230,16 @@ export default function ExamPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <Nav />
       <main id="main" className={focused ? "mx-auto max-w-6xl px-5 py-6" : "mx-auto max-w-6xl px-5 py-8"}>
         {!focused ? (
           <>
             <PageHeader
-              eyebrow="viva oral exam · practice assessment"
-              title={activeCourse ? `${activeCourse.code} Oral Examination` : "Oral Examination"}
-              description="Practice only. Answer aloud or type — every verdict is scored against the course source, and mastery moves only from your own words."
+              eyebrow="Quiz"
+              title={activeCourse ? `${activeCourse.title} quiz` : "Quiz"}
+              description="Answer out loud, or type. Every verdict quotes the passage it was scored against."
               actions={
                 courses.length > 0 ? (
-                  <CoursePicker courses={courses} value={courseId ?? DEFAULT_COURSE_ID} onChange={changeCourse} />
+                  <CoursePicker courses={courses} value={courseId ?? DEFAULT_COURSE_ID} onChange={changeCourse} label="Subject" />
                 ) : undefined
               }
             />
@@ -285,24 +293,24 @@ export default function ExamPage() {
                   <ul className="mt-4 space-y-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
                     <li className="flex gap-3">
                       <span aria-hidden className="mono" style={{ color: "var(--color-cognition)" }}>01</span>
-                      Questions across the selected lab — weakest concept first.
+                      Questions from this subject, weakest concept first.
                     </li>
                     <li className="flex gap-3">
                       <span aria-hidden className="mono" style={{ color: "var(--color-cognition)" }}>02</span>
-                      Every verdict cites the course chunks it was scored against.
+                      Every verdict quotes the passage it was scored against.
                     </li>
                     <li className="flex gap-3">
                       <span aria-hidden className="mono" style={{ color: "var(--color-cognition)" }}>03</span>
-                      No model grades you: keyword coverage is deterministic and replayable.
+                      Scored on what you covered, not on how you worded it.
                     </li>
                   </ul>
                   <button onClick={start} disabled={busy === "start"} className="btn-lime mt-6">
-                    {busy === "start" ? "Preparing question…" : "Enter VIVA"}
+                    {busy === "start" ? "Preparing question…" : "Start the quiz"}
                   </button>
                   {busy === "start" ? <div className="mt-4"><LoadingBlock label="Selecting your weakest concept…" lines={2} /></div> : null}
                 </section>
                 <div className="space-y-4">
-                  {mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Loading your misconception graph…" lines={5} /> : null}
+                  {mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Opening your map…" lines={5} /> : null}
                 </div>
               </div>
             ) : (
@@ -312,7 +320,7 @@ export default function ExamPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="eyebrow">QUESTION{conceptName ? ` · ${conceptName}` : ""}</p>
                       {result ? (
-                        <span className="chip">assessed</span>
+                        <span className="chip">Marked</span>
                       ) : (
                         <VoiceStateChip state={voiceState} scoring={busy === "answer"} />
                       )}
@@ -348,12 +356,18 @@ export default function ExamPage() {
                     </section>
                   ) : (
                     <>
-                      <VoiceButton onResult={(d) => void answer(d.transcript)} onState={setVoiceState} busy={busy === "answer"} label="Answer aloud — or type below" />
+                      <MicButton
+                        subjectId={courseId ?? DEFAULT_COURSE_ID}
+                        onSubmit={(t) => void answer(t.text)}
+                        onPhaseChange={onPhase}
+                        busy={busy === "answer"}
+                        context={examContext}
+                      />
                       {busy === "answer" ? <LoadingBlock label="Scoring your answer against the source…" lines={2} /> : null}
                     </>
                   )}
                 </div>
-                <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Loading your misconception graph…" lines={5} /> : null}</div>
+                <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Opening your map…" lines={5} /> : null}</div>
               </div>
             )
           ) : !teach ? (
@@ -362,23 +376,23 @@ export default function ExamPage() {
                 <h2 className="heading text-xl">Teach it back</h2>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
                   VIVA picks your weakest concept and listens while you teach it back.
-                  Coverage is scored against the source — no model grades you.
+                  Coverage is scored against your source, not against your wording.
                 </p>
                 <button onClick={startTeach} disabled={busy === "teach"} className="btn-lime mt-6">
                   {busy === "teach" ? "Preparing prompt…" : "Teach VIVA"}
                 </button>
                 {busy === "teach" ? <div className="mt-4"><LoadingBlock label="Choosing the concept you know least well…" lines={2} /></div> : null}
               </section>
-              <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Loading your misconception graph…" lines={5} /> : null}</div>
+              <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Opening your map…" lines={5} /> : null}</div>
             </div>
           ) : (
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-4">
                 <section className="surface-card p-6" aria-live="polite">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="eyebrow">teach back · {teach.conceptName}</p>
+                    <p className="eyebrow">Teach it back · {teach.conceptName}</p>
                     {teachFb ? (
-                      <span className="chip">assessed</span>
+                      <span className="chip">Marked</span>
                     ) : (
                       <VoiceStateChip state={voiceState} scoring={busy === "answer"} />
                     )}
@@ -387,7 +401,7 @@ export default function ExamPage() {
                 </section>
 
                 {teachFb ? (
-                  <section aria-label="Teachback result" aria-live="polite" className="surface-card p-5">
+                  <section aria-label="Teach it back result" aria-live="polite" className="surface-card p-5">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <h2 className="heading text-base">Coverage</h2>
                       <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
@@ -395,7 +409,7 @@ export default function ExamPage() {
                       </span>
                     </div>
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="meter meter-spectrum flex-1" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={teachFb.score} aria-label="Teachback coverage score">
+                      <div className="meter flex-1" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={teachFb.score} aria-label="How much you covered">
                         <span style={{ transform: `scaleX(${teachFb.coverage})` }} />
                       </div>
                       <span className="mono text-xs" style={{ color: "var(--color-cognition)" }}>{teachFb.score}%</span>
@@ -408,7 +422,7 @@ export default function ExamPage() {
                         </span>
                       ))}
                       {teachFb.missingPoints.map((p) => (
-                        <span key={p} className="chip" style={{ color: "var(--color-signal)" }}>
+                        <span key={p} className="chip" style={{ color: "var(--color-band-getting)" }}>
                           <span aria-hidden>→</span> {p}
                         </span>
                       ))}
@@ -421,13 +435,19 @@ export default function ExamPage() {
                   </section>
                 ) : (
                   <>
-                    <VoiceButton onResult={(d) => void answerTeach(d.transcript)} onState={setVoiceState} busy={busy === "answer"} label="Explain aloud — or type below" />
+                    <MicButton
+                      subjectId={courseId ?? DEFAULT_COURSE_ID}
+                      onSubmit={(t) => void answerTeach(t.text)}
+                      onPhaseChange={onPhase}
+                      busy={busy === "answer"}
+                      context={teachContext}
+                    />
                     <p className="text-sm" style={{ color: "var(--color-ash)" }}>Hint: {teach.hint}</p>
                     {busy === "answer" ? <LoadingBlock label="Scoring coverage against the source…" lines={2} /> : null}
                   </>
                 )}
               </div>
-              <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Loading your misconception graph…" lines={5} /> : null}</div>
+              <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Opening your map…" lines={5} /> : null}</div>
             </div>
           )}
         </div>
@@ -439,7 +459,7 @@ export default function ExamPage() {
 function VoiceStateChip({ state, scoring }: { state: VoiceState; scoring: boolean }) {
   if (scoring) {
     return (
-      <span className="chip" style={{ color: "var(--color-signal)" }}>
+      <span className="chip" style={{ color: "var(--color-band-getting)" }}>
         <span aria-hidden>◐</span> scoring
       </span>
     );
@@ -453,7 +473,7 @@ function VoiceStateChip({ state, scoring }: { state: VoiceState; scoring: boolea
   }
   if (state === "working") {
     return (
-      <span className="chip" style={{ color: "var(--color-signal)" }}>
+      <span className="chip" style={{ color: "var(--color-band-getting)" }}>
         <span aria-hidden>◐</span> transcribing
       </span>
     );

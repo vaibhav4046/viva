@@ -3,24 +3,24 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * DESIGN_V2 §1 — Spectrum Noir token guard.
+ * Academic Noir token guard.
  *
  * Two jobs:
- *  1. Pin the spectrum tokens + recipes to their documented values in
- *     src/app/globals.css (append-only extension; existing tokens untouched).
- *  2. Recompute every documented text/background pair with the WCAG 2.x
- *     relative-luminance formula and fail if any pair drops below the value
- *     DESIGN_V2 §1c documents. The test computes from the hex pairs in the
- *     doc (not from the CSS), so token drift is caught even if both change.
+ *  1. Pin the palette in src/app/globals.css to Academic Noir, and prove the
+ *     two palettes it replaced (the light "paper" set and the neon "spectrum"
+ *     set) have not crept back in.
+ *  2. Recompute every text/background pair with the WCAG 2.x relative
+ *     luminance formula and fail if any pair drops below 4.5:1. The ratios
+ *     are computed from the values read out of the CSS, so token drift is
+ *     caught rather than papered over.
  */
 
 const CSS = readFileSync(fileURLToPath(new URL("../src/app/globals.css", import.meta.url)), "utf8");
 
-/* ------------------------------ helpers ------------------------------ */
-
-function cssVar(name: string): string | null {
+function cssVar(name: string): string {
   const match = CSS.match(new RegExp(`--${name}\\s*:\\s*([^;]+);`));
-  return match ? match[1].trim() : null;
+  if (!match) throw new Error(`token --${name} is not defined in globals.css`);
+  return match[1].trim();
 }
 
 function channel(v: number): number {
@@ -36,188 +36,105 @@ function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-/** WCAG 2.x contrast ratio, unrounded. */
+/** WCAG 2.x contrast ratio. */
 export function contrast(a: string, b: string): number {
   const l1 = luminance(a);
   const l2 = luminance(b);
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
-const rounded = (a: string, b: string): number => Math.round(contrast(a, b) * 100) / 100;
+/* ----------------------------- the palette ----------------------------- */
 
-/* --------------------------- §1 tokens exist --------------------------- */
-
-const COLOR_TOKENS: Record<string, string> = {
-  "color-spectrum-magenta": "#ff3ec8",
-  "color-spectrum-violet": "#a855f7",
-  "color-spectrum-red": "#ff453a",
-  "color-spectrum-orange": "#ff9f0a",
-  "color-spectrum-yellow": "#ffd60a",
-  "color-spectrum-cyan": "#22d3ee",
-  "color-spectrum-sky": "#64d2ff",
-  "color-spectrum-violet-text": "#b98cff",
-  "color-spectrum-ink": "#0b0a12",
-  "color-spectrum-deep-violet": "#4c1d95",
-  "color-spectrum-deep-magenta": "#831843",
-  "color-spectrum-deep-rust": "#7c2d12",
-  "color-spectrum-deep-cyan": "#164e63",
-  "color-spectrum-paper-violet": "#6d28d9",
-  "color-spectrum-paper-magenta": "#a21caf",
-  "color-spectrum-paper-red": "#b3261e",
-  "color-spectrum-paper-orange": "#9a3412",
-  "color-spectrum-paper-cyan": "#0e7490",
+const PALETTE: Record<string, string> = {
+  "color-obsidian": "#0b0b0c",
+  "color-graphite": "#131417",
+  "color-panel": "#191b1f",
+  "color-hairline": "#262a31",
+  "color-slate": "#3a3f47",
+  "color-paper": "#f2f0ea",
+  "color-mist": "#d3d1c9",
+  "color-ash": "#a7abb6",
+  "color-cognition": "#b8ff5a",
+  "color-band-solid": "#b8ff5a",
+  "color-band-getting": "#8fa2ff",
+  "color-band-shaky": "#fbbf24",
+  "color-band-mixed": "#ff8080",
+  "color-band-notyet": "#a7abb6",
 };
 
-const RECIPE_TOKENS = [
-  "grad-spectrum",
-  "grad-spec-warm",
-  "grad-spec-cool",
-  "grad-spec-ink",
-  "grad-spec-paper",
-  "grad-spec-veil",
-  "glow-spectrum",
-  "glow-warm",
-  "shadow-lift",
-  "dur-press",
-  "dur-hover",
-  "dur-enter",
-  "dur-scene",
-  "dur-cinema",
-  "ease-snap",
-  "ease-glide",
-  "ease-pop",
-  "ease-breathe",
-  "ring-spectrum",
-];
-
-/*
- * The decorative sweep is cut from VIVA's own semantic triad, not the original
- * seven-stop rainbow. Section 18 of the product directive rules out generic
- * SaaS purple, and the landing rebuild pulled the whole app back onto
- * cognition lime -> signal blue -> misconception coral. The raw
- * --color-spectrum-* tokens above are still defined and still pinned by the
- * ledger; only the gradient recipes that paint rules, borders and dots moved.
- */
-const SWEEP_STOPS = ["#b8ff5a", "#7c8cff", "#ff6b6b"];
-
-describe("DESIGN_V2 spectrum tokens (globals.css)", () => {
-  it("defines every documented spectrum colour token at its exact value", () => {
-    const missing: string[] = [];
-    for (const [token, hex] of Object.entries(COLOR_TOKENS)) {
-      const value = cssVar(token)?.toLowerCase() ?? null;
-      if (value !== hex) missing.push(`--${token}: expected ${hex}, got ${value ?? "missing"}`);
-    }
-    expect(missing).toEqual([]);
+describe("Academic Noir palette", () => {
+  it.each(Object.entries(PALETTE))("--%s is %s", (name, hex) => {
+    expect(cssVar(name)).toBe(hex);
   });
 
-  it("defines every documented recipe, glow and motion token", () => {
-    const missing = RECIPE_TOKENS.filter((token) => cssVar(token) === null);
-    expect(missing).toEqual([]);
+  it("defines one band token per mastery word", () => {
+    const bands = [...CSS.matchAll(/--color-band-([a-z]+)\s*:/g)].map((m) => m[1]);
+    expect(new Set(bands)).toEqual(new Set(["solid", "getting", "shaky", "mixed", "notyet"]));
   });
 
-  it("cuts the sweep from the semantic triad and keeps the OKLCH upgrade", () => {
-    const sweep = cssVar("grad-spectrum") ?? "";
-    const absent = SWEEP_STOPS.filter((hex) => !sweep.toLowerCase().includes(hex));
-    expect(absent).toEqual([]);
-    // The rainbow must not creep back in.
-    for (const banned of ["#ff3ec8", "#a855f7", "#ffd60a", "#22d3ee"]) {
-      expect(sweep.toLowerCase()).not.toContain(banned);
-    }
-    expect(CSS).toMatch(/@supports\s*\(background:\s*linear-gradient\(in oklch/);
-    expect(CSS).toContain("linear-gradient(115deg in oklch,");
+  it("has dropped the spectrum palette", () => {
+    expect(CSS).not.toMatch(/--color-spectrum-/);
+    expect(CSS).not.toMatch(/--grad-spec/);
+  });
+
+  it("has dropped the light paper palette", () => {
+    expect(CSS).not.toMatch(/--color-paper-(surface|ink|lime|coral|hairline|caption|card)/);
+  });
+
+  it("has dropped the storage banner styles", () => {
+    expect(CSS).not.toMatch(/storage-banner/);
   });
 });
 
-/* ------------------------ §1c contrast ledger ------------------------ */
+/* ------------------------------ contrast ------------------------------ */
 
-const OBSIDIAN = "#080a0d";
-const GRAPHITE = "#11151b";
-const PAPER = "#f4f1e8";
+const GROUNDS = [
+  ["obsidian", PALETTE["color-obsidian"]],
+  ["graphite", PALETTE["color-graphite"]],
+  ["panel", PALETTE["color-panel"]],
+] as const;
 
-type Pair = { label: string; text: string; bg: string; floor: number };
+const FOREGROUNDS = [
+  "color-paper",
+  "color-mist",
+  "color-ash",
+  "color-cognition",
+  "color-band-solid",
+  "color-band-getting",
+  "color-band-shaky",
+  "color-band-mixed",
+  "color-band-notyet",
+] as const;
 
-const LEDGER_PAIRS: Pair[] = [
-  // Spectrum stops as text on obsidian #080A0D
-  { label: "magenta on obsidian", text: "#ff3ec8", bg: OBSIDIAN, floor: 6.39 },
-  { label: "violet on obsidian", text: "#a855f7", bg: OBSIDIAN, floor: 5.01 },
-  { label: "red on obsidian", text: "#ff453a", bg: OBSIDIAN, floor: 5.82 },
-  { label: "orange on obsidian", text: "#ff9f0a", bg: OBSIDIAN, floor: 9.64 },
-  { label: "yellow on obsidian", text: "#ffd60a", bg: OBSIDIAN, floor: 14.04 },
-  { label: "cyan on obsidian", text: "#22d3ee", bg: OBSIDIAN, floor: 10.97 },
-  { label: "sky on obsidian", text: "#64d2ff", bg: OBSIDIAN, floor: 11.52 },
-  { label: "violet-text on obsidian", text: "#b98cff", bg: OBSIDIAN, floor: 7.79 },
-  // Spectrum stops as text on graphite #11151B
-  { label: "magenta on graphite", text: "#ff3ec8", bg: GRAPHITE, floor: 5.91 },
-  { label: "violet on graphite", text: "#a855f7", bg: GRAPHITE, floor: 4.63 },
-  { label: "red on graphite", text: "#ff453a", bg: GRAPHITE, floor: 5.37 },
-  { label: "orange on graphite", text: "#ff9f0a", bg: GRAPHITE, floor: 8.91 },
-  { label: "yellow on graphite", text: "#ffd60a", bg: GRAPHITE, floor: 12.97 },
-  { label: "cyan on graphite", text: "#22d3ee", bg: GRAPHITE, floor: 10.13 },
-  { label: "sky on graphite", text: "#64d2ff", bg: GRAPHITE, floor: 10.64 },
-  // Paper-safe stops as text on paper #F4F1E8
-  { label: "paper-violet on paper", text: "#6d28d9", bg: PAPER, floor: 6.29 },
-  { label: "paper-magenta on paper", text: "#a21caf", bg: PAPER, floor: 5.6 },
-  { label: "paper-red on paper", text: "#b3261e", bg: PAPER, floor: 5.79 },
-  { label: "paper-orange on paper", text: "#9a3412", bg: PAPER, floor: 6.47 },
-  { label: "paper-cyan on paper", text: "#0e7490", bg: PAPER, floor: 4.74 },
-  { label: "ink on paper", text: "#1f1b14", bg: PAPER, floor: 15.18 },
-  { label: "caption on paper", text: "#5a5348", bg: PAPER, floor: 6.72 },
-];
-
-// Text-on-gradient law: only these pairings are legal.
-const INK = "#1f1b14";
-const ON_GRADIENT_PAIRS: Pair[] = [
-  { label: "ink on spectrum yellow", text: INK, bg: "#ffd60a", floor: 12.14 },
-  { label: "ink on spectrum orange", text: INK, bg: "#ff9f0a", floor: 8.34 },
-  { label: "ink on spectrum sky", text: INK, bg: "#64d2ff", floor: 9.96 },
-  { label: "ink on spectrum cyan", text: INK, bg: "#22d3ee", floor: 9.48 },
-  { label: "ink on spectrum magenta", text: INK, bg: "#ff3ec8", floor: 5.53 },
-  { label: "ink on spectrum red", text: INK, bg: "#ff453a", floor: 5.03 },
-  { label: "paper on deep-violet", text: PAPER, bg: "#4c1d95", floor: 9.7 },
-  { label: "paper on deep-rust (worst)", text: PAPER, bg: "#7c2d12", floor: 8.3 },
-];
-
-describe("DESIGN_V2 §1c contrast ledger (computed here, not copied)", () => {
-  it("holds every documented text pair at or above its documented floor", () => {
-    const failures: string[] = [];
-    for (const p of LEDGER_PAIRS) {
-      const actual = rounded(p.text, p.bg);
-      if (actual < p.floor) failures.push(`${p.label}: ${actual} < ${p.floor}`);
+describe("contrast on every surface", () => {
+  for (const [groundName, ground] of GROUNDS) {
+    for (const fg of FOREGROUNDS) {
+      it(`${fg} on ${groundName} clears 4.5:1`, () => {
+        expect(contrast(PALETTE[fg], ground)).toBeGreaterThanOrEqual(4.5);
+      });
     }
-    expect(failures).toEqual([]);
+  }
+
+  it("obsidian text on the lime button clears 4.5:1", () => {
+    expect(contrast(PALETTE["color-obsidian"], PALETTE["color-cognition"])).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("every documented text pair clears WCAG AA (≥4.5:1) for normal text", () => {
-    const below = LEDGER_PAIRS.filter((p) => contrast(p.text, p.bg) < 4.5).map((p) => p.label);
-    expect(below).toEqual([]);
+  it("obsidian text on the paper button clears 4.5:1", () => {
+    expect(contrast(PALETTE["color-obsidian"], PALETTE["color-paper"])).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/* -------------------------------- type -------------------------------- */
+
+describe("type scale", () => {
+  it("is 12 / 14 / 16 / 18 / 24 / 32 / 48", () => {
+    const sizes = ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"].map((k) => cssVar(`text-${k}`));
+    expect(sizes).toEqual(["12px", "14px", "16px", "18px", "24px", "32px", "48px"]);
   });
 
-  it("keeps the legal ink-on-gradient pairings at their documented floors", () => {
-    const failures: string[] = [];
-    for (const p of ON_GRADIENT_PAIRS) {
-      const actual = rounded(p.text, p.bg);
-      if (actual < p.floor) failures.push(`${p.label}: ${actual} < ${p.floor}`);
-    }
-    expect(failures).toEqual([]);
-  });
-
-  it("keeps ink off violet — the documented illegal pairing stays < 4.5:1", () => {
-    expect(rounded(INK, "#a855f7")).toBeLessThan(4.5);
-  });
-
-  it("keeps the deep gradient floor ≥ 8:1 for paper text at every stop", () => {
-    const stops = ["#4c1d95", "#831843", "#7c2d12"];
-    const failures = stops
-      .map((stop) => ({ stop, ratio: contrast(PAPER, stop) }))
-      .filter(({ ratio }) => ratio < 8);
-    expect(failures).toEqual([]);
-  });
-
-  it("documents the paper-safe rule recipe stops (all AA on paper)", () => {
-    const rule = cssVar("grad-spec-paper") ?? "";
-    const stops = ["#6d28d9", "#a21caf", "#b3261e", "#9a3412", "#0e7490"];
-    expect(stops.filter((hex) => !rule.toLowerCase().includes(hex))).toEqual([]);
-    expect(rounded("#6d28d9", PAPER)).toBeGreaterThanOrEqual(6.29);
-    expect(rounded("#0e7490", PAPER)).toBeGreaterThanOrEqual(4.74);
+  it("sets body to 16px and 1.55 line-height", () => {
+    const body = CSS.match(/\bbody\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(body).toMatch(/font-size:\s*16px/);
+    expect(body).toMatch(/line-height:\s*1\.55/);
   });
 });

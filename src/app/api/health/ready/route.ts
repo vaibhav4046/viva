@@ -1,5 +1,6 @@
 import { dbStatus } from "@/lib/db/db";
 import { storeDegradation } from "@/lib/store";
+import { providerStatus } from "@/lib/ai/provider";
 
 /**
  * GET /api/health/ready — readiness. Reports whether critical dependencies
@@ -12,6 +13,8 @@ export async function GET() {
     : { configured: false, mode: null };
   const database = await dbStatus();
   const store = storeDegradation();
+  // Not part of `degraded`: an unset model is a quieter tutor, not an outage.
+  const provider = providerStatus();
 
   /*
    * Two separate questions, deliberately not merged:
@@ -35,6 +38,7 @@ export async function GET() {
       durable: database.durable && !store.degraded,
       degraded,
       transcription,
+      provider,
       database,
       store: store.degraded
         ? { mode: "ephemeral-fallback", from: store.from, reason: store.reason, since: store.since }

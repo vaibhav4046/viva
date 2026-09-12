@@ -9,7 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm run test && npm run build",
+    "verify": "npm run typecheck && npm run lint:copy && npm run test && npm run build",
     "test:assemblyai-live": "vitest run tests/assemblyai-live.test.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "smoke": "node scripts/smoke.mjs",

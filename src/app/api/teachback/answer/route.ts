@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getCourse } from "@/lib/courses";
-import { scoreTeachback } from "@/lib/tutor";
+import { gradeAnswer, scoreTeachback } from "@/lib/tutor";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -57,10 +57,31 @@ export async function POST(req: NextRequest) {
 
   const required = course.teachback.keywords[p.data.conceptId] ?? [];
   const s = scoreTeachback(p.data.transcript, required);
-  const assessment = s.verdict === "strong" ? "correct" : s.verdict === "developing" ? "partial" : "incorrect";
   const hint = course.teachback.hints[p.data.conceptId]
     ?? course.examQuestions.find((q) => q.conceptId === p.data.conceptId)?.hint
     ?? `Explain ${concept.name} in your own words.`;
+
+  // Coverage is the fallback and the floor; the model judges substance on top.
+  const retrieved = await store.retrieveEvidence(identity.userId, `${concept.name} ${p.data.transcript}`, {
+    sourceId: null, conceptIds: [p.data.conceptId], limit: 3, courseId: course.id,
+  });
+  const graded = await gradeAnswer({
+    subject: course.title,
+    question: `Teach it back: ${concept.name}.`,
+    requiredKeywords: required,
+    hint,
+    answer: p.data.transcript,
+    chunks: retrieved.map((r) => r.chunk),
+    baseline: {
+      verdict: s.verdict === "strong" ? "correct" : s.verdict === "developing" ? "partial" : "incorrect",
+      correctPoints: s.hits,
+      missingPoints: s.misses.slice(0, 4),
+      possibleMisconception: null,
+      feedback: feedbackFor(s.verdict, s.hits, s.misses, required.length),
+      evidenceIds: retrieved.map((r) => r.chunk.id),
+    },
+  });
+  const assessment = graded.verdict;
 
   const outcome = await store.recordLearning(identity.userId, {
     idempotencyKey: p.data.clientEventId ?? `teachback_${uid("e")}`,
@@ -91,9 +112,12 @@ export async function POST(req: NextRequest) {
   return done(Response.json({
     coverage: s.coverage,
     score: s.score,
-    correctPoints: s.hits,
-    missingPoints: s.misses.slice(0, 4),
-    feedback: feedbackFor(s.verdict, s.hits, s.misses, required.length),
+    verdict: graded.verdict,
+    correctPoints: graded.correctPoints,
+    missingPoints: graded.missingPoints,
+    possibleMisconception: graded.possibleMisconception,
+    nextQuestion: graded.nextQuestion,
+    feedback: graded.feedback,
     mastery: outcome.mastery,
     delta: outcome.delta,
     reason: outcome.reason,

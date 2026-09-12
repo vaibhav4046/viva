@@ -12,15 +12,9 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("E2E_BASE", "http://localhost:3000")  # 3000: Privy's own CSP allowlists localhost:3000 for its iframe; other ports get frame-blocked in dev.
-CHROME = r"C:\Users\lalwa\.cache\hyperframes\chrome\chrome-headless-shell\win64-152.0.7977.30\chrome-headless-shell-win64\chrome-headless-shell.exe"
 ROOT = Path(__file__).resolve().parent.parent
 FOOT = ROOT / "demo-footage"
 FOOT.mkdir(parents=True, exist_ok=True)
-# Video recording needs an ffmpeg binary in the Playwright browsers registry.
-# No browsers exist at the ms-playwright path in this env, so we shim the
-# registry root into demo-footage (see demo-footage/.pw-browsers).
-os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(FOOT / ".pw-browsers"))
-
 THOUGHT_1 = "I don't understand why attention needs positional encoding."
 QUIZ_ME = "Quiz me on it."
 WRONG_ANSWER = "It wouldn't know which words are important."
@@ -85,10 +79,8 @@ def run_step(name: str, fn) -> None:
 
 
 def main() -> None:
-    if not Path(CHROME).exists():
-        raise SystemExit(f"E2E FAILED at step: env: chrome headless shell missing: {CHROME}")
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(executable_path=CHROME, headless=True, args=["--no-sandbox"])
+        browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
         ctx = browser.new_context(
             viewport={"width": 1440, "height": 900},
             record_video_dir=str(FOOT),
@@ -102,70 +94,64 @@ def main() -> None:
             page.locator("#hero").wait_for(timeout=10000)
             hero = page.locator("#hero").inner_text()
             assert "VIVA REMEMBERS" in hero, f"hero text missing, got: {hero[:200]!r}"
-            link = page.get_by_role("link", name="Watch the misconception demo")
-            assert link.count() >= 1, "misconception-demo link not found"
+            link = page.get_by_role("link", name="Bring your own subject")
+            assert link.count() >= 1, "'Bring your own subject' link not found"
             page.screenshot(path=str(FOOT / "shot-landing.png"))
             link.first.click()
-            page.wait_for_url("**/demo", timeout=10000)
+            page.wait_for_url("**/subjects", timeout=10000)
+            page.goto(BASE + "/study", wait_until="domcontentloaded", timeout=15000)
 
-        def s_golden_steps():
-            steps = page.locator('ol[aria-label="Golden path steps"] li')
-            steps.first.wait_for(timeout=10000)
-            assert steps.count() == 4, f"expected 4 golden steps, got {steps.count()}"
-            reset = page.get_by_role("button", name="Reset demo")
-            if reset.count() > 0:
-                reset.click()
-                page.wait_for_timeout(500)
-            page.screenshot(path=str(FOOT / "shot-demo.png"))
+        def s_try_saying():
+            """Three prompts that pre-fill the typed box, not a numbered script."""
+            page.locator("#viva-type").wait_for(timeout=10000)
+            wait_hydrated(page)
+            chips = page.locator('button.chip')
+            chips.first.wait_for(timeout=10000)
+            assert chips.count() == 3, f"expected 3 'Try saying' chips, got {chips.count()}"
+            chips.first.click()
+            assert page.input_value("#viva-type").startswith("I don't understand"),                 "chip did not pre-fill the typed box"
+            page.fill("#viva-type", "")
+            page.screenshot(path=str(FOOT / "shot-study.png"))
 
         def s_thoughtmark():
             send_thought(page, THOUGHT_1)
-            mark = page.locator('article[aria-label^="Thought Mark"]', has_text="Positional")
+            mark = page.locator('article[aria-label^="Note"]', has_text="Positional")
             mark.first.wait_for(timeout=15000)
             label = mark.first.get_attribute("aria-label") or ""
-            assert "Positional" in label, f"Thought Mark label missing Positional: {label!r}"
-            page.screenshot(path=str(FOOT / "shot-thoughtmark.png"))
+            assert "Positional" in label, f"note label missing Positional: {label!r}"
+            page.screenshot(path=str(FOOT / "shot-note.png"))
 
         def s_quiz():
             send_thought(page, QUIZ_ME)
-            exam = page.locator('section[aria-label="VIVA oral exam"]')
+            exam = page.locator('section[aria-label="Quiz question"]')
             exam.wait_for(timeout=15000)
             q = exam.inner_text()
             assert EXAM_Q_SNIPPET in q.lower(), f"exam question missing, got: {q[:300]!r}"
 
         def s_exam_answer():
-            page.fill("#exam-a", WRONG_ANSWER)
-            page.press("#exam-a", "Enter")
-            tutor = page.locator('section[aria-label="Tutor response"]')
+            # One input for everything: with a question open, the typed box is
+            # the answer box. This is the routing the old build got wrong.
+            page.fill("#viva-type", WRONG_ANSWER)
+            page.press("#viva-type", "Enter")
+            tutor = page.locator('section[aria-label="What VIVA said"]')
             tutor.wait_for(timeout=15000)
             page.wait_for_function(
-                f"document.querySelector('section[aria-label=\"Tutor response\"]')?.innerText.includes('{MISCONCEPTION_SNIPPET}')",
+                f"document.querySelector('section[aria-label=\"What VIVA said\"]')?.innerText.includes('{MISCONCEPTION_SNIPPET}')",
                 timeout=15000,
             )
             page.screenshot(path=str(FOOT / "shot-exam.png"))
 
         def s_graph_node():
-            node = page.locator("svg text", has_text="Positional information")
+            node = page.locator("svg text", has_text="Positional")
             node.first.wait_for(timeout=10000)
-            assert node.count() >= 1, "graph node 'Positional information' not found"
+            assert node.count() >= 1, "graph node for positional information not found"
 
         def s_evidence_link():
-            link = page.locator('section[aria-label="Tutor response"] a[href^="#chunk-"]').first
+            link = page.locator('section[aria-label="What VIVA said"] a[href^="#chunk-"]').first
             link.wait_for(timeout=10000)
             link.click()
             page.wait_for_function("window.location.hash.includes('chunk-')", timeout=5000)
             assert "#chunk-" in page.url, f"hash missing after evidence click: {page.url}"
-
-        def s_debug_intent():
-            page.goto(BASE + "/demo?debug=1", wait_until="domcontentloaded", timeout=15000)
-            page.locator("#viva-type").wait_for(timeout=10000)
-            send_thought(page, THOUGHT_1)
-            panel = page.locator('aside[aria-label="Developer debug panel"]')
-            panel.wait_for(timeout=15000)
-            page.wait_for_function(
-                "document.querySelector('aside[aria-label=\"Developer debug panel\"]')?.innerText.includes('intent')",
-                timeout=15000,
-            )
 
         def s_today():
             """VIVA 2.0: the 10-minute path surfaces from real history."""
@@ -180,27 +166,26 @@ def main() -> None:
             )
             page.screenshot(path=str(FOOT / "shot-today.png"), full_page=True)
 
-        def s_memory():
-            """VIVA 2.0: memory view lists concepts from the learner model."""
-            page.goto(BASE + "/memory", wait_until="domcontentloaded", timeout=15000)
+        def s_map():
+            """The map lists every concept in the subject, in plain bands."""
+            page.goto(BASE + "/map", wait_until="domcontentloaded", timeout=15000)
             page.wait_for_function(
                 "() => { const t = document.body.innerText.toLowerCase();"
                 " return t.includes('positional') && !t.includes('loading'); }",
                 timeout=25000,
             )
-            page.screenshot(path=str(FOOT / "shot-memory.png"), full_page=True)
+            page.screenshot(path=str(FOOT / "shot-map.png"), full_page=True)
 
         for name, fn in [
             ("landing", s_landing),
-            ("golden-steps", s_golden_steps),
-            ("thoughtmark-positional", s_thoughtmark),
+            ("try-saying-chips", s_try_saying),
+            ("note-positional", s_thoughtmark),
             ("quiz-exam-question", s_quiz),
             ("exam-misconception-feedback", s_exam_answer),
             ("graph-node", s_graph_node),
             ("evidence-link-hash", s_evidence_link),
-            ("debug-panel-intent", s_debug_intent),
             ("today-path", s_today),
-            ("memory-concepts", s_memory),
+            ("map-concepts", s_map),
         ]:
             run_step(name, fn)
 
@@ -230,12 +215,12 @@ def main() -> None:
         mpage.on("pageerror", on_pageerror)
 
         def s_mobile():
-            mpage.goto(BASE + "/demo", wait_until="domcontentloaded", timeout=15000)
+            mpage.goto(BASE + "/study", wait_until="domcontentloaded", timeout=15000)
             mpage.locator("#viva-type").wait_for(timeout=10000)
             wait_hydrated(mpage)
             mpage.fill("#viva-type", THOUGHT_1)
             mpage.get_by_role("button", name="Send").click()
-            mpage.locator('article[aria-label^="Thought Mark"]').first.wait_for(timeout=15000)
+            mpage.locator('article[aria-label^="Note"]').first.wait_for(timeout=15000)
             mpage.screenshot(path=str(FOOT / "shot-mobile.png"))
             overflow = mpage.evaluate("document.body.scrollWidth")
             assert overflow <= 391, f"horizontal overflow on mobile: scrollWidth={overflow}"

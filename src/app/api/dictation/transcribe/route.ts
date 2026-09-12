@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     const mode = resolveTranscriptionMode();
-    if (mode === "event-dictation" && !process.env.ASSEMBLYAI_DICTATION_URL) {
+    if (mode === "dictation" && !process.env.ASSEMBLYAI_DICTATION_URL) {
       return err("NO_DICTATION_URL", "Event dictation mode needs ASSEMBLYAI_DICTATION_URL.", false, 503);
     }
 

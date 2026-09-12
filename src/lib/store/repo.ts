@@ -28,6 +28,8 @@ export type RecordInput = {
   sourceLocator: LearningEvent["sourceLocator"];
   assessment?: "correct" | "partial" | "incorrect" | null;
   teachbackScore?: number | null;
+  /** Direction from the tutor; the number is still computed in mastery.ts. */
+  masterySignal?: "up" | "down" | "flat" | null;
   /** The hint text the learner was shown for the question they answered. */
   hint?: string | null;
 };

@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 const TONE: Record<string, { color: string; label: string }> = {
   correct: { color: "var(--color-cognition)", label: "CORRECT" },
-  missing: { color: "var(--color-signal)", label: "MISSING" },
-  misconception: { color: "var(--color-coral)", label: "MISCONCEPTION" },
+  missing: { color: "var(--color-band-getting)", label: "MISSING" },
+  misconception: { color: "var(--color-band-mixed)", label: "MISCONCEPTION" },
   next: { color: "var(--color-paper)", label: "NEXT" },
 };
 

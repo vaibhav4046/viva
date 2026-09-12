@@ -192,6 +192,7 @@ export class PgEventStore implements EventStore {
         const prev = row.rows.length ? toMastery(row.rows[0]) : blankMastery(stripScope(cid as string), new Date().toISOString());
         const { next, delta: d, reason: r } = reduceMastery(prev, {
           intent: input.intent, createdAt: event.createdAt, assessment: input.assessment ?? null, teachbackScore: input.teachbackScore ?? null,
+          masterySignal: input.masterySignal ?? null,
         });
         delta = d; reason = r;
         await client.query(

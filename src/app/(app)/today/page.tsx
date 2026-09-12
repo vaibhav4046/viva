@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -164,16 +163,13 @@ export default function TodayPage() {
 
   return (
     <>
-      <Nav />
       <main id="main" className="mx-auto max-w-4xl px-5 py-8">
         <PageHeader
-          eyebrow="{ today }"
-          title="Today — what to do in the next 10 minutes"
-          description="A fixed, deterministic path through your own history: what you got wrong first, then what is weakest, one thing you already hold, and one thing to prove. No model chooses; the rules are in the API."
-          rule
+                    title="Today"
+          description="Ten minutes, built from what you actually said: what you got wrong first, then what is weakest, then one thing to prove."
           actions={
             courses.length > 0 ? (
-              <CoursePicker courses={courses} value={courseId ?? ""} onChange={changeCourse} allOption />
+              <CoursePicker courses={courses} value={courseId ?? ""} onChange={changeCourse} allOption label="Subject" />
             ) : undefined
           }
         />
@@ -193,8 +189,7 @@ export default function TodayPage() {
             </h2>
             {path ? (
               <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-                {totalMinutes} min · generated {shortTimeUtc(path.generatedAt)} · basis {path.basis.events} events,{" "}
-                {path.basis.concepts} concepts
+                {totalMinutes} min · built {shortTimeUtc(path.generatedAt)}
               </span>
             ) : null}
           </div>
@@ -202,12 +197,12 @@ export default function TodayPage() {
           {path ? (
             <div className="mt-3 flex items-center gap-3">
               <div
-                className="meter meter-spectrum flex-1"
+                className="meter flex-1"
                 role="meter"
                 aria-valuemin={0}
                 aria-valuemax={10}
                 aria-valuenow={Math.min(10, totalMinutes)}
-                aria-label="Planned minutes in today's 10-minute path"
+                aria-label="Minutes planned for today"
               >
                 <span style={{ transform: `scaleX(${Math.min(1, totalMinutes / 10)})` }} />
               </div>
@@ -268,7 +263,7 @@ export default function TodayPage() {
                 {thinHistory ? (
                   <>
                     Nothing due — capture a thought in{" "}
-                    <Link href="/demo" className="underline underline-offset-4" style={{ color: "var(--color-signal)" }}>
+                    <Link href="/demo" className="underline underline-offset-4" style={{ color: "var(--color-band-getting)" }}>
                       Study
                     </Link>{" "}
                     to start your memory.
@@ -283,7 +278,7 @@ export default function TodayPage() {
           <div className="space-y-8">
             <section aria-labelledby="recurring-heading">
               <h2 id="recurring-heading" className="heading text-xl">
-                One recurring misconception
+                What keeps tripping you up
               </h2>
               {loading && !review && !learner ? (
                 <div className="mt-4">
@@ -296,30 +291,29 @@ export default function TodayPage() {
                   </p>
                   {miscConcept ? (
                     <Link
-                      href={`/memory?concept=${encodeURIComponent(miscConcept.conceptId)}`}
+                      href={`/map?concept=${encodeURIComponent(miscConcept.conceptId)}`}
                       className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                      style={{ color: "var(--color-signal)" }}
+                      style={{ color: "var(--color-band-getting)" }}
                     >
-                      See it in Memory →
+                      See it on your map →
                     </Link>
                   ) : null}
                 </div>
               ) : miscConcept ? (
                 <div className="surface-card mt-4 p-4">
                   <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                    <span className="font-semibold" style={{ color: "var(--color-coral)" }}>
-                      MISCONCEPTION ·{" "}
+                    <span className="font-semibold" style={{ color: "var(--color-band-mixed)" }}>
+                      Mixed up ·{" "}
                     </span>
                     {nameOf(miscConcept.conceptId)} has {miscConcept.misconceptionCount} incorrect answer
-                    {miscConcept.misconceptionCount === 1 ? "" : "s"} on record — VIVA estimate{" "}
-                    {Math.round(miscConcept.mastery * 100)}%.
+                    {miscConcept.misconceptionCount === 1 ? "" : "s"} so far.
                   </p>
                   <Link
-                    href={`/memory?concept=${encodeURIComponent(miscConcept.conceptId)}`}
+                    href={`/map?concept=${encodeURIComponent(miscConcept.conceptId)}`}
                     className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                    style={{ color: "var(--color-signal)" }}
+                    style={{ color: "var(--color-band-getting)" }}
                   >
-                    See it in Memory →
+                    See it on your map →
                   </Link>
                 </div>
               ) : (
@@ -327,7 +321,7 @@ export default function TodayPage() {
                   className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
                   style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
                 >
-                  No recurring misconception on record yet.
+                  Nothing is tripping you up yet.
                 </p>
               )}
             </section>
@@ -340,9 +334,7 @@ export default function TodayPage() {
                 <div className="surface-card mt-4 p-4">
                   <p className="heading text-base">{nameOf(improved.conceptId)}</p>
                   <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                    Correct recall recorded {shortDate(improved.lastSuccessfulRecallAt)} · {improved.successfulRecallCount}{" "}
-                    successful recall{improved.successfulRecallCount === 1 ? "" : "s"} · VIVA estimate{" "}
-                    {Math.round(improved.mastery * 100)}% — rule: +6 pts per correct claim (+12 for a correct teachback).
+                    You got it right on {shortDate(improved.lastSuccessfulRecallAt)} — {improved.successfulRecallCount} time{improved.successfulRecallCount === 1 ? "" : "s"} in total.
                   </p>
                 </div>
               ) : (
@@ -350,7 +342,7 @@ export default function TodayPage() {
                   className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
                   style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
                 >
-                  No successful recall recorded yet — your first correct answer will appear here.
+                  Nothing here yet — your first right answer shows up here.
                 </p>
               )}
             </section>
@@ -368,7 +360,7 @@ function DueRow({ item, courseId, onAnswered }: { item: ReviewItem; courseId?: s
     <li className="surface-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="heading text-base">{item.conceptName}</h3>
-        <span className="chip" title="Deterministic review priority (VIVA estimate)">
+        <span className="chip" title="How overdue this one is">
           {Math.round(item.priority * 100)}% priority
         </span>
       </div>

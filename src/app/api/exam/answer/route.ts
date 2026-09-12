@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getCourse } from "@/lib/courses";
-import { assessAnswer } from "@/lib/tutor";
+import { assessAnswer, gradeAnswer } from "@/lib/tutor";
 import { getStore, learnerDNA } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -39,10 +39,31 @@ export async function POST(req: NextRequest) {
   const q = course.examQuestions.find((x) => x.id === p.data.questionId);
   // Never score against the wrong question: unknown ids are caller errors, not Q1.
   if (!q) return done(err("UNKNOWN_QUESTION", "That question id is not part of this exam.", false, 400));
-  const a = assessAnswer(q.id, p.data.answer, { courseId: course.id });
-
   const store = getStore();
   await store.seedCourse(identity.userId, course.id);
+
+  // Keyword coverage grades it first: that stands alone when the model is
+  // unavailable, and it is the floor the model cannot grade below.
+  const baseline = assessAnswer(q.id, p.data.answer, { courseId: course.id });
+  const retrieved = await store.retrieveEvidence(identity.userId, `${q.question} ${p.data.answer}`, {
+    sourceId: null, conceptIds: [q.conceptId], limit: 3, courseId: course.id,
+  });
+  const a = await gradeAnswer({
+    subject: course.title,
+    question: q.question,
+    requiredKeywords: q.requiredKeywords,
+    hint: q.hint,
+    answer: p.data.answer,
+    chunks: retrieved.map((r) => r.chunk),
+    baseline: {
+      verdict: baseline.verdict,
+      correctPoints: baseline.correctPoints,
+      missingPoints: baseline.missingPoints,
+      possibleMisconception: baseline.possibleMisconception,
+      feedback: baseline.feedback,
+      evidenceIds: baseline.evidenceIds,
+    },
+  });
   const outcome = await store.recordLearning(identity.userId, {
     idempotencyKey: p.data.clientEventId ?? `exam_${uid("e")}`,
     sessionId: `exam_${Date.now().toString(36)}`,

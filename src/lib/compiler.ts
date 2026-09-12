@@ -74,7 +74,9 @@ export function compileTranscript(
   } else if (has(/i think|i believe|in my view|probably|my answer is|it means|because/)) {
     // Claim beats confusion: "I think X" is a belief to check, even if uncertain.
     intent = "claim"; requestedAction = "evaluate"; importance = 0.65; confusion = 0.35; confidence = 0.8;
-  } else if (has(/don't understand|dont understand|don't get|confused|confusing|no idea|lost|what does .*mean|unclear|struggling/)) {
+    // Spoken and written forms of the same admission: "don't get it",
+    // "do not understand", "can't follow". Dictation returns the long form.
+  } else if (has(/(?:do\s?n['’]?t|do not|cannot|can['’]?t|can not)\s+(?:really\s+)?(?:understand|get|follow|see)|confused|confusing|no idea|lost|what does .*mean|unclear|struggling/)) {
     intent = "confusion"; requestedAction = "explain"; importance = 0.7; confusion = 0.9; confidence = 0.88;
   } else if (has(/remember this|remember it|don't forget|save this|important|exam important|might be on the exam|mark this/)) {
     intent = has(/exam/) ? "exam_marker" : "remember";

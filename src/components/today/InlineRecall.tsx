@@ -7,8 +7,8 @@ import type { ExamAnswerResponse, ExamQuestion } from "./types";
 
 const VERDICT_CHIP: Record<string, { color: string; label: string }> = {
   correct: { color: "var(--color-cognition)", label: "CORRECT" },
-  partial: { color: "var(--color-signal)", label: "PARTIAL" },
-  incorrect: { color: "var(--color-coral)", label: "MISCONCEPTION" },
+  partial: { color: "var(--color-band-getting)", label: "PARTIAL" },
+  incorrect: { color: "var(--color-band-mixed)", label: "MISCONCEPTION" },
 };
 
 /**

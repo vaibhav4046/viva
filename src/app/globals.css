@@ -1,451 +1,198 @@
 @import 'tailwindcss';
 
 /*
- * VIVA design tokens — Academic Noir × Scientific Instrument.
- * One source of truth. Components reference variables, never raw hex.
+ * VIVA design tokens — Academic Noir.
+ *
+ * One ground (obsidian), two surfaces (graphite, panel), one text colour
+ * (paper), one accent (cognition lime) and one semantic set for the mastery
+ * bands. Nothing else. The previous file carried three overlapping palettes
+ * (this one, a light "paper" set and a neon "spectrum" set); the other two
+ * are gone, along with every rule that only existed to serve them.
+ *
+ * Components reference variables, never raw hex.
  */
 
 @theme {
-  --color-obsidian: #080a0d;
-  --color-graphite: #11151b;
-  --color-panel: #151b24;
-  --color-paper: #f4f1e8;
-  --color-cognition: #b8ff5a;
-  --color-signal: #7c8cff;
-  --color-coral: #ff6b6b;
+  /* Ground and surfaces */
+  --color-obsidian: #0b0b0c;
+  --color-graphite: #131417;
+  --color-panel: #191b1f;
+  --color-hairline: #262a31;
+  --color-slate: #3a3f47;
+
+  /* Text */
+  --color-paper: #f2f0ea;
+  --color-mist: #d3d1c9;
   --color-ash: #a7abb6;
-  --color-mist: #d6d3c8;
-  --color-slate: #4a4e57;
-  --color-hairline: #232b38;
-  --color-state-pass: #b8ff5a;
-  --color-state-fail: #ff6b6b;
-  --color-state-warn: #fbbf24;
-  /* --font-geist / --font-plex are injected on <html> by next/font in
-   * layout.tsx and are self-hosted. Do not point these back at themselves. */
-  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+
+  /* Accent */
+  --color-cognition: #b8ff5a;
+
+  /* Mastery bands. Each is ≥ 4.5:1 on obsidian and on graphite, and each is
+   * always paired with its word ("Solid", "Shaky") so colour is never the
+   * only signal. See tests/design-tokens.test.ts. */
+  --color-band-solid: #b8ff5a;    /* Solid */
+  --color-band-getting: #8fa2ff;  /* Getting there */
+  --color-band-shaky: #fbbf24;    /* Shaky */
+  --color-band-mixed: #ff8080;    /* Mixed up */
+  --color-band-notyet: #a7abb6;   /* Not yet */
+
+  /* Fonts. --font-geist / --font-plex are injected on <html> by next/font. */
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale: 12 / 14 / 16 / 18 / 24 / 32 / 48. Body is never below 16. */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 48px;
+
   --radius-card: 12px;
   --radius-input: 8px;
 }
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+}
+
 html { background: var(--color-obsidian); }
+
 body {
   background: var(--color-obsidian);
   color: var(--color-paper);
   font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
-.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 0.98; }
-.heading { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; line-height: 1.08; }
-.mono { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; }
-.surface-card { background: var(--color-graphite); border: 1px solid var(--color-hairline); border-radius: var(--radius-card); }
-.btn-primary { background: var(--color-paper); color: #0a0b0d; border-radius: 9999px; padding: 10px 22px; font-weight: 600; font-size: 15px; transition: opacity 180ms ease, transform 180ms ease; display: inline-block; }
-.btn-primary:hover { opacity: 0.9; }
-.btn-ghost { background: transparent; color: var(--color-paper); border: 1px solid #5a5e68; border-radius: 9999px; padding: 10px 22px; font-weight: 500; font-size: 15px; transition: border-color 180ms ease, background 180ms ease; display: inline-block; }
-.btn-ghost:hover { border-color: var(--color-paper); background: rgba(255,255,255,0.04); }
-.btn-lime { background: var(--color-cognition); color: #0a0b0d; border-radius: 9999px; padding: 10px 22px; font-weight: 600; font-size: 15px; }
+
+/* ------------------------------- type ------------------------------- */
+
+.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em; line-height: 1; }
+.heading { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.012em; line-height: 1.15; }
+.mono { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-ash); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Measure: 65–75 characters for anything that reads as prose. */
+.prose-measure { max-width: 68ch; }
+
+/* ----------------------------- surfaces ----------------------------- */
+
+.surface-card {
+  background: var(--color-graphite);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-card);
+}
 .hairline { border-color: var(--color-hairline); }
-:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 2px; border-radius: 4px; }
-* { scrollbar-width: thin; scrollbar-color: var(--color-hairline) transparent; }
-*::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: var(--color-hairline); border-radius: 4px; }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-}
-.waveform-bar { transform-origin: center; }
 
-/* ---- VIVA motion system: landing scenes (append-only) ---- */
-.scene { position: relative; }
-
-/* masked-typography line mask: slide lives inside, transform only */
-.mask-line { display: block; overflow: hidden; padding-bottom: 0.06em; margin-bottom: -0.06em; }
-
-/* problem kinetic words: final state is fully visible (no-JS safe) */
-.problem-word { display: inline-block; will-change: transform, opacity; }
-
-/* seamless-media primitive: sticky coded panel on desktop only */
-@media (min-width: 768px) {
-  .media-sticky { position: sticky; top: 6rem; align-self: start; }
-}
-
-/* voice→thought layers: stacked scrollytelling frames on desktop, only once JS is live */
-.vt-layers { position: relative; }
-.vt-layer { padding: 0.25rem 0; }
-@media (min-width: 768px) {
-  .vt-layers.is-live { min-height: 340px; }
-  .vt-layers.is-live .vt-layer { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; }
-}
-/* mobile simplification: media shows the resolved final frame only */
-@media (max-width: 767px) {
-  .vt-layer[data-layer="wave"],
-  .vt-layer[data-layer="text"] { display: none; }
-}
-.vt-bar { width: 100%; min-width: 6px; border-radius: 3px; }
-
-/* compiler rails: drawn with scaleX / scaleY (transform only).
-   Defaults are the FINAL state (no-JS safe); GSAP fromTo rewinds on setup. */
-[data-rail-h] { transform: scaleX(1); }
-[data-rail-v] { transform: scaleY(1); }
-
-/* wow evidence line: drawn with scaleX (transform only); default = final */
-[data-wow="evidence"] { transform: scaleX(1); opacity: 1; }
-
-@media (prefers-reduced-motion: reduce) {
-  /* static finals: every layer, caption and rail fully present */
-  .vt-layer { position: static; display: block; opacity: 1 !important; transform: none !important; }
-  [data-rail-h] { transform: scaleX(1); }
-  [data-rail-v] { transform: scaleY(1); }
-  [data-wow="evidence"] { transform: scaleX(1); opacity: 1; }
-  [data-wow="coral"] { opacity: 0 !important; }
-  [data-wow="tag-coral"] { opacity: 0 !important; }
-  [data-wow="tag-lime"] { opacity: 1 !important; }
-}
-
-/* =====================================================================
- * App-surface utilities (UI upgrade — append-only).
- * Shared tokens for app pages: nav states, skeletons, chips, focus rings.
- * Transform/opacity only; reduced-motion collapses everything above.
- * ===================================================================== */
-
-:root {
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-fast: 140ms;
-  --dur-base: 220ms;
-  --dur-slow: 420ms;
-}
-
-/* Nav: subtle scroll state, set via data attribute (no React re-render). */
-header[data-scrolled="true"] {
-  box-shadow: 0 1px 0 var(--color-hairline), 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-header { transition: box-shadow var(--dur-base) var(--ease-out-soft), opacity var(--dur-base) var(--ease-out-soft); }
-
-/* Nav links: shape + weight + aria-current, never colour alone. */
-.nav-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-ash);
-  transition: color var(--dur-fast) var(--ease-out-soft), background-color var(--dur-fast) var(--ease-out-soft);
-}
-.nav-link:hover { color: var(--color-paper); background: rgba(255, 255, 255, 0.05); }
-.nav-link[aria-current="page"] { color: var(--color-paper); font-weight: 600; background: rgba(244, 241, 232, 0.08); }
-
-/* Exam focused mode: peripheral chrome recedes, restores on hover/focus. */
-body[data-exam-focus="true"] header { opacity: 0.55; }
-body[data-exam-focus="true"] header:hover,
-body[data-exam-focus="true"] header:focus-within { opacity: 1; }
-
-/* Button states shared by all app actions. */
-.btn-lime { transition: opacity 180ms ease, transform 180ms ease; }
-.btn-lime:hover { opacity: 0.92; }
-.btn-primary:active, .btn-ghost:active, .btn-lime:active { transform: translateY(1px); }
-.btn-primary:disabled, .btn-ghost:disabled, .btn-lime:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Machine-value chip: pill + mono + hairline. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   border: 1px solid var(--color-hairline);
   border-radius: 9999px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.7;
+  font-size: 12px;
+  line-height: 1.6;
   color: var(--color-ash);
   background: transparent;
-  /*
-   * Wrap, do not overflow. Chips carry both short tokens ("ch_pos_1") and
-   * whole sentences ("Your least-settled concept right now is …"). A single
-   * token has no space to break at, so it still renders on one line; a
-   * sentence now wraps instead of forcing its flex parent past the viewport.
-   * This was masked while --font-mono resolved to nothing and chips rendered
-   * in the system sans — real monospace is much wider per character.
-   */
   white-space: normal;
   max-width: 100%;
 }
-.chip-hot { border-color: var(--color-cognition); color: var(--color-cognition); background: rgba(184, 255, 90, 0.06); }
-.chip-link:hover { border-color: var(--color-signal); text-decoration: underline; text-underline-offset: 3px; }
+.chip-link:hover { border-color: var(--color-cognition); color: var(--color-paper); }
+.chip-hot { border-color: var(--color-cognition); color: var(--color-cognition); background: rgb(184 255 90 / 0.07); }
 
-/* Loading skeleton: opacity pulse only; global reduced-motion freezes it. */
+/* ------------------------------ buttons ------------------------------ */
+
+.btn-primary, .btn-ghost, .btn-lime {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 9999px;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  touch-action: manipulation;
+  transition: transform var(--dur-fast) var(--ease-out-soft),
+              opacity var(--dur-fast) var(--ease-out-soft),
+              border-color var(--dur-fast) var(--ease-out-soft),
+              background-color var(--dur-fast) var(--ease-out-soft);
+}
+.btn-primary { background: var(--color-paper); color: var(--color-obsidian); }
+.btn-lime { background: var(--color-cognition); color: var(--color-obsidian); }
+.btn-ghost { background: transparent; color: var(--color-paper); border: 1px solid var(--color-slate); font-weight: 500; }
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover, .btn-lime:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-ghost:hover { border-color: var(--color-paper); background: rgba(242, 240, 234, 0.05); }
+}
+.btn-primary:active, .btn-ghost:active, .btn-lime:active { transform: translateY(1px); }
+.btn-primary:disabled, .btn-ghost:disabled, .btn-lime:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+/* Navigation links: shape + weight carry the state, never colour alone. */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 9999px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: var(--color-ash);
+  transition: color var(--dur-fast) var(--ease-out-soft), background-color var(--dur-fast) var(--ease-out-soft);
+}
+.nav-link:hover { color: var(--color-paper); background: rgba(242, 240, 234, 0.06); }
+.nav-link[aria-current="page"] { color: var(--color-paper); font-weight: 600; background: rgba(242, 240, 234, 0.09); }
+
+/* ------------------------------- focus ------------------------------- */
+
+:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 2px; border-radius: 4px; }
+.graph-node:focus { outline: none; }
+.graph-node:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 3px; }
+
+/* ------------------------------ feedback ----------------------------- */
+
 @keyframes viva-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.75; } }
 .skeleton { background: var(--color-hairline); border-radius: 6px; animation: viva-pulse 1400ms var(--ease-out-soft) infinite; }
 
-/* Scrollable reference panes: visible gutter, contained scroll. */
-.scroll-pane { scrollbar-gutter: stable; overscroll-behavior: contain; }
-
-/* Graph nodes are buttons when selectable. */
-.graph-node:focus { outline: none; }
-.graph-node:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 3px; border-radius: 8px; }
-
-/* Meter (teachback coverage): track + fill, label always in text. */
 .meter { height: 6px; border-radius: 9999px; background: var(--color-panel); border: 1px solid var(--color-hairline); overflow: hidden; }
-.meter > span { display: block; height: 100%; background: var(--color-cognition); transform-origin: left; transition: transform var(--dur-slow) var(--ease-out-soft); }
+.meter > span { display: block; height: 100%; background: var(--color-cognition); transform-origin: left; transition: transform 420ms var(--ease-out-soft); }
 
-/* =====================================================================
- * VIVA 2.0 landing — paper environment (append-only).
- * Warm paper is the single light environment on the landing: ink type,
- * paper hairlines, darkened lime and coral for marks. Text contrast is
- * measured against paper #F4F1E8 (WCAG 2.x, ≥4.5:1 for body text):
- *   ink #1F1B14 15.18:1 · lime #3E5C12 6.78:1 · coral #B3261E 5.79:1
- *   caption #5A5348 6.72:1 · on card #FBF9F2: 16.27 / 7.26 / 6.20 / 7.21.
- * ===================================================================== */
-:root {
-  --color-paper-surface: #f4f1e8;
-  --color-paper-ink: #1f1b14;
-  --color-paper-lime: #3e5c12;
-  --color-paper-coral: #b3261e;
-  --color-paper-hairline: #d8d2c2;
-  --color-paper-caption: #5a5348;
-  --color-paper-card: #fbf9f2;
-}
-.paper-surface { background: var(--color-paper-surface); color: var(--color-paper-ink); }
-.paper-ink { color: var(--color-paper-ink); }
-.paper-caption { color: var(--color-paper-caption); }
-.paper-lime { color: var(--color-paper-lime); }
-.paper-coral { color: var(--color-paper-coral); }
-.paper-hairline { border-color: var(--color-paper-hairline); }
+.scroll-pane { scrollbar-gutter: stable; overscroll-behavior: contain; }
+.waveform-bar { transform-origin: 50% 100%; }
 
-/* TODAY → TOMORROW: the night gives way to paper as you scroll.
-   Defaults are the FINAL state (no-JS / reduced-motion safe); the GSAP
-   scrub rewinds on setup under no-preference. Clip-path/transform only. */
-.tt-scene { position: relative; background: var(--color-obsidian); }
-.tt-paper { clip-path: inset(0 0 0 0); }
-.tt-days { display: flex; flex-direction: column; gap: 0.5rem; }
-@media (min-width: 640px) {
-  .tt-days { flex-direction: row; align-items: center; gap: 1.25rem; }
+/* --------------------------- scroll reveal --------------------------- */
+/* Landing rows below the fold. Transform + opacity only; the final state is
+ * the default so the page is correct with JS off and under reduced motion. */
+.reveal { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms var(--ease-out-soft), transform 500ms var(--ease-out-soft); }
+  .reveal.is-in { opacity: 1; transform: none; }
 }
-.tt-day { position: relative; display: inline-flex; align-items: baseline; gap: 0.6rem; }
-.tt-day-wrap { position: relative; display: inline-block; }
-.tt-day-date { font-family: var(--font-mono); font-size: 15px; letter-spacing: 0.12em; font-weight: 600; }
-.tt-day-note { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
-.tt-day-rule { display: none; }
-@media (min-width: 640px) {
-  .tt-day-rule { display: block; flex: 1; height: 1px; background: var(--color-paper-hairline); transform-origin: left center; }
-}
-.tt-strike { position: absolute; left: -3px; right: -3px; top: 55%; height: 2px; background: var(--color-paper-coral); transform-origin: left center; }
-.tt-day-reveal { display: inline-block; clip-path: inset(0 0 0 0); }
-.tt-card { background: var(--color-paper-card); border: 1px solid var(--color-paper-hairline); border-radius: var(--radius-card); }
-.tt-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-paper-hairline); border-radius: 9999px; padding: 2px 10px; font-family: var(--font-mono); font-size: 11px; line-height: 1.7; color: var(--color-paper-caption); white-space: nowrap; }
-.tt-answer { border-left: 3px solid var(--color-paper-lime); padding-left: 0.875rem; }
-.tt-reveal { clip-path: inset(0 0 0 0); }
-@media (max-width: 400px) {
-  .tt-chip { white-space: normal; }
-}
+
+/* ---------------------------- scrollbars ----------------------------- */
+
+* { scrollbar-width: thin; scrollbar-color: var(--color-hairline) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--color-hairline); border-radius: 4px; }
 
 @media (prefers-reduced-motion: reduce) {
-  /* paper finals: page, day wipe, strike and recall answer all static */
-  .tt-paper, .tt-reveal, .tt-day-reveal { clip-path: none !important; }
-  .tt-strike, .tt-day-rule { transform: none !important; }
-}
-
-/* =====================================================================
- * DESIGN_V2 — SPECTRUM NOIR (append-only).
- * One premium light source: the iridescent ribbon render. Spectrum colour
- * touches the UI only as light — 2px rules, one selected ring, one meter
- * fill, one CTA edge. Every existing colour, duration and easing token above
- * is untouched. Contrast ledger (WCAG 2.x relative luminance, recomputed):
- *   on #080A0D — magenta 6.39 · violet 5.01 · red 5.82 · orange 9.64 ·
- *   yellow 14.04 · cyan 10.97 · sky 11.52 · violet-text 7.79
- *   on #11151B — magenta 5.91 · violet 4.63 · red 5.37 · orange 8.91 ·
- *   yellow 12.97 · cyan 10.13 · sky 10.64
- *   on #F4F1E8 — paper-violet 6.29 · paper-magenta 5.60 · paper-red 5.79 ·
- *   paper-orange 6.47 · paper-cyan 4.74 · ink 15.18 · caption 6.72
- *   ink #1F1B14 on light stops — yellow 12.14 · orange 8.34 · sky 9.96 ·
- *   cyan 9.48 · magenta 5.53 · red 5.03 (violet 4.33 fails — never used)
- *   paper #F4F1E8 on --grad-spec-ink — worst stop #7C2D12 8.30
- * `--grad-spectrum` is never behind text: rules, object and glow only.
- * ===================================================================== */
-
-/* 1a. @theme extension — Tailwind v4 utilities come free. */
-@theme {
-  /* Spectrum stops — sampled from the reference iridescent ribbon render */
-  --color-spectrum-magenta: #ff3ec8;
-  --color-spectrum-violet: #a855f7;
-  --color-spectrum-red: #ff453a;
-  --color-spectrum-orange: #ff9f0a;
-  --color-spectrum-yellow: #ffd60a;
-  --color-spectrum-cyan: #22d3ee;
-  --color-spectrum-sky: #64d2ff;
-  --color-spectrum-violet-text: #b98cff; /* AA text on obsidian */
-  --color-spectrum-ink: #0b0a12;         /* violet-tinted floor for deep gradient panels */
-  /* Deep recipe stops — carry #F4F1E8 text (≥8.07:1 at every stop) */
-  --color-spectrum-deep-violet: #4c1d95;
-  --color-spectrum-deep-magenta: #831843;
-  --color-spectrum-deep-rust: #7c2d12;
-  --color-spectrum-deep-cyan: #164e63;
-  /* Paper-safe darkened stops — rules + AA text on #F4F1E8 */
-  --color-spectrum-paper-violet: #6d28d9;  /* 6.29:1 */
-  --color-spectrum-paper-magenta: #a21caf; /* 5.60:1 */
-  --color-spectrum-paper-red: #b3261e;     /* == --color-paper-coral, 5.79:1 */
-  --color-spectrum-paper-orange: #9a3412;  /* 6.47:1 */
-  --color-spectrum-paper-cyan: #0e7490;    /* 4.74:1 */
-}
-
-/* 1b. Recipes, glow, motion additions. */
-:root {
-  /* 4 named recipes */
-  --grad-spectrum: linear-gradient(115deg, #b8ff5a 0%, #7c8cff 52%, #ff6b6b 100%);
-  --grad-spec-warm: linear-gradient(100deg, #ff6b6b 0%, #fbbf24 48%, #b8ff5a 100%);
-  --grad-spec-cool: linear-gradient(115deg, #7c8cff 0%, #a6c0ff 45%, #b8ff5a 100%);
-  --grad-spec-ink: linear-gradient(135deg, #4c1d95 0%, #831843 45%, #7c2d12 100%);
-  /* paper-safe 1px-rule recipe (decorative only, no raw-saturated stops) */
-  --grad-spec-paper: linear-gradient(90deg, #6d28d9 0%, #a21caf 30%, #b3261e 60%, #9a3412 80%, #0e7490 100%);
-  /* dark-mode-safe variants */
-  --grad-spec-veil: linear-gradient(120deg, rgba(255, 62, 200, 0.10) 0%, rgba(168, 85, 247, 0.08) 30%, rgba(34, 211, 238, 0.10) 100%);
-  --glow-spectrum: 0 0 0 1px rgba(244, 241, 232, 0.06), 0 24px 64px -24px rgba(124, 140, 255, 0.5), 0 8px 28px -12px rgba(184, 255, 90, 0.3);
-  --glow-warm: 0 18px 48px -20px rgba(255, 120, 10, 0.45);
-  --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 40px -16px rgba(0, 0, 0, 0.7);
-  /* motion additions (extends --dur-fast/base/slow, --ease-out-soft) */
-  --dur-press: 90ms; --dur-hover: 160ms; --dur-enter: 320ms; --dur-scene: 700ms; --dur-cinema: 1100ms;
-  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-glide: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-breathe: cubic-bezier(0.45, 0, 0.55, 1);
-  /* focus ring for controls on gradient/glow surfaces (non-text, ≥3:1) */
-  --ring-spectrum: 0 0 0 2px #080a0d, 0 0 0 4px #b8ff5a, 0 0 0 5px rgba(124, 140, 255, 0.55);
-}
-@supports (background: linear-gradient(in oklch, red, blue)) { /* perceptual upgrade, no muddy midpoints */
-  :root {
-    --grad-spectrum: linear-gradient(115deg in oklch, #b8ff5a 0%, #7c8cff 52%, #ff6b6b 100%);
-    --grad-spec-warm: linear-gradient(100deg in oklch, #ff6b6b 0%, #fbbf24 48%, #b8ff5a 100%);
-    --grad-spec-cool: linear-gradient(115deg in oklch, #7c8cff 0%, #a6c0ff 45%, #b8ff5a 100%);
-    --grad-spec-paper: linear-gradient(90deg in oklch, #6d28d9 0%, #a21caf 30%, #b3261e 60%, #9a3412 80%, #0e7490 100%);
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+  .btn-primary:hover, .btn-ghost:hover, .btn-lime:hover,
+  .btn-primary:active, .btn-ghost:active, .btn-lime:active { transform: none !important; }
 }
-
-/* 3. Hero upgrade — SpectrumObject (§3, exact). Fixed 4/3 box = no CLS. */
-.spectrum-stage { position: relative; isolation: isolate; width: 100%; max-width: 560px; margin-inline: auto; aspect-ratio: 4 / 3; }
-.spectrum-float { position: absolute; inset: 0; will-change: transform; }
-.spectrum-ribbon { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 24px; filter: saturate(1.06) contrast(1.02); }
-.spectrum-halo { position: absolute; inset: -14%; z-index: -1; border-radius: 50%; background: var(--grad-spectrum); filter: blur(64px) saturate(1.2); opacity: 0.30; }
-
-/* 4. Surface treatments — accents as light. */
-.spectrum-rule { display: block; width: 44px; height: 2px; border-radius: 9999px; background: var(--grad-spec-warm); }
-.btn-spectrum { position: relative; background: var(--color-obsidian); color: var(--color-paper); border-radius: 9999px; padding: 10px 22px; font-weight: 600; }
-.btn-spectrum::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: var(--grad-spectrum);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }
-.btn-spectrum:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 2px; box-shadow: var(--ring-spectrum); }
-/* mask-composite fallback: plain hairline edge (DESIGN_V2 §7) */
-@supports not (mask-composite: exclude) {
-  .btn-spectrum::before { display: none; }
-  .btn-spectrum { border: 1px solid var(--color-hairline); }
-}
-.meter-spectrum > span { background: var(--grad-spec-warm); }
-
-/* M5 — card hover: pointer:fine only, 160ms, lift + spectrum hairline. */
-@media (hover: hover) and (pointer: fine) {
-  .card-lift { transition: transform var(--dur-hover) var(--ease-snap), border-color var(--dur-hover) var(--ease-snap), box-shadow var(--dur-hover) var(--ease-snap); }
-  .card-lift:hover { transform: translateY(-3px); border-color: rgba(255, 62, 200, 0.4); box-shadow: var(--shadow-lift); }
-}
-
-/* M6 — button hover/press: 160ms snap up, 90ms glide down (existing
- * :active rule kept; these overrides only tighten the timing). */
-.btn-primary, .btn-ghost, .btn-lime, .btn-spectrum {
-  transition: transform var(--dur-hover) var(--ease-snap), opacity var(--dur-hover) var(--ease-snap),
-    border-color var(--dur-hover) var(--ease-snap), background-color var(--dur-hover) var(--ease-snap),
-    box-shadow var(--dur-hover) var(--ease-snap);
-}
-@media (hover: hover) {
-  .btn-primary:hover, .btn-ghost:hover, .btn-lime:hover, .btn-spectrum:hover { transform: translateY(-2px); }
-  /* one spectrum glow, one element (the nav CTA), on hover only */
-  .btn-spectrum:hover { box-shadow: var(--glow-spectrum); }
-}
-.btn-primary:active, .btn-ghost:active, .btn-lime:active, .btn-spectrum:active {
-  transform: translateY(1px);
-  transition-duration: var(--dur-press);
-  transition-timing-function: var(--ease-glide);
-}
-
-/* M7 — nav active indicator: 2px gradient underline, scaleX only. */
-.nav-link { position: relative; }
-.nav-link::after {
-  content: "";
-  position: absolute;
-  left: 0.75rem; right: 0.75rem; bottom: 0.375rem;
-  height: 2px; border-radius: 9999px;
-  background: var(--grad-spectrum);
-  transform: scaleX(0); transform-origin: center;
-  transition: transform var(--dur-hover) var(--ease-snap);
-}
-.nav-link[aria-current="page"]::after { transform: scaleX(1); }
-
-/* /today — active day chip: hairline + 2px warm gradient bottom edge.
- * M8 — chips enter with a 60ms stagger, y 10→0, 320ms --ease-snap (cap 12,
- * total ≤ 720ms; the 7-day strip uses the first seven steps). */
-@keyframes week-chip-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.week-chip { position: relative; animation: week-chip-in 320ms var(--ease-snap) both; }
-.week-chip[aria-pressed="true"]::after {
-  content: "";
-  position: absolute; left: 0.625rem; right: 0.625rem; bottom: 0.375rem;
-  height: 2px; border-radius: 9999px; background: var(--grad-spec-warm);
-}
-
-/* /demo — Thought-Mark intent chip: 6px gradient dot + 2px left border. */
-.tm-intent { position: relative; padding-left: 0.625rem; }
-.tm-intent::before {
-  content: "";
-  position: absolute; left: 0; top: 0.12em; bottom: 0.12em; width: 2px;
-  border-radius: 9999px; background: var(--grad-spectrum);
-}
-.tm-dot { display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: var(--grad-spectrum); }
-
-/* Reduced-motion equivalents: static finals, no transforms, no stagger. */
-@media (prefers-reduced-motion: reduce) {
-  .card-lift, .card-lift:hover { transform: none !important; transition: none !important; box-shadow: none !important; }
-  .btn-primary:hover, .btn-ghost:hover, .btn-lime:hover, .btn-spectrum:hover,
-  .btn-primary:active, .btn-ghost:active, .btn-lime:active, .btn-spectrum:active { transform: none !important; }
-  .nav-link::after { transition: none !important; transform: none !important; opacity: 0; }
-  .nav-link[aria-current="page"]::after { opacity: 1; }
-  .week-chip { animation: none !important; }
-  .spectrum-halo { opacity: 0.18; }
-}
-
-/* Storage degradation notice (src/components/StorageBanner.tsx).
-   Warn-coloured but not alarming: the product works, the durability claim does
-   not. Sits above the nav so it is the first thing read, and is dismissible. */
-.storage-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px clamp(14px, 3vw, 28px);
-  background: rgba(251, 191, 36, 0.09);
-  border-bottom: 1px solid rgba(251, 191, 36, 0.28);
-  color: var(--color-mist);
-  font-size: 13px;
-  line-height: 1.5;
-}
-.storage-banner p { margin: 0; flex: 1; }
-.storage-banner strong { color: var(--color-state-warn); font-weight: 600; }
-.storage-banner a { color: var(--color-paper); text-decoration: underline; text-underline-offset: 2px; }
-.storage-banner-dot {
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  margin-top: 6px;
-  border-radius: 50%;
-  background: var(--color-state-warn);
-}
-.storage-banner button {
-  flex-shrink: 0;
-  padding: 0 6px;
-  border-radius: 6px;
-  color: var(--color-ash);
-  font-size: 18px;
-  line-height: 1.2;
-  background: transparent;
-  transition: color var(--dur-fast) var(--ease-out-soft);
-}
-.storage-banner button:hover { color: var(--color-paper); }

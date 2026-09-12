@@ -17,37 +17,29 @@ import type { NextRequest } from "next/server";
  * - `frame-ancestors 'none'` + `object-src 'none'` + `base-uri 'self'` close
  *   clickjacking, plugin and base-tag injection in one header.
  *
- * Static pages note (honest): routes prerendered at build time (`/`, `/demo`,
- * `/exam`, `/learn`, `/memory`, `/today` — see `next build` output) contain
- * inline bootstrap scripts generated BEFORE any request exists, so no nonce can
- * be attached to them at runtime. For those documents the proxy ships the
- * nonce-free baseline policy (`'unsafe-inline'` instead of nonce/strict-dynamic)
- * — still a real CSP (external scripts restricted to 'self'), zero violations.
- * Making those pages dynamic (`await connection()` in the page/layout) lets the
- * nonce policy apply everywhere; that file is owned by another agent.
  */
-
-/**
- * Routes from the production build marked `○ (Static)` (prerendered HTML).
- *
- * `/` is deliberately NOT in this set. The landing reads `x-nonce` via
- * `headers()`, which makes it dynamically rendered, so Next emits its bootstrap
- * scripts per-request with the nonce attached and the strict policy holds.
- * That upgrades the first page a visitor loads from `'unsafe-inline'` to a real
- * nonce + `'strict-dynamic'` CSP. If the landing is ever made static again,
- * put "/" back here or the page will be blocked by its own policy.
- */
-const STATIC_PAGES = new Set(["/demo", "/exam", "/learn", "/memory", "/today"]);
 
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
 
-  const staticPage = !isDev && STATIC_PAGES.has(request.nextUrl.pathname);
-
-  const scriptSrc = staticPage
-    ? `script-src 'self' 'unsafe-inline'`
-    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`;
+  /*
+   * One policy for every route, no `'unsafe-inline'` escape hatch.
+   *
+   * This used to carry a STATIC_PAGES exemption: a prerendered document's
+   * inline bootstrap is generated before any request exists, so no nonce can
+   * be attached and a nonce policy blocks the page's own scripts. That set
+   * went stale the moment routes were renamed, and the result was severe —
+   * `/` and `/study` painted and then never hydrated, with a dozen CSP errors
+   * per load, because they were prerendered but served the nonce policy.
+   *
+   * The fix is upstream: every page is dynamically rendered on purpose (the
+   * landing awaits headers(), the app group sets force-dynamic), so Next
+   * stamps its own bootstrap with this nonce and `'strict-dynamic'` holds
+   * everywhere. If you ever make a route static again, it will break loudly —
+   * that is the intent. Do not reintroduce an allowlist; make the page dynamic.
+   */
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`;
 
   const csp = [
     "default-src 'self'",

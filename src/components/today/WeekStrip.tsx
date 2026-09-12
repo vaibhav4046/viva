@@ -45,7 +45,7 @@ export function WeekStrip({ days }: { days: WeekDay[] }) {
               </span>
               <span
                 className="heading text-2xl"
-                style={{ color: day.count > 0 ? "var(--color-signal)" : "var(--color-ash)" }}
+                style={{ color: day.count > 0 ? "var(--color-band-getting)" : "var(--color-ash)" }}
               >
                 {day.count}
               </span>

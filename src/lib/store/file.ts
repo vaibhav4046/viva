@@ -124,6 +124,7 @@ export class FileEventStore implements EventStore {
         const r = reduceMastery(prev, {
           intent: input.intent, createdAt,
           assessment: input.assessment ?? null, teachbackScore: input.teachbackScore ?? null,
+          masterySignal: input.masterySignal ?? null,
         });
         doc.mastery[input.primaryConceptId] = r.next;
         delta = r.delta; reason = r.reason;

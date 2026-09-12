@@ -5,10 +5,10 @@ import { InlineRecall } from "./InlineRecall";
 import type { PathSegment } from "./types";
 
 const KIND: Record<PathSegment["kind"], { label: string; color: string }> = {
-  misconception: { label: "MISCONCEPTION", color: "var(--color-coral)" },
-  weak_concept: { label: "WEAK CONCEPT", color: "var(--color-signal)" },
+  misconception: { label: "MISCONCEPTION", color: "var(--color-band-mixed)" },
+  weak_concept: { label: "WEAK CONCEPT", color: "var(--color-band-getting)" },
   recall: { label: "RECALL", color: "var(--color-cognition)" },
-  teachback: { label: "TEACHBACK", color: "var(--color-signal)" },
+  teachback: { label: "TEACHBACK", color: "var(--color-band-getting)" },
   summary: { label: "SUMMARY", color: "var(--color-ash)" },
 };
 

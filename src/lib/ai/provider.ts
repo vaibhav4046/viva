@@ -124,6 +124,10 @@ export class OpenAICompatibleProvider implements ReasoningProvider {
 
   async generateObject<T>(input: { system: string; user: string; schema: ZodType<T>; fallback?: T; timeoutMs?: number }): Promise<T> {
     const timeout = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    // The repair retry gets what is left of this credential's share, not a
+    // second full one. Two calls at the full budget is how a chain that was
+    // just taught to share a deadline quietly doubles it again.
+    const deadline = Date.now() + timeout;
     const base: ChatMessage[] = [
       { role: "system", content: input.system },
       { role: "user", content: input.user },
@@ -142,6 +146,13 @@ export class OpenAICompatibleProvider implements ReasoningProvider {
     }, timeout);
     const parsed = tryParseSchema(first, input.schema);
     if (parsed.ok) return parsed.value;
+    const left = deadline - Date.now();
+    if (left <= 0) {
+      if (input.fallback === undefined) {
+        throw new ProviderError("TRANSPORT_TIMEOUT", "No budget left to ask the model to correct its reply.", true);
+      }
+      return input.schema.parse(input.fallback);
+    }
     // ONE repair retry, and it names the fault. "Reply with valid JSON" cannot
     // fix a reply that already WAS valid JSON and merely stopped three keys
     // early, which is what two of six measured failures actually were.
@@ -157,7 +168,7 @@ export class OpenAICompatibleProvider implements ReasoningProvider {
       temperature: 0.2,
       response_format: { type: "json_object" },
       ...tuning,
-    }, timeout);
+    }, left);
     const second = tryParseSchema(repair, input.schema);
     if (second.ok) return second.value;
     // Repair failed. With no caller fallback the honest move is to fail so the

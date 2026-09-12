@@ -156,3 +156,11 @@ export function advanceBands(dt: number): void {
   orbBands.mid = next.mid;
   orbBands.high = next.high;
 }
+
+/* Dev-only measurement bridge. The orb is judged on rendered pixels, and the
+ * only honest way to sample a driven surface from outside is to be able to
+ * push a level into it. Stripped from production bundles by the constant fold
+ * on NODE_ENV. */
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__vivaOrb = { setOrbLevel, orbBands };
+}

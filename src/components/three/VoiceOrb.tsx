@@ -8,21 +8,43 @@ import { orbBands } from "@/components/orb/orbState";
  * The VoiceOrb — VIVA's one piece of 3D, and the same object on the landing
  * and in the app (src/components/orb/Orb.tsx moves it between the two).
  *
- * Two procedural meshes, no post-processing, no GLB, no environment map:
+ * It used to be a filled ball: a soft green sphere with a darker sphere inside
+ * it and one blown-out white highlight. Sampled off the rendered PNG, the mean
+ * lit pixel came out #85ac56 — a muddy olive nowhere near the product's
+ * #b8ff5a — and none of the shader's internal detail survived at silence,
+ * which is the only state most people ever see it in. The 700-byte SVG
+ * icosahedron it falls back to on phones out-designed it, for three reasons
+ * worth naming, because the rebuild is aimed at each:
  *
- *   1. a glass shell — an icosahedron displaced by three octaves of simplex
- *      noise, one per audio band, shaded as glass rather than as a lit solid:
- *      chromatic fresnel at the silhouette, one tight specular, and two steps
- *      of a refracted ray through a noise volume for internal depth. Drawn
- *      double sided with the far faces dimmed, so you read the back rim
- *      through the front one, which is most of what makes glass look glass;
- *   2. a small additive core behind it that swells with loudness, so the
- *      shell has something to refract and the orb has a centre.
+ *   1. it draws LINES, not a fill, so it is mostly dark and the lime is a
+ *      stroke rather than a wash;
+ *   2. those lines sit at full accent strength, never bleached toward white;
+ *   3. the lines are crisp at any size, so there are real edges to read.
  *
- * Normals are rebuilt per vertex from the displaced surface (two finite
- * differences across the tangent plane). The previous version lit the
- * displaced mesh with the undisplaced normal, which is why it read as a
- * shaded ball with a wobbling outline rather than as a deformed surface.
+ * So this is now dark glass carrying bright accent features rather than a lit
+ * green solid. Four of them, all additive over the obsidian ground, all in
+ * #b8ff5a:
+ *
+ *   - a limb: two nested fresnel rings, a wide one for the thickening of the
+ *     glass toward the silhouette and a hard narrow one for the edge. Drawn
+ *     double sided, so the far rim reads through the near one and the orb has
+ *     an inside;
+ *   - caustic filaments: ridged noise sampled along the refracted ray,
+ *     sharpened to thin veins. These exist and drift at silence, on their own
+ *     clock, which is the "something moving slowly" the object was missing;
+ *   - isolines etched on the surface, antialiased with fwidth so they stay
+ *     one pixel wide however big the orb is drawn. Their sample point is the
+ *     DISPLACED position, so a travelling wave drags the whole pattern across
+ *     the face. That is the visible difference between a ball that inflates
+ *     when you talk and a surface that moves when you talk;
+ *   - one tight specular, and a small core behind the glass for the caustics
+ *     to imply a source for.
+ *
+ * The shell is displaced by three octaves of simplex noise, one per audio
+ * band. Normals are rebuilt per vertex from the displaced surface (two finite
+ * differences across the tangent plane); lighting the displaced mesh with the
+ * undisplaced normal is why an earlier version read as a shaded ball with a
+ * wobbling outline.
  *
  * The three bands come from src/components/orb/orbState.ts, driven by the one
  * microphone VIVA already opens. Nothing here touches getUserMedia.
@@ -81,13 +103,15 @@ const SHELL_VERT = /* glsl */ `
 varying vec3 vN;
 varying vec3 vV;
 varying vec3 vP;
+varying float vF;
 ${SIMPLEX}
 ${FIELD}
 void main() {
   // icosahedronGeometry(1, n) puts every vertex on the unit sphere, so the
   // position doubles as the sample direction.
   vec3 n = normalize(position);
-  vec3 p = n * (1.0 + field(n));
+  float f = field(n);
+  vec3 p = n * (1.0 + f);
 
   // Rebuild the normal from the displaced surface: two steps across the
   // tangent plane, displace both, cross the resulting edges.
@@ -104,6 +128,7 @@ void main() {
   vN = normalize(normalMatrix * nrm);
   vV = normalize(-mv.xyz);
   vP = p;
+  vF = f;
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -111,78 +136,84 @@ void main() {
 const SHELL_FRAG = /* glsl */ `
 precision highp float;
 uniform vec3 uRim;
-uniform vec3 uDeep;
 uniform vec3 uSpec;
 uniform float uTime;
 uniform float uLevel;
 varying vec3 vN;
 varying vec3 vV;
 varying vec3 vP;
+varying float vF;
 ${SIMPLEX}
 void main() {
   vec3 N = normalize(vN);
   if (!gl_FrontFacing) N = -N;
   vec3 V = normalize(vV);
   float ndv = clamp(dot(N, V), 0.0, 1.0);
-
-  // Chromatic fresnel. Glass is bright at the limb and thin at the centre;
-  // three exponents give the edge a prism cast for two extra pow().
   float rim = 1.0 - ndv;
-  vec3 fres = vec3(pow(rim, 2.0), pow(rim, 2.45), pow(rim, 3.1));
+  // The far wall is the same glass seen through the near one, so it is dimmer
+  // but never absent — reading it through the front is most of what makes an
+  // orb feel hollow rather than solid.
+  float back = gl_FrontFacing ? 1.0 : 0.5;
 
-  // One hard light, up and to the left. Tight specular plus a wide sheen.
+  // Two nested limbs. The wide one is the glass thickening toward the
+  // silhouette; the narrow one is the hard edge that makes this an object and
+  // not a fog. Both at full accent — bleaching these to white is exactly what
+  // used to leave the orb with no colour anywhere it was bright.
+  float limb = pow(rim, 3.2);
+  float edge = pow(rim, 13.0);
+
+  // Light focused through the lens. Ridged noise along the refracted ray,
+  // sharpened into veins, on its own slow clock so the inside of the orb is
+  // never still even when nobody is talking.
+  vec3 R = refract(-V, N, 0.62);
+  float n1 = snoise(vP * 1.05 + R * 0.80 + vec3(0.0, 0.0, uTime * 0.14));
+  float caustic = pow(1.0 - abs(n1), 7.0);
+
+  // Isolines etched on the surface, one pixel wide at any size because the
+  // band is measured in screen-space derivatives rather than in field units.
+  // The sample point is the DISPLACED position and the field is added on top,
+  // so a travelling wave drags the whole pattern across the face instead of
+  // the orb simply getting bigger.
+  float s = vP.y * 4.6 + uTime * 0.07 + vF * 10.0;
+  float w = max(fwidth(s), 1e-4);
+  float line = 1.0 - smoothstep(0.0, 1.35 * w, abs(fract(s) - 0.5));
+
+  // A few meridians under the latitudes. Two families of lines is what turns
+  // a striped ball into a globe with a front and a back, and it is the read
+  // the SVG fallback gets for free from having actual edges.
+  float m = atan(vP.x, vP.z) * 1.43 + vF * 4.0;
+  float mw = max(fwidth(m), 1e-4);
+  float mer = 1.0 - smoothstep(0.0, 1.1 * mw, abs(fract(m) - 0.5));
+
+  // One hard light, up and to the left, and only on the near surface: letting
+  // the flipped back-face normal make a highlight too put a second white spot
+  // in the middle, which read as a defect rather than as depth.
   vec3 L = normalize(vec3(-0.55, 0.75, 0.62));
   vec3 H = normalize(L + V);
-  float ndh = max(dot(N, H), 0.0);
-  // Only the near surface gets a highlight. Letting the flipped back-face
-  // normal produce one too put a second white spot in the middle of the orb,
-  // which read as a defect rather than as depth.
-  float facing = gl_FrontFacing ? 1.0 : 0.0;
-  float spec = pow(ndh, 90.0) * facing;
-  float sheen = pow(ndh, 10.0) * 0.16 * facing;
+  float spec = pow(max(dot(N, H), 0.0), 220.0) * (gl_FrontFacing ? 1.0 : 0.0);
 
-  // Internal depth: one low-frequency field sampled along the refracted ray.
-  // Low frequency and low contrast on purpose — at higher settings this reads
-  // as camouflage rather than as light moving inside a solid.
-  vec3 R = refract(-V, N, 0.72);
-  float inner = snoise(vP * 1.30 + R * 0.85 + vec3(0.0, 0.0, uTime * 0.11)) * 0.5 + 0.5;
-  inner = 0.34 + 0.52 * smoothstep(0.22, 0.92, inner + uLevel * 0.18);
+  vec3 col = uRim * limb * (0.16 + uLevel * 0.30) * back
+           + uRim * edge * (2.60 + uLevel * 1.40) * back
+           + uRim * caustic * (0.26 + uLevel * 0.85) * back * (0.42 + 0.58 * rim)
+           + uRim * line * (1.55 + uLevel * 1.20) * back * (0.74 + 0.26 * rim) * (0.72 + 0.55 * caustic)
+           + uRim * mer * (0.52 + uLevel * 0.62) * back * (0.74 + 0.26 * rim) * (0.72 + 0.55 * caustic)
+           + uRim * (0.050 + 0.10 * caustic)
+           + uSpec * spec * 1.15;
 
-  // Thicker glass through the middle absorbs more, so the centre stays deep
-  // and the limb carries the light.
-  // Light focused through the lens onto the far wall.
-  float caustic = pow(max(dot(-N, L), 0.0), 5.0) * 0.35;
-
-  // A plain diffuse term off the rebuilt normal. Without it the travelling
-  // ripples only ever showed at the silhouette, and a wide soft fresnel band
-  // swallowed most of that: the surface has to catch the light across its
-  // whole face before a wave reads as a wave.
-  float diff = max(dot(N, L), 0.0);
-
-  // The far wall of the shell carries its own fresnel, and reading it through
-  // the near wall is what gives the orb thickness — a second, smaller ring
-  // inside the first. Dimming the back faces into invisibility was what made
-  // the middle look like a dead grey annulus.
-  float wall = gl_FrontFacing ? 1.0 : 0.85;
-
-  vec3 tint = mix(uDeep, uRim, inner);
-  vec3 col = tint * (0.34 + 0.78 * inner) * (0.80 + 0.20 * rim) * (0.80 + uLevel * 0.75)
-           + uRim * fres * wall * (2.30 + uLevel * 1.6)
-           + uRim * diff * diff * 0.30 * wall
-           + uRim * caustic
-           + uSpec * spec * 1.7
-           + uRim * sheen;
-
-  // Lime is far off white, so summed emission clips green first and the orb
-  // turns poster-paint. Bleach the hottest parts toward white the way a real
-  // light source does, and the accent stays lime where it is dim.
+  // Lime is far off white (184, 255, 90), so a naive sum clips green long
+  // before red and every bright pixel drifts to a poster-paint yellow-green.
+  // Divide the whole triple by its own peak instead: overdriven pixels land
+  // exactly on the accent rather than on a clipped version of it, which is the
+  // difference between "the accent lit through glass" and "some green". Only
+  // what is genuinely far over one is then bleached, the way a light source is.
   float hot = max(max(col.r, col.g), col.b);
-  col = mix(col, vec3(hot), clamp((hot - 0.75) * 0.9, 0.0, 0.7));
+  col /= max(hot, 1.0);
+  col = mix(col, vec3(1.0), clamp((hot - 1.35) * 0.30, 0.0, 0.60));
 
-  float alpha = clamp(0.16 + inner * 0.14 + fres.g * 1.05 + spec, 0.0, 1.0);
-  // The far side of the shell reads through the near side, but quietly.
-  if (!gl_FrontFacing) alpha *= 0.8;
-  gl_FragColor = vec4(col, alpha);
+  // Additive over obsidian: order independent with no depth sort, and it is
+  // what "the accent lit through glass" actually is. The middle of the orb
+  // adds almost nothing, so the ground and the halo show through it.
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -210,12 +241,12 @@ uniform float uLevel;
 varying vec3 vN;
 varying vec3 vV;
 void main() {
-  // Falls to nothing well inside its own silhouette, so the core reads as
-  // light suspended in the glass rather than as a second ball with an edge.
-  float c = pow(clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0), 2.6);
-  vec3 col = uRim * c * (0.62 + uLevel * 1.6);
+  // Falls away well inside its own silhouette, so it reads as the source the
+  // caustics imply rather than as a second ball with an edge of its own.
+  float c = pow(clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0), 7.0);
+  vec3 col = uRim * c * (0.48 + uLevel * 1.9);
   float hot = max(max(col.r, col.g), col.b);
-  gl_FragColor = vec4(mix(col, vec3(hot), clamp((hot - 0.7) * 0.9, 0.0, 0.75)), 1.0);
+  gl_FragColor = vec4(mix(col, vec3(hot), clamp((hot - 1.0) * 0.7, 0.0, 0.6)), 1.0);
 }
 `;
 
@@ -238,7 +269,6 @@ function Orb({ detail }: { detail: number }) {
       uAHigh: { value: 0 },
       uLevel: { value: 0 },
       uRim: { value: new THREE.Color("#b8ff5a") },
-      uDeep: { value: new THREE.Color("#0a2a1a") },
       uSpec: { value: new THREE.Color("#eaffd0") },
     }),
     []
@@ -270,7 +300,7 @@ function Orb({ detail }: { detail: number }) {
   return (
     <group ref={group} rotation={[0.18, 0, 0.08]}>
       <mesh renderOrder={0}>
-        <icosahedronGeometry args={[0.62, Math.max(2, detail - 2)]} />
+        <icosahedronGeometry args={[0.46, Math.max(2, detail - 2)]} />
         <shaderMaterial
           uniforms={uniforms}
           vertexShader={CORE_VERT}
@@ -289,6 +319,7 @@ function Orb({ detail }: { detail: number }) {
           transparent
           depthWrite={false}
           side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
         />
       </mesh>
     </group>

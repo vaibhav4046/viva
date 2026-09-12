@@ -9,6 +9,7 @@ import { MAX_CLIP_MS, startCapture, warmDictation, type CaptureHandle } from "@/
 import { voiceMessage } from "@/lib/audio/messages";
 import { ownsSpace } from "@/lib/audio/shortcut";
 import { emptyBurst, foldBurst, type BurstState, type TextOrigin } from "@/lib/audio/burst";
+import { keytermsFor } from "@/components/mirror";
 import { EMPTY_LIVE, openTranscriptSocket, type LiveState, type TranscriptSocket } from "@/lib/audio/stream";
 import { LiveTranscript } from "@/components/voice/LiveTranscript";
 
@@ -76,7 +77,19 @@ const AUTOSEND_MS = 1500;
 /** What the chip says: which path answered, and how long it took upstream. */
 type PathFacts = { fellBackFrom: string | null; requestTimeMs: number | null };
 
+/**
+ * Automatic is first and is the default on purpose.
+ *
+ * Naming a single language pins the streaming model: `language_code=en` runs
+ * `universal-3-5-pro`, which holds every word unsettled until the end of the
+ * turn, so the live transcript arrives in ~1.2 s lumps and its settle
+ * animation never fires per word. `multi` runs the multilingual model, which
+ * finalises words one at a time about every 250-400 ms. A student who never
+ * opens this menu should get the better of the two, and anyone who wants their
+ * language pinned can still say so.
+ */
 export const LANGUAGE_PRESETS: { value: string; label: string }[] = [
+  { value: "multi", label: "Automatic" },
   { value: "en", label: "English" },
   { value: "en,hi", label: "English + Hindi" },
   { value: "hi", label: "Hindi" },
@@ -142,7 +155,10 @@ export function MicButton({
   const [tab, setTab] = useState<"clean" | "verbatim">("clean");
   const [draft, setDraft] = useState("");
   const [edited, setEdited] = useState(false);
-  const [languages, setLanguages] = useState("en");
+  // "multi", not "en": naming a language pins the streaming model, and the
+  // English one holds every word unsettled until the end of the turn. See
+  // LANGUAGE_PRESETS. A saved choice below still overrides this.
+  const [languages, setLanguages] = useState(LANGUAGE_PRESETS[0].value);
   const [holdToTalk, setHoldToTalk] = useState(true);
 
   const typedRef = useRef<HTMLInputElement>(null);
@@ -181,7 +197,7 @@ export function MicButton({
       const saved = window.localStorage.getItem(langKey(subjectId));
       if (saved && LANGUAGE_PRESETS.some((p) => p.value === saved)) setLanguages(saved);
     } catch {
-      // Private mode or blocked storage: English is a fine default.
+      // Private mode or blocked storage: automatic detection is a fine default.
     }
   }, [subjectId]);
 
@@ -218,6 +234,10 @@ export function MicButton({
       body.append("subjectId", subjectId);
       body.append("mode", "study");
       body.append("languageCodes", languages);
+      // Only for a subject the student built: the server resolves its own, and
+      // a resolved subject always wins over this hint.
+      const hinted = keytermsFor(subjectId);
+      if (hinted.length) body.append("keyterms", JSON.stringify(hinted));
       if (context.length) body.append("context", context.slice(-6).join("\n"));
       const startedAt = performance.now();
       try {
@@ -467,10 +487,6 @@ export function MicButton({
       <div className="surface-card flex flex-col items-center gap-3 px-6 py-5" aria-live="polite">
         <Waveform level={listening ? level : 0} active={listening} reduced={reduced} />
 
-        {listening && (
-          <LiveTranscript committed={live.committed} words={live.words} listening className="w-full" />
-        )}
-
         <div className="relative">
           {listening && !reduced && (
             <m.span
@@ -497,6 +513,13 @@ export function MicButton({
             {label}
           </m.button>
         </div>
+
+        {/* Below the button, never above it. Above, a growing transcript slid
+            the control 114 px down and out from under a held pointer, which
+            fires onPointerLeave and stops the capture mid-sentence. */}
+        {listening && (
+          <LiveTranscript committed={live.committed} words={live.words} listening className="w-full" />
+        )}
 
         <p className="mono" style={{ color: "var(--color-ash)" }}>
           {showTimer

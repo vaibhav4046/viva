@@ -104,14 +104,15 @@ A real run against production, 12 September 2026:
 
 That pair is the whole argument for using the Dictation API rather than a
 plain transcript: `Um,` is gone and `I think` / `maybe` are still there.
-Latency, measured against production on 12 September 2026 with the command
-above, seven runs from a UK machine: **median 1166 ms** end to end, of which
-**554 ms** is AssemblyAI's own `request_time_ms`. The rest is our round trip.
+Latency, measured against production on 13 September 2026 with the command
+above, five runs from a UK machine: **median 1310 ms** end to end, of which
+**571 ms** is AssemblyAI's own `request_time_ms`. The rest is our round trip.
 
-(An earlier draft of this file claimed 853 ms. That was a browser measurement
-taken before later changes landed and it no longer reproduces — an independent
-reviewer measured 1337 ms in-browser and was right to flag it. The numbers
-above are what the command in this README returns today.)
+(Two earlier drafts of this file were optimistic — 853 ms, then 1166 ms. Both
+were real measurements that stopped reproducing as the app changed, and both
+were caught by a reviewer re-running the command rather than by us. The
+numbers above are the median of five consecutive runs; expect roughly
+1300-1530 ms end to end and 545-580 ms of provider time.)
 
 ---
 

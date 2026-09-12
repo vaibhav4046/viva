@@ -82,6 +82,25 @@ export function storageWorks(): boolean {
 }
 
 /** The mirror, or an empty record. Never throws, never returns a partial shape. */
+/**
+ * The key terms of one subject the student built, for `keyterms_prompt`.
+ *
+ * Without DATABASE_URL a subject built two minutes ago is invisible to
+ * whichever instance answers the next upload, so recognition bias went out
+ * empty for exactly the vocabulary that needs it — their own. Returns nothing
+ * for a starter subject, which the server can already resolve, and nothing
+ * when storage is unreadable.
+ */
+export function keytermsFor(subjectId: string | null): string[] {
+  if (!subjectId) return [];
+  try {
+    const terms = readRecord().subjects[subjectId]?.keyterms;
+    return Array.isArray(terms) ? terms.filter((t) => typeof t === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function readRecord(): VivaRecord {
   try {
     const raw = window.localStorage.getItem(KEY);

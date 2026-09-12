@@ -94,10 +94,17 @@ function unzipEntry(buf: Buffer, wanted: string): Buffer | null {
       const end = start + compressed;
       if (end > buf.length) return null;
       const bytes = buf.subarray(start, end);
-      if (method === 0) return Buffer.from(bytes);
+      if (method === 0) return bytes.length > TEXT_MAX_BYTES ? null : Buffer.from(bytes);
       if (method !== 8) return null;
       try {
-        return inflateRawSync(bytes);
+        // The 4 MB upload cap is on the COMPRESSED bytes, so it does not bound
+        // this at all: measured, a 0.26 MB .docx inflated to 67 MB in 46 ms,
+        // about 258:1, which puts a 4 MB upload at roughly a gigabyte and
+        // OOM-kills the function. `maxOutputLength` is the only place the
+        // ratio can be bounded, because the header's claimed size is written
+        // by whoever built the file. Over the cap throws, and the caller
+        // reports it as a file VIVA cannot read.
+        return inflateRawSync(bytes, { maxOutputLength: TEXT_MAX_BYTES });
       } catch {
         return null;
       }

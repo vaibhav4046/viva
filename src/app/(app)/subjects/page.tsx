@@ -137,6 +137,15 @@ function builtByLine(builtBy: string | null | undefined): string | null {
   return null;
 }
 
+/**
+ * What the two hand-written labs say instead of a credit.
+ *
+ * They borrow nothing, so there is nothing to attribute — but a card that ends
+ * where the others carry a credit reads as a card that lost something. The
+ * truthful sentence costs one line and the shelf stops looking broken.
+ */
+const HOUSE_NOTES_LINE = "Written for VIVA. Every passage is our own.";
+
 export default function SubjectsPage() {
   const router = useRouter();
   const [subjects, setSubjects] = useState<SubjectCard[] | null>(null);
@@ -283,51 +292,64 @@ export default function SubjectsPage() {
   const own = (subjects ?? []).filter((s) => !s.demo);
   const visible = showAll ? shipped : shipped.slice(0, SHELF_PREVIEW);
 
+  /*
+   * The card is the surface and the button is what fills it — the credit
+   * carries links, and a link inside a button is not a thing a browser can
+   * render. So the button stops above the hairline and the credit sits under
+   * it, still inside the same card.
+   *
+   * There is no pill on the card any more. Six paper pills on a shelf plus the
+   * lime one under the form is seven things shouting the same volume, and only
+   * one of them is the thing this page is for. The card was always the control
+   * — the pill was a second copy of it — so the card keeps the words and gives
+   * them the weight of a caption instead of a button.
+   */
   function card(s: SubjectCard) {
-    const line = builtByLine(s.builtBy);
+    const credit = builtByLine(s.builtBy) ?? (s.demo ? HOUSE_NOTES_LINE : null);
+    const licences = s.attribution ?? [];
     return (
-      /*
-       * The card is the surface and the button is what fills it — the credit
-       * carries links, and a link inside a button is not a thing a browser can
-       * render. So the button stops above the hairline and the credit sits
-       * under it, still inside the same card.
-       */
       <li
         key={s.id}
-        className="surface-card flex h-full flex-col p-5 transition-colors hover:border-[var(--color-cognition)]"
+        className="surface-card group flex flex-col p-5 transition-colors focus-within:border-[var(--color-cognition)] hover:border-[var(--color-cognition)]"
       >
         <button
           type="button"
           onClick={() => open(s.id)}
-          className="flex w-full flex-1 flex-col items-start gap-2 text-left"
+          className="flex w-full flex-col items-start gap-2 text-left"
         >
           <span className="eyebrow">{s.subject}</span>
-          <span className="heading text-lg">{s.title}</span>
-          <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-            <span className="tnum">{s.conceptCount}</span> concepts · <span className="tnum">{s.examCount}</span> questions
-          </span>
-          {line ? (
-            <span className="text-xs leading-relaxed" style={{ color: "var(--color-ash)" }}>
-              {line}
+          {/* Two lines reserved whether the name fills them or not, so the
+              line under it starts at the same height on every card in the row.
+              That row was measured at three different baselines. */}
+          <span className="heading line-clamp-2 min-h-[2lh] text-lg">{s.title}</span>
+          <span
+            className="mono flex w-full items-center justify-between gap-3 text-xs"
+            style={{ color: "var(--color-ash)" }}
+          >
+            <span>
+              <span className="tnum">{s.conceptCount}</span> concepts · <span className="tnum">{s.examCount}</span>{" "}
+              questions
             </span>
-          ) : null}
-          {/*
-            * The same words in the same product get the same shape: the
-            * paper pill the result card below already uses. A lime text
-            * link here was the third of four costumes for "Start talking"
-            * and two of them were visible on this screen at once.
-            * `btn-primary` on a span, not a button — the whole card is
-            * already the control.
-            */}
-          <span className="btn-primary mt-1">
-            Start talking <ArrowRight size={15} aria-hidden />
+            <span className="inline-flex shrink-0 items-center gap-1 transition-colors group-hover:text-[var(--color-paper)]">
+              Start talking
+              <ArrowRight size={13} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
+            </span>
           </span>
         </button>
-        {/* Pinned to the floor of the card, not the floor of the button: a
-            grid row is as tall as its tallest card, and pushing the pill down
-            instead left a hand-written lab with a hole where a credit would
-            have been. */}
-        <Attribution licences={s.attribution ?? []} className="hairline mt-auto border-t pt-3" />
+        {/* Every card ends the same way: a rule, then one sentence about whose
+            words these are. A card with nothing to credit used to end with the
+            rule and nothing after it, which in an equal-height row left a hand-
+            written lab with 190 px of empty card where a credit would have been. */}
+        {credit || licences.length ? (
+          <div className="hairline mt-4 border-t pt-3">
+            {credit ? (
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--color-ash)" }}>
+                {credit}
+              </p>
+            ) : null}
+            <Attribution licences={licences} className={credit ? "mt-2" : ""} />
+          </div>
+        ) : null}
       </li>
     );
   }
@@ -364,7 +386,7 @@ export default function SubjectsPage() {
           <p className="mt-1 max-w-prose text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
             The map, the questions and the passages are already built. Pick one and start talking.
           </p>
-          <ul id="shipped-list" className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <ul id="shipped-list" className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map(card)}
           </ul>
           {shipped.length > SHELF_PREVIEW ? (
@@ -394,7 +416,7 @@ export default function SubjectsPage() {
             ) : null}
           </div>
           {own.length > 0 ? (
-            <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">{own.map(card)}</ul>
+            <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 sm:grid-cols-2">{own.map(card)}</ul>
           ) : (
             <p className="mt-1 max-w-prose text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
               Nothing of your own yet. Build one below and it lands here.

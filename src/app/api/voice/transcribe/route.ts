@@ -63,25 +63,55 @@ function fail(code: string, status: number, retryable: boolean, retryAfterSec?: 
  * `resolveSubject` also reaches the learner's own subjects, so a subject built
  * from their notes biases recognition towards their own vocabulary rather than
  * the starter lab's.
+ *
+ * `hinted` is the browser's copy of that subject's key terms, sent with the
+ * clip. It exists because without DATABASE_URL the server store is
+ * per-instance: a subject the learner built two minutes ago is invisible to
+ * whichever lambda answers the next upload, and `keyterms_prompt` went out
+ * empty for exactly the material that needs it most — their own vocabulary,
+ * the words a general model has never seen. The browser is already the
+ * authority for the record (see src/components/mirror.ts), so it is the
+ * authority for this too. A resolved subject still wins; the hint only fills
+ * the gap, and it is capped and de-duplicated the same way, because it comes
+ * from the client and biasing your own transcription is all it can ever do.
  */
 export async function subjectVoiceConfig(
   userId: string,
-  subjectId: string | null
+  subjectId: string | null,
+  hinted: string[] = []
 ): Promise<{ keyterms: string[]; languageCodes: string[] }> {
   // An id that does not resolve must not bias recognition towards a different
   // syllabus, and must not 500 a dictation call either: no bias, no borrowing.
   const subject = await resolveSubject(getStore(), userId, subjectId).catch(() => null);
-  if (!subject) return { keyterms: [], languageCodes: ["en"] };
+  const source = subject?.keyterms?.length ? subject.keyterms : hinted;
   const seen = new Set<string>();
   const keyterms: string[] = [];
-  for (const term of subject.keyterms) {
-    const key = term.toLowerCase();
+  for (const term of source) {
+    const trimmed = String(term ?? "").trim().slice(0, MAX_KEYTERM_CHARS);
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    keyterms.push(term);
+    keyterms.push(trimmed);
     if (keyterms.length === MAX_KEYTERMS) break;
   }
-  return { keyterms, languageCodes: subject.languageCodes?.length ? subject.languageCodes : ["en"] };
+  const languageCodes = subject?.languageCodes?.length ? subject.languageCodes : ["en"];
+  return { keyterms, languageCodes };
+}
+
+/** One key term is a phrase, not an essay. Anything longer is not a term. */
+const MAX_KEYTERM_CHARS = 60;
+
+/** Parse the browser's key-term hint. Never throws; a bad hint is no hint. */
+export function parseKeytermHint(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((t): t is string => typeof t === "string").slice(0, MAX_KEYTERMS);
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -164,7 +194,7 @@ export async function POST(req: Request): Promise<Response> {
     const subjectId = field(form, "subjectId");
     const { identity } = await resolveIdentity(req);
     const wantsClean = (field(form, "mode") ?? "study") !== "verbatim";
-    const voice = await subjectVoiceConfig(identity.userId, subjectId);
+    const voice = await subjectVoiceConfig(identity.userId, subjectId, parseKeytermHint(field(form, "keyterms")));
     // The form wins, the subject is the default: a Hindi-English subject keeps
     // code-switching recognition without the picker having to be touched.
     const languageCodes = parseLanguageCodes(field(form, "languageCodes"), voice.languageCodes);

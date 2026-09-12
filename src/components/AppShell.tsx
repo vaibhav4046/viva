@@ -25,6 +25,10 @@ const LINKS = [
   { href: "/today", label: "Today", Icon: CalendarCheck },
   { href: "/map", label: "Map", Icon: Network },
   { href: "/exam", label: "Quiz", Icon: CircleHelp },
+  // headerOnly keeps the thumb bar at five destinations on a 320 px phone.
+  // Connect is still reachable there: the footer link below is not md:-gated,
+  // because a link with no entry point on the device most study happens on is
+  // a feature nobody can find.
   { href: "/connect", label: "Connect", Icon: Plug, headerOnly: true },
 ] as const;
 
@@ -102,7 +106,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </header>
 
-      <div className="flex-1 pb-20 md:pb-0">{children}</div>
+      <div className="flex-1 pb-20 md:pb-0">
+        {children}
+
+        {/* Connect is not a daily destination, so it does not earn a thumb-bar
+            slot on a 320 px phone. It still has to be reachable there: the
+            header nav that holds it is md:-only, and a page nobody on a phone
+            can find is a page that does not exist. */}
+        <div className="mx-auto w-full max-w-6xl px-4 pb-6 pt-2 sm:px-6 md:hidden">
+          <Link
+            href="/connect"
+            className="mono inline-flex min-h-11 items-center gap-2 text-xs"
+            style={{ color: "var(--color-ash)" }}
+          >
+            <Plug size={14} aria-hidden strokeWidth={1.8} />
+            Use VIVA from another assistant
+          </Link>
+        </div>
+      </div>
 
       {/* Mobile bottom tabs. Fixed so the destinations are always one thumb
           away, and padded for the home indicator.

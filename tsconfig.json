@@ -36,7 +36,13 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-live/types/**/*.ts",
-    ".next-live/dev/types/**/*.ts"
+    ".next-live/dev/types/**/*.ts",
+    ".next-orb2/types/**/*.ts",
+    ".next-orb2/dev/types/**/*.ts",
+    ".next-chk/types/**/*.ts",
+    ".next-chk/dev/types/**/*.ts",
+    ".next-ui2/types/**/*.ts",
+    ".next-ui2/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

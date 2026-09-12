@@ -5,10 +5,13 @@
  * anything compressed, so the browser has to produce PCM itself. MediaRecorder
  * cannot: it only emits WebM/Opus. This processor resamples every render quantum
  * from the AudioContext rate (44.1 or 48 kHz on most machines) down to 16 kHz and
- * posts Int16 frames to the main thread as they are produced. The frames are
- * buffered on the main thread and the whole clip is posted on release;
- * /v1/transcribe/live would allow streaming and this build does not do it, so
- * the upload leg still grows with clip length.
+ * posts Int16 frames to the main thread as they are produced.
+ *
+ * Each frame is used twice. It is buffered for the clip that is POSTed whole on
+ * release, which is the transcript that gets graded, and it is handed straight
+ * to the Universal-Streaming socket so the learner sees words while they are
+ * still speaking (src/lib/audio/worklet.ts `onFrame`). The upload leg still
+ * grows with clip length; the live leg does not.
  *
  * Resampling is linear interpolation with the fractional read position carried
  * across quanta and the previous block's final sample kept as `tail` — without

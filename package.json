@@ -19,7 +19,6 @@
     "lint:copy": "node scripts/lint-copy.mjs"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "lucide-react": "^1.45.0",
     "motion": "^13.2.0",

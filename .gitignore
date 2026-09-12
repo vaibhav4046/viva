@@ -26,10 +26,10 @@ __pycache__/
 # Skill data is 4.5 MB of regenerable tooling (npx ui-ux-pro-max-cli init).
 # The agent and command definitions ARE committed — they are the workflow.
 .claude/skills/
-tsconfig.tsbuildinfo
 
 # AI build tooling stays local. Standing rule: no Claude artefacts in this
 # repo, and a judge cloning it should find a product, not a build mandate.
 CLAUDE.md
 VIVA_MASTER_PROMPT.md
-.claude/
+
+AGENTS.md

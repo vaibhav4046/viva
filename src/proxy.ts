@@ -10,8 +10,10 @@ import type { NextRequest } from "next/server";
  *   as `x-nonce` and `Content-Security-Policy` so the App Router renderer
  *   attaches it to its own inline bootstrap scripts and framework chunks.
  * - The same policy is set on the RESPONSE so the browser enforces it.
- * - `style-src` keeps `'unsafe-inline'` on purpose: React `style={{…}}` props
- *   and GSAP/Framer Motion set inline styles.
+ * - `style-src` keeps `'unsafe-inline'` on purpose: React's `style={{…}}`
+ *   prop writes inline styles and there is no nonce path for them. (This
+ *   note used to blame GSAP and Framer Motion; both were removed and the
+ *   justification for a loosened directive should never outlive its cause.)
  * - `connect-src` allowlists the product's real egress: AssemblyAI
  *   Sync/event APIs, Vercel insights iframes/beacons.
  * - `frame-ancestors 'none'` + `object-src 'none'` + `base-uri 'self'` close

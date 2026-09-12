@@ -20,8 +20,20 @@ import type { EventStore } from "@/lib/store/repo";
  * stores use as their idempotency key, so a replayed event is recognised and
  * dropped rather than folded a second time. That is why this file does NOT
  * accept the client's mastery numbers: it replays the events and lets the same
- * fold in `src/lib/mastery.ts` recompute the map. A student who reloads twice
- * cannot move their own mastery, and a client cannot post itself a 100%.
+ * fold in `src/lib/mastery.ts` recompute the map, so a student who reloads
+ * twice cannot move their own mastery.
+ *
+ * Be precise about what that is and is not. It means the arithmetic is ours
+ * and a client cannot hand us a number. It does NOT mean a client cannot
+ * influence its own map: a replayed event carries the assessment the server
+ * produced when it graded the turn, and nothing here can tell that apart from
+ * a fabricated one, so anyone posting hand-written events can walk their own
+ * bands wherever they like. That is accepted, not overlooked. The whole design
+ * makes the browser the authority for its own record because there is no
+ * database to be the authority instead, and the only thing a student wins by
+ * lying to it is a study plan that skips what they do not know. It is their
+ * account and nobody else's: `resolveIdentity` scopes every write to the
+ * cookie, so no replay can reach another learner's map.
  */
 
 /** One request may not carry more than this. Bounded on purpose (§ below). */

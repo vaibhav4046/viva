@@ -32,10 +32,13 @@ const LABEL_BAND = 118;
 const LABEL_CHAR_PX = 6.8;
 const LABEL_MAX_CH = 17;
 const LABEL_MIN_CH = 8;
-/** Room above the top node for two label lines, and below the last for the word. */
-const PAD_TOP = 72;
-const PAD_BOTTOM = 76;
 const LINE = 15;
+/** Baseline of the lowest label line above a node centre, and of the band word below it. */
+const LABEL_UP = 36;
+const WORD_DOWN = 42;
+/** Cap height above a baseline and descender below it, at 12 px. */
+const ASCENT = 12;
+const DESCENT = 5;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
@@ -73,18 +76,21 @@ const KNOCKOUT = {
 
 type Concept = { id: string; name: string; related?: string[] };
 
-/** The ring, sized to the pixels it was handed. */
+/**
+ * The ring, sized to the pixels it was handed.
+ *
+ * `rx` leaves a label's width beside the circle so the outermost name still
+ * lands inside the card; `maxCh` gives a name only the characters the gap
+ * between two neighbouring nodes can hold, which is what stops ten concepts
+ * writing over each other on a narrow map.
+ */
 function ringLayout(width: number, count: number) {
-  const rx = clamp((width - LABEL_BAND) / 2, 96, 220);
-  const ry = rx * 0.9;
+  const rx = clamp((width - LABEL_BAND) / 2, 96, 260);
   const arc = count > 1 ? 2 * rx * Math.sin(Math.PI / count) : 2 * rx;
   return {
     cx: width / 2,
-    cy: PAD_TOP + ry,
     rx,
-    ry,
-    height: Math.round(PAD_TOP + 2 * ry + PAD_BOTTOM),
-    /** Names get the characters the gap between two nodes can actually hold. */
+    ry: rx * 0.9,
     maxCh: clamp(Math.round(arc / LABEL_CHAR_PX), LABEL_MIN_CH, LABEL_MAX_CH),
   };
 }
@@ -214,16 +220,29 @@ function Ring({
   reduced: boolean;
   onSelect: (id: string) => void;
 }) {
-  const { cx, cy, rx, ry, height, maxCh } = ringLayout(width, Math.max(1, concepts.length));
+  const { cx, rx, ry, maxCh } = ringLayout(width, Math.max(1, concepts.length));
   const pos: Record<string, [number, number]> = {};
+  const lineage: Record<string, string[]> = {};
   concepts.forEach((c, i) => {
     const angle = -Math.PI / 2 + (2 * Math.PI * (i + 0.5)) / Math.max(1, concepts.length);
-    pos[c.id] = [Math.round(cx + rx * Math.cos(angle)), Math.round(cy + ry * Math.sin(angle))];
+    pos[c.id] = [Math.round(cx + rx * Math.cos(angle)), Math.round(ry + ry * Math.sin(angle))];
+    lineage[c.id] = labelLines(c.name, maxCh);
   });
+
+  /*
+   * The box is the drawing's own extent, not the ellipse's. Six nodes never
+   * reach the top or bottom of the ellipse — the first one sits 30° round — and
+   * padding to the ellipse instead of to the ink left a 90 px dead band under
+   * the map.
+   */
+  const tops = concepts.map((c) => pos[c.id][1] - LABEL_UP - (lineage[c.id].length - 1) * LINE - ASCENT);
+  const bottoms = concepts.map((c) => pos[c.id][1] + WORD_DOWN + DESCENT);
+  const top = Math.round(tops.length ? Math.min(...tops) : 0);
+  const height = Math.round((bottoms.length ? Math.max(...bottoms) : 1) - top);
 
   return (
     <svg
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 ${top} ${width} ${height}`}
       width={width}
       height={height}
       className="w-full"
@@ -238,10 +257,10 @@ function Ring({
 
       {concepts.map((c) => {
         const band = bandOf(c.id);
-        const [x, y] = pos[c.id] ?? [cx, cy];
+        const [x, y] = pos[c.id] ?? [cx, ry];
         const color = BAND_COLOR[band];
         const isSel = selected === c.id;
-        const lines = labelLines(c.name, maxCh);
+        const lines = lineage[c.id];
         return (
           <g
             key={c.id}

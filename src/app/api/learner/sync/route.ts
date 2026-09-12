@@ -75,7 +75,11 @@ import { err } from "@/lib/types";
  * event is recognised and dropped before the mastery fold sees it. Mastery is
  * never accepted from the client: it is recomputed from the replayed events by
  * the one fold in `src/lib/mastery.ts`. Reload twice and your map does not
- * move; post yourself a 100% and nothing happens.
+ * move. Post a mastery map and it is ignored — but post hand-written graded
+ * events and the fold will believe them, because a replayed event is exactly
+ * what a real one looks like. See the note in `src/lib/sync.ts` for why that
+ * trade is taken: it is the learner's own account, and lying to it only buys
+ * them a plan that skips what they do not know.
  */
 export async function POST(req: NextRequest) {
   const { identity, setCookie } = await resolveIdentity(req);

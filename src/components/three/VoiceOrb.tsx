@@ -250,6 +250,24 @@ void main() {
 }
 `;
 
+/**
+ * Colours for a raw ShaderMaterial, in the space they will actually be seen in.
+ *
+ * This was the root of the whole "muddy olive" reading. `new THREE.Color(hex)`
+ * converts to the linear working space, and three injects the matching
+ * linear-to-sRGB conversion into the shaders it writes itself — but a raw
+ * ShaderMaterial is compiled verbatim, so nothing converts on the way out and
+ * the linear triple is what reaches the screen. Probed against the render:
+ * painting `uRim` straight out produced #79ff1a, not #b8ff5a, and every
+ * mid-tone landed roughly a gamma step too dark, which is exactly how a
+ * shader written around #b8ff5a ended up sampling as a #448712 body.
+ *
+ * Converting back means the shader's arithmetic is display-referred rather
+ * than physical, which for a stylised emissive object is the right trade: the
+ * accent stays the accent, and "half brightness" looks like half brightness.
+ */
+const srgb = (hex: string) => new THREE.Color(hex).convertLinearToSRGB();
+
 /** Breathing amplitude at silence, and the ceiling a shouted phrase reaches. */
 const IDLE_AMP = 0.022;
 const LOUD_AMP = 0.44;
@@ -268,8 +286,8 @@ function Orb({ detail }: { detail: number }) {
       uAMid: { value: 0 },
       uAHigh: { value: 0 },
       uLevel: { value: 0 },
-      uRim: { value: new THREE.Color("#b8ff5a") },
-      uSpec: { value: new THREE.Color("#eaffd0") },
+      uRim: { value: srgb("#b8ff5a") },
+      uSpec: { value: srgb("#eaffd0") },
     }),
     []
   );
@@ -351,7 +369,7 @@ export default function VoiceOrb({ detail = 5, paused = false }: { detail?: numb
        */
       resize={{ offsetSize: true }}
       frameloop={paused ? "never" : "always"}
-      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       camera={{ position: [0, 0, 3.1], fov: 42 }}
       style={{ width: "100%", height: "100%" }}
     >

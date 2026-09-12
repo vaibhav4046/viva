@@ -239,12 +239,19 @@ export function tutorRespond(opts: {
   if (intent === "claim") {
     // A checked claim never reaches here — `checkClaim` in ./claim.ts has
     // already led with the contradiction and the line that shows it. This is
-    // the "nothing caught" case, and it still asks rather than files.
+    // the "nothing caught" case.
+    //
+    // It used to say "Nothing in the passage contradicts it", which was the
+    // worst sentence in the product: the checks are lexical, so not catching a
+    // claim means the check could not read it, NOT that the source agrees —
+    // and the passage linked underneath was sometimes the one that disproved
+    // the student. Never assert agreement the check did not produce.
     const q = course.examQuestions.find((x) => x.conceptId === opts.conceptId);
+    const head = `I could not check that against your source, so I will not tell you it is right.`;
     return {
       text: q
-        ? `That is your position on ${label}. Nothing in the passage contradicts it, so let's test whether it holds: ${q.question}`
-        : `That is your position on ${label}. Say it once more with the reason attached and I will check it line by line.`,
+        ? `${head} ${evidenceIds.length > 0 ? "The nearest passage is beside this — read it, then answer me:" : "Answer me this instead:"} ${q.question}`
+        : `${head} Say it once more with the reason attached and I will check it line by line.`,
       evidenceIds,
       strategy: "socratic",
       missingConcepts: [],

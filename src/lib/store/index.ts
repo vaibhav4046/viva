@@ -1,4 +1,4 @@
-import { backendKind } from "@/lib/db/db";
+import { backendKind, dbStatus } from "@/lib/db/db";
 import { FileEventStore } from "./file";
 import { PgEventStore } from "./pg";
 import type { EventStore } from "./repo";
@@ -48,12 +48,19 @@ export function resetStoreDegradation(): void {
  * while a hard failure is the alternative; add a timed half-open retry if
  * transient flakiness (rather than a broken credential) ever becomes the norm.
  */
-function withFallback(durable: EventStore, kind: string): EventStore {
+export function withFallback(durable: EventStore, kind: string): EventStore {
   const fallback = new FileEventStore();
   return new Proxy(durable, {
     get(target, prop, receiver) {
       const original = Reflect.get(target, prop, receiver);
-      if (typeof original !== "function") return original;
+      // Data properties were returned straight off the durable target, and
+      // `backend` is exactly that — so after the latch flipped, every call went
+      // to the file store while `store.backend` kept saying "postgres", and
+      // /api/learner shipped that to the browser. This module's own docstring
+      // promises nobody is told a lie about durability; this is that promise.
+      if (typeof original !== "function") {
+        return prop === "backend" && degradation.degraded ? fallback.backend : original;
+      }
       const onFallback = (fallback as unknown as Record<string, unknown>)[prop as string];
 
       return async (...args: unknown[]) => {
@@ -79,6 +86,27 @@ function withFallback(durable: EventStore, kind: string): EventStore {
       };
     },
   }) as EventStore;
+}
+
+/**
+ * Will a write survive the next request?
+ *
+ * Asked in two places now — the readiness probe and the subject builder — and
+ * they must not answer it differently. "Ready" and "durable" are separate
+ * questions: this app is always ready (the file store is in-process) and is
+ * only durable when a reachable database is behind it.
+ */
+export async function storeDurability(): Promise<{ durable: boolean; backend: string; detail: string }> {
+  const db = await dbStatus();
+  const degraded = storeDegradation();
+  if (degraded.degraded) {
+    return {
+      durable: false,
+      backend: "file",
+      detail: `${degraded.from} backend failed here — writes are going to this instance only`,
+    };
+  }
+  return { durable: db.durable, backend: db.backend, detail: db.detail };
 }
 
 /** Factory: Postgres when configured, otherwise the file store. */

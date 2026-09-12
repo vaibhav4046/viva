@@ -33,6 +33,29 @@ export type Progress = (line: string) => void;
 
 const MIN_INPUT_CHARS = 400;
 
+/**
+ * A subject title, cleaned of things that cannot be rendered — and nothing else.
+ *
+ * Two copies of this lived in two routes with two different allowlists, and
+ * neither allowed an em dash: "COMP319 Networks — TCP congestion control" was
+ * stored as "COMP319 Networks TCP congestion control". The first thing a
+ * student's own subject tells them about itself was already wrong, silently.
+ * Strip control characters, keep typography.
+ */
+export function cleanTitle(raw: unknown, fallback: string): string {
+  const base = String(raw ?? "").split(/[\\/]/).pop() ?? "";
+  const clean = base
+    .replace(/\.pdf$/i, "")
+    // Control characters and the line breaks that would split a title.
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, " ")
+    // Everything a course title reasonably carries stays: letters, digits,
+    // marks (accents, Devanagari matras), dashes, quotes, brackets, & / + % #.
+    .replace(/[^\p{L}\p{N}\p{M} ,.:;!?'’"“”()[\]{}&/+%#@°~^*=_|<>$€£¥\p{Pd}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.slice(0, 120) || fallback;
+}
+
 function sourceTitleFor(input: IntakeInput): string {
   if (input.kind === "pdf") return input.title;
   if (input.kind === "paste") return `${input.title} — your notes`;

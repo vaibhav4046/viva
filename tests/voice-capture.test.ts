@@ -184,3 +184,44 @@ describe("the recorder's own cap sits under the server's", () => {
     expect(MAX_MS - MAX_CLIP_MS).toBeGreaterThanOrEqual(5_000);
   });
 });
+
+/**
+ * The two client-side halves of the round-2 mic findings, checked against the
+ * source because both are render decisions in a component that needs a browser:
+ *
+ * - a 200 carrying an empty transcript must be an error, not a review panel the
+ *   learner can neither send nor clear;
+ * - the "backup path" label must not hang off a field the fallback may not
+ *   return, and must outlive the panel that used to be its only home.
+ */
+describe("MicButton refuses to park the learner in a dead review panel", () => {
+  const SRC = readFileSync(fileURLToPath(new URL("../src/components/voice/MicButton.tsx", import.meta.url)), "utf8");
+
+  it("treats an empty transcript as a coded failure", () => {
+    expect(SRC).toMatch(/!data\.verbatim\.trim\(\)\)\s*throw\s*\{\s*code:\s*"NO_SPEECH"\s*\}/);
+  });
+
+  it("the review panel is only reachable after that guard", () => {
+    const guard = SRC.indexOf('code: "NO_SPEECH"');
+    const review = SRC.indexOf('setPhase("review")');
+    expect(guard).toBeGreaterThan(-1);
+    expect(review).toBeGreaterThan(guard);
+  });
+
+  it("the path chip is no longer gated on requestTimeMs", () => {
+    // A Sync answer with no request_time_ms is exactly the case the downgrade
+    // label exists for, and gating on the number rendered nothing at all.
+    expect(SRC).not.toMatch(/result\.requestTimeMs !== null &&/);
+    expect(SRC).toMatch(/if \(!fellBackFrom && requestTimeMs === null\) return null;/);
+  });
+
+  it("keeps the last path on screen after the panel is gone", () => {
+    expect(SRC).toMatch(/setLastPath\(\{/);
+    expect(SRC).toMatch(/phase !== "review" && lastPath/);
+  });
+
+  it("sends the completed-dictation event somewhere readable", () => {
+    // The in-tab counters were the whole record of a latency claim.
+    expect(SRC).toMatch(/"\/api\/voice\/telemetry"/);
+  });
+});

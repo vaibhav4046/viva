@@ -1,6 +1,16 @@
 /**
  * WAV packaging (client) + WAV validation (server).
- * Sync STT accepts ONLY 16-bit WAV or raw PCM S16LE — never WebM/Opus.
+ *
+ * The server accepts 16-bit PCM WAV and nothing else — never WebM/Opus, and no
+ * longer raw `audio/pcm`. Raw PCM carries no format metadata, so accepting it
+ * meant believing the caller's content type about rate and channel count, and
+ * that belief is exactly the mislabelling bug: 48 kHz stereo bytes posted as
+ * `audio/pcm` were forwarded under a `sample_rate: 16000, channels: 1`
+ * declaration and consumed at one sixth speed (9.55 s read as 57.33 s, empty
+ * transcript, six times the bill). A RIFF header states the rate and channels
+ * in the bytes themselves, which is the only version of this that can be
+ * verified, so WAV is the one door. The worklet already produces WAV.
+ *
  * No FFmpeg anywhere in the hot path: pure byte ops + WebAudio decode.
  */
 
@@ -116,20 +126,20 @@ function parseWav(buf: Buffer): WavParse | null {
   return fmt && dataLen > 0 ? { fmt, dataOff, dataLen } : null;
 }
 
-/** Server: validate WAV/PCM bytes BEFORE spending AssemblyAI credits. */
+/** The only content types that carry their own format. See the file header. */
+const WAV_TYPES = new Set(["audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave"]);
+
+/** True for a content type whose bytes declare their own rate and channels. */
+export function isWavType(contentType: string): boolean {
+  return WAV_TYPES.has(contentType.split(";")[0].trim().toLowerCase());
+}
+
+/** Server: validate WAV bytes BEFORE spending AssemblyAI credits. */
 export function validateWavInput(buf: Buffer, contentType: string): WavInfo {
   if (buf.length === 0) return { ok: false, code: "EMPTY_AUDIO", message: "No audio received. Hold the mic and speak." };
   if (buf.length > MAX_BYTES) return { ok: false, code: "AUDIO_TOO_LARGE", message: "Clip exceeds 40 MB. Record a shorter clip." };
-  const ct = contentType.split(";")[0].trim().toLowerCase();
-  if (ct === "audio/pcm") {
-    // Raw S16LE 16kHz mono assumed from our client; duration from byte count.
-    const durationMs = Math.round(((buf.length / 2) / TARGET_RATE) * 1000);
-    if (durationMs < MIN_MS) return { ok: false, code: "AUDIO_TOO_SHORT", message: "Clip is under 80 ms." };
-    if (durationMs > MAX_MS) return { ok: false, code: "AUDIO_TOO_LONG", message: "Keep dictation clips under 2 minutes." };
-    return { ok: true, sampleRate: TARGET_RATE, channels: 1, durationMs };
-  }
-  if (ct !== "audio/wav" && ct !== "audio/x-wav" && ct !== "audio/wave") {
-    return { ok: false, code: "UNSUPPORTED_FORMAT", message: "Send WAV (audio/wav) or raw PCM (audio/pcm)." };
+  if (!isWavType(contentType)) {
+    return { ok: false, code: "UNSUPPORTED_FORMAT", message: "Send a 16-bit PCM WAV (audio/wav). Raw audio/pcm cannot declare its own rate." };
   }
   const parsed = parseWav(buf);
   if (!parsed) return { ok: false, code: "BAD_AUDIO", message: "Bytes are not a valid WAV file." };
@@ -195,19 +205,25 @@ function resample(src: Int16Array, srcRate: number, dstRate: number): Int16Array
 export type PcmResult = { ok: true; pcm: Buffer; sourceRate: number; sourceChannels: number } | { ok: false; code: string; message: string };
 
 /**
- * Server: accepted WAV/PCM bytes → raw 16 kHz mono S16LE, which is what the
+ * Server: accepted WAV bytes → raw 16 kHz mono S16LE, which is what the
  * Dictation `config` declares.
  *
  * The declaration is not a hint: AssemblyAI reads the byte stream at the rate
  * it is told, so 48 kHz stereo posted as 16 kHz mono is consumed at one sixth
  * speed — a 9.5 s clip arrives as 57 s of nothing, billed six times over, with
  * a 200 and an empty transcript. Every entry point that is not the AudioWorklet
- * (the alias route, a direct API caller, a browser with no worklet) can hand us
- * exactly that, so the conversion belongs here rather than in a caller.
+ * (a direct API caller, a browser with no worklet) can hand us exactly that, so
+ * the conversion belongs here rather than in a caller.
+ *
+ * The content type is re-checked rather than trusted to have been checked: this
+ * is the last place before the bytes go on the wire under a declaration, and
+ * anything that cannot state its own rate in its own bytes is refused here even
+ * if a caller let it through.
  */
 export function toPcm16kMono(buf: Buffer, contentType: string): PcmResult {
-  const ct = contentType.split(";")[0].trim().toLowerCase();
-  if (ct === "audio/pcm") return { ok: true, pcm: buf, sourceRate: TARGET_RATE, sourceChannels: 1 };
+  if (!isWavType(contentType)) {
+    return { ok: false, code: "UNSUPPORTED_FORMAT", message: "Send a 16-bit PCM WAV (audio/wav). Raw audio/pcm cannot declare its own rate." };
+  }
   const parsed = parseWav(buf);
   if (!parsed) return { ok: false, code: "BAD_AUDIO", message: "Bytes are not a valid WAV file." };
   const { fmt, dataOff, dataLen } = parsed;

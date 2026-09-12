@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { resolveSubject } from "@/lib/courses/subject";
+import { resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
 
   const store = getStore();
   const courseParam = req.nextUrl.searchParams.get("subject") ?? req.nextUrl.searchParams.get("courseId");
-  const course = await resolveSubject(store, identity.userId, courseParam);
+  const course = await resolveSubject(store, identity.userId, courseParam).catch(subjectMissing);
+  if (course instanceof Response) return done(course);
   await store.seedCourse(identity.userId, course.id);
   const [allMastery, allEvents, allQueue, concepts] = await Promise.all([
     store.getMastery(identity.userId),

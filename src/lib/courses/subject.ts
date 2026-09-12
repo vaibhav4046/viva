@@ -1,4 +1,5 @@
 import type { EventStore } from "@/lib/store/repo";
+import { err } from "@/lib/types";
 import { COURSES, getCourse } from "./index";
 import type { Course, Subject } from "./types";
 
@@ -47,23 +48,56 @@ export function isStarterId(id: string | null | undefined): boolean {
   return Boolean(id && COURSES[id]);
 }
 
+/** An id that named a subject VIVA cannot produce. Never a different subject. */
+export class SubjectNotFoundError extends Error {
+  readonly code = "SUBJECT_NOT_FOUND";
+  constructor(readonly subjectId: string) {
+    super(`subject ${subjectId} does not resolve for this learner`);
+    this.name = "SubjectNotFoundError";
+  }
+}
+
 /**
- * Resolve an id to the caller's subject, a starter, or the default starter.
+ * Resolve an id to the caller's subject or a starter — and nothing else.
  *
- * An id that belongs to somebody else resolves to the default starter rather
- * than to their material: `getSubject` is scoped to this user, so a guessed id
- * simply misses.
+ * This used to end `return starterSubject(getCourse(id))`, and `getCourse`
+ * falls back to the default lab for any id it does not know. So three
+ * different situations — no id at all, an id that is somebody else's, and an
+ * id whose subject is gone — collapsed into one, and a student following their
+ * own bookmark was confidently taught Transformers Week 4 with real citations
+ * and no error anywhere. A bookmark, a second device or a deleted subject all
+ * did it, with or without a database.
+ *
+ * Now: no id means the default starter, a starter id means that starter, and
+ * anything else that does not resolve raises `SubjectNotFoundError` so the
+ * route can 404 and the screen can say the subject is not here any more.
  */
 export async function resolveSubject(
   store: EventStore,
   userId: string,
   id: string | null | undefined
 ): Promise<Subject> {
-  if (id && !COURSES[id]) {
-    const owned = await store.getSubject(userId, id);
-    if (owned) return owned;
+  if (!id) return starterSubject(getCourse(null));
+  if (COURSES[id]) return starterSubject(COURSES[id]);
+  const owned = await store.getSubject(userId, id);
+  if (owned) return owned;
+  throw new SubjectNotFoundError(id);
+}
+
+/**
+ * Turn that into the one coded response every route returns for it. Anything
+ * else is a real failure and is rethrown rather than dressed up as a 404.
+ */
+export function subjectMissing(error: unknown): Response {
+  if (error instanceof SubjectNotFoundError) {
+    return err(
+      "SUBJECT_NOT_FOUND",
+      "That subject isn't here any more. Open one from your subjects and carry on there.",
+      false,
+      404
+    );
   }
-  return starterSubject(getCourse(id));
+  throw error;
 }
 
 /** What a picker needs: no chunk bodies, no question text. */

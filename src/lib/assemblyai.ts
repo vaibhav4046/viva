@@ -23,13 +23,16 @@
  * Production NEVER selects fixture transcription (see resolve + test).
  */
 
-import { TARGET_RATE, toPcm16kMono } from "./audio/wav";
+import { isWavType, TARGET_RATE, toPcm16kMono } from "./audio/wav";
 
 export type TranscriptionMode = "sync" | "dictation" | "async";
 
 export type TranscriptionRequest = {
   audio: Buffer;
-  contentType: string; // audio/wav or audio/pcm (validated upstream)
+  /** Must be a WAV type: both paths below declare a format to AssemblyAI, and
+   *  only a RIFF header lets that declaration be verified rather than believed.
+   *  Checked again here, not assumed of the caller. */
+  contentType: string;
   /** Recognition bias terms (concept names + aliases). Capped before send. */
   keyterms?: string[];
   /** Conversation context, plain prose. Speaker labels leak into the
@@ -148,6 +151,12 @@ export class AssemblyAIProvider implements TranscriptionProvider {
   /** Fallback path. Config keys verified live 2026-09-12 (`language_codes`). */
   private async transcribeSync(req: TranscriptionRequest): Promise<TranscriptionResult> {
     const started = Date.now();
+    // This path labels the bytes audio/wav to the vendor, so it must not be
+    // handed anything else: the fallback used to re-send headerless PCM inside
+    // a Blob typed audio/wav, which is the same mislabelling one layer down.
+    if (!isWavType(req.contentType)) {
+      throw new TranscriptionError("UNSUPPORTED_FORMAT", "Sync transcription needs a 16-bit PCM WAV.", 415, false);
+    }
     const form = new FormData();
     const bytes = new Uint8Array(req.audio.buffer, req.audio.byteOffset, req.audio.byteLength);
     form.append("audio", new Blob([bytes as unknown as BlobPart], { type: "audio/wav" }), "clip.wav");

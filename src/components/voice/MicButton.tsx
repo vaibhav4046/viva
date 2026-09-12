@@ -66,6 +66,9 @@ type TranscribeResponse = {
 
 const AUTOSEND_MS = 1500;
 
+/** What the chip says: which path answered, and how long it took upstream. */
+type PathFacts = { fellBackFrom: string | null; requestTimeMs: number | null };
+
 export const LANGUAGE_PRESETS: { value: string; label: string }[] = [
   { value: "en", label: "English" },
   { value: "en,hi", label: "English + Hindi" },
@@ -121,6 +124,7 @@ export function MicButton({
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TranscribeResponse | null>(null);
+  const [lastPath, setLastPath] = useState<PathFacts | null>(null);
   const [tab, setTab] = useState<"clean" | "verbatim">("clean");
   const [draft, setDraft] = useState("");
   const [edited, setEdited] = useState(false);
@@ -216,18 +220,38 @@ export function MicButton({
         if (!res.ok) throw { code: data?.error?.code };
         // A 200 whose body never parsed is a truncated response, not a result.
         if (!data || typeof data.verbatim !== "string") throw { code: "BAD_RESPONSE" };
-        logEvent("dictation_completed", {
-          // The round trip, not the clip length. This event is what any latency
-          // claim is derived from, so it has to measure release-to-transcript;
-          // it used to log durationMs, which is the length of whatever the
-          // learner said — 5 to 30 seconds of pure error in every figure.
+        // An empty transcript is a dead end, not a result: the review box would
+        // show nothing, disable Send and promise to send anyway. The route codes
+        // this as NO_SPEECH; this guard keeps a future provider that answers
+        // 200-with-nothing from re-opening the same trap.
+        if (!data.verbatim.trim()) throw { code: "NO_SPEECH" };
+        // The round trip, not the clip length. This event is what any latency
+        // claim is derived from, so it has to measure release-to-transcript;
+        // it used to log durationMs, which is the length of whatever the
+        // learner said — 5 to 30 seconds of pure error in every figure.
+        const facts = {
           latencyMs: Math.round(performance.now() - startedAt),
           audioMs: data.audioMs ?? durationMs,
           requestTimeMs: data.requestTimeMs ?? 0,
           mode: data.mode,
           fellBackFrom: data.fellBackFrom ?? "",
-        });
+        };
+        logEvent("dictation_completed", facts);
+        // …and it goes somewhere readable. The in-tab counters die with the tab,
+        // which made the whole event unverifiable: metrics only, no transcript,
+        // fire and forget.
+        void fetch("/api/voice/telemetry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(facts),
+          keepalive: true,
+        }).catch(() => {});
         setResult(data);
+        // Which path served the clip outlives the review panel on purpose: the
+        // panel is gone ~1.5 s after the transcript lands, and a downgrade to
+        // the backup path is the one fact about a turn that nothing else on
+        // screen says.
+        setLastPath({ fellBackFrom: data.fellBackFrom ?? null, requestTimeMs: data.requestTimeMs ?? null });
         setDraft(data.clean || data.verbatim);
         setTab(data.clean && data.clean !== data.verbatim ? "clean" : "verbatim");
         setEdited(false);
@@ -439,6 +463,13 @@ export function MicButton({
               : "Tap and think out loud"}
         </p>
 
+        {phase !== "review" && lastPath && (
+          <div className="flex items-center gap-2">
+            <span className="mono" style={{ color: "var(--color-ash)" }}>Last clip</span>
+            <PathChip fellBackFrom={lastPath.fellBackFrom} requestTimeMs={lastPath.requestTimeMs} />
+          </div>
+        )}
+
         <label className="sr-only" htmlFor={`${fieldId}-lang`}>Spoken language</label>
         <select
           id={`${fieldId}-lang`}
@@ -493,11 +524,7 @@ export function MicButton({
                     </button>
                   ))}
                 </div>
-                {result.requestTimeMs !== null && (
-                  <span className="chip" title="Time AssemblyAI spent on this clip">
-                    {result.fellBackFrom ? "AssemblyAI · backup path" : "AssemblyAI"} · {Math.round(result.requestTimeMs)} ms
-                  </span>
-                )}
+                <PathChip fellBackFrom={result.fellBackFrom} requestTimeMs={result.requestTimeMs} />
               </div>
 
               <label className="sr-only" htmlFor={`${fieldId}-draft`}>Your words, editable before sending</label>
@@ -562,6 +589,10 @@ export function MicButton({
           guarantee on the standalone TypedInput. */}
       <div className="mt-3 flex gap-2">
         <label htmlFor="viva-type" className="sr-only">Type instead of speaking</label>
+        {/* The long placeholder needed 241 px in a 224 px box and rendered as
+            "Or type — voice is never requir". The reassurance is the one line a
+            student in a library actually needs, so the full sentence moved under
+            the row where it has room to be read; the font stays at 16 px. */}
         <input
           id="viva-type"
           ref={typedRef}
@@ -571,7 +602,7 @@ export function MicButton({
           disabled={busy}
           onInput={(e) => onTypedInput(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitTyped(); } }}
-          placeholder={busy ? "Thinking…" : "Or type — voice is never required"}
+          placeholder={busy ? "Thinking…" : "Or type instead"}
           className="min-h-11 w-full min-w-0 rounded-lg border hairline px-4 py-3 text-base disabled:opacity-60"
           style={{ background: "var(--color-panel)", color: "var(--color-paper)" }}
         />
@@ -580,7 +611,28 @@ export function MicButton({
           Send
         </button>
       </div>
+      <p className="mono mt-2 text-xs" style={{ color: "var(--color-ash)" }}>
+        Voice is never required — typing works on every screen.
+      </p>
     </div>
+  );
+}
+
+/**
+ * Which path transcribed the clip.
+ *
+ * Not gated on the request time any more: a Sync answer that carries no
+ * `request_time_ms` is exactly the case a downgrade label exists for, and
+ * gating on the number meant that case rendered nothing at all. The ms are
+ * shown when they exist and left out when they do not.
+ */
+function PathChip({ fellBackFrom, requestTimeMs }: PathFacts) {
+  if (!fellBackFrom && requestTimeMs === null) return null;
+  return (
+    <span className="chip" title="Which path transcribed this clip, and the time AssemblyAI spent on it">
+      {fellBackFrom ? "AssemblyAI · backup path" : "AssemblyAI"}
+      {requestTimeMs === null ? "" : ` · ${Math.round(requestTimeMs)} ms`}
+    </span>
   );
 }
 

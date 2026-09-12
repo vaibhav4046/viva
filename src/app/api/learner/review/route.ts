@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
-import { resolveSubject } from "@/lib/courses/subject";
+import { resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { compoundMemory } from "@/lib/memory";
 import { checkLimit, limitKey } from "@/lib/limits";
 import { clientIp, withIdentityCookie } from "@/lib/http";
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
 
   const store = getStore();
   const param = req.nextUrl.searchParams.get("subjectId") ?? req.nextUrl.searchParams.get("subject") ?? req.nextUrl.searchParams.get("courseId");
-  const subject = await resolveSubject(store, identity.userId, param);
+  const subject = await resolveSubject(store, identity.userId, param).catch(subjectMissing);
+  if (subject instanceof Response) return done(subject);
   await store.seedCourse(identity.userId, subject.id);
   const [queue, concepts, allEvents] = await Promise.all([
     store.getReviewQueue(identity.userId),

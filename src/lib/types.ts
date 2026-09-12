@@ -13,6 +13,10 @@ export const LearningIntentSchema = z.enum([
   "review_request",
   "connection",
   "correction",
+  // Asking for a nudge is a thing the learner DID, not a thing they claimed.
+  // Without it, "give me a hint" compiled to a note and was filed against a
+  // passage as though it were a statement about that passage.
+  "hint",
   "note",
 ]);
 export type LearningIntent = z.infer<typeof LearningIntentSchema>;

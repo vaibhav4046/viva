@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { Mic } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -8,7 +8,8 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { SegmentCard } from "@/components/today/SegmentCard";
 import { InlineRecall } from "@/components/today/InlineRecall";
 import { WeekStrip } from "@/components/today/WeekStrip";
-import { shortDate, shortTimeUtc, type DailyPath, type WeeklyProjection } from "@/components/today/types";
+import { deriveToday, type DueItem, type LearnerSnapshot } from "@/components/today/snapshot";
+import { shortDate } from "@/components/today/types";
 import {
   CoursePicker,
   fetchCourses,
@@ -16,42 +17,26 @@ import {
   writeStoredCourse,
   type CourseMeta,
 } from "@/components/course/CoursePicker";
-import type { ConceptMastery, LearningEvent } from "@/lib/types";
-
-type LearnerData = {
-  mastery: Record<string, ConceptMastery>;
-  events: LearningEvent[];
-  concepts: { id: string; name: string }[];
-  priors: Record<string, number>;
-};
-
-type ReviewItem = {
-  conceptId: string;
-  conceptName: string;
-  dueAt: string;
-  priority: number;
-  reason: string;
-};
-
-type ReviewData = { queue: ReviewItem[]; compound: string[] };
-
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url} failed`);
-  return (await res.json()) as T;
-}
 
 /**
- * /today — the daily 10-minute path. Path comes from GET /api/learner/path
- * (deterministic, own data only); mastery + review come from the existing
- * learner APIs. Every fetch has a loading and an error state; an inline
- * answer is only reflected after the server returns 200.
+ * /today — the daily 10-minute path.
+ *
+ * ONE fetch. GET /api/learner returns this student's mastery, their recent
+ * events and the subject's concepts; every section on the screen is folded out
+ * of that single object in src/components/today/snapshot.ts, using the same
+ * planner the routes use. Four calls used to produce four answers that argued
+ * with each other on one screen — see the note in snapshot.ts.
+ *
+ * Nothing below the path renders until the snapshot lands, so the page only
+ * ever grows downward. It used to paint a 329 px block of loading states and
+ * then collapse it to zero when the fetch came back thin, which is 0.26 of
+ * layout shift under a thumb on a phone.
  */
+
+type LearnerResponse = LearnerSnapshot;
+
 export default function TodayPage() {
-  const [path, setPath] = useState<DailyPath | null>(null);
-  const [learner, setLearner] = useState<LearnerData | null>(null);
-  const [review, setReview] = useState<ReviewData | null>(null);
-  const [week, setWeek] = useState<WeeklyProjection | null>(null);
+  const [snapshot, setSnapshot] = useState<LearnerResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courses, setCourses] = useState<CourseMeta[]>([]);
@@ -69,46 +54,33 @@ export default function TodayPage() {
 
   const scope = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
 
+  const fetchSnapshot = useCallback(async (): Promise<LearnerResponse> => {
+    const res = await fetch(`/api/learner${scope}`);
+    if (!res.ok) throw new Error("learner fetch failed");
+    return (await res.json()) as LearnerResponse;
+  }, [scope]);
+
   const load = useCallback(async () => {
     if (courseId === undefined) return;
     setLoading(true);
     setError(null);
-    const [p, l, r, w] = await Promise.allSettled([
-      getJson<DailyPath>(`/api/learner/path${scope}`),
-      getJson<LearnerData>(`/api/learner${scope}`),
-      getJson<ReviewData>("/api/learner/review"),
-      getJson<WeeklyProjection>(`/api/learner/week${scope}`),
-    ]);
-    if (p.status === "fulfilled") setPath(p.value);
-    if (l.status === "fulfilled") setLearner(l.value);
-    if (r.status === "fulfilled") setReview(r.value);
-    if (w.status === "fulfilled") setWeek(w.value);
-    const failed: string[] = [];
-    if (p.status === "rejected") failed.push("your 10-minute path");
-    if (l.status === "rejected") failed.push("your mastery estimate");
-    if (r.status === "rejected") failed.push("the review queue");
-    if (w.status === "rejected") failed.push("your week projection");
-    if (failed.length > 0) {
-      setError(`Couldn't load ${failed.join(" and ")}. The server may be starting up — nothing was lost.`);
+    try {
+      setSnapshot(await fetchSnapshot());
+    } catch {
+      setError("Couldn't load your week. The server may be starting up — nothing was lost.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId, scope]);
+  }, [courseId, fetchSnapshot]);
 
   /** After a 200 from an inline answer, refresh quietly — never a spinner. */
   const quietRefresh = useCallback(async () => {
-    const [p, l, r, w] = await Promise.allSettled([
-      getJson<DailyPath>(`/api/learner/path${scope}`),
-      getJson<LearnerData>(`/api/learner${scope}`),
-      getJson<ReviewData>("/api/learner/review"),
-      getJson<WeeklyProjection>(`/api/learner/week${scope}`),
-    ]);
-    if (p.status === "fulfilled") setPath(p.value);
-    if (l.status === "fulfilled") setLearner(l.value);
-    if (r.status === "fulfilled") setReview(r.value);
-    if (w.status === "fulfilled") setWeek(w.value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope]);
+    try {
+      setSnapshot(await fetchSnapshot());
+    } catch {
+      /* the answer is already recorded; the next load will pick it up */
+    }
+  }, [fetchSnapshot]);
 
   useEffect(() => {
     void load();
@@ -129,38 +101,7 @@ export default function TodayPage() {
     } catch { /* no window (prerender) */ }
   }, []);
 
-  const nameOf = useCallback(
-    (id: string) => learner?.concepts.find((c) => c.id === id)?.name ?? id,
-    [learner]
-  );
-
-  const queue = review?.queue ?? [];
-  const thinHistory = learner ? learner.events.length <= 1 : false;
-
-  const miscConcept = learner
-    ? Object.values(learner.mastery)
-        .filter((m) => m.misconceptionCount > 0)
-        .sort(
-          (a, b) =>
-            b.misconceptionCount - a.misconceptionCount ||
-            b.reviewPriority - a.reviewPriority ||
-            a.conceptId.localeCompare(b.conceptId)
-        )[0] ?? null
-    : null;
-  const compound = review?.compound ?? [];
-  const recurringStatement = compound.find((s) => /confus/i.test(s)) ?? null;
-
-  const improved = learner
-    ? Object.values(learner.mastery)
-        .filter((m) => m.lastSuccessfulRecallAt)
-        .sort(
-          (a, b) =>
-            (b.lastSuccessfulRecallAt ?? "").localeCompare(a.lastSuccessfulRecallAt ?? "") ||
-            a.conceptId.localeCompare(b.conceptId)
-        )[0] ?? null
-    : null;
-
-  const totalMinutes = path ? path.path.reduce((n, s) => n + s.minutes, 0) : 0;
+  const view = useMemo(() => (snapshot ? deriveToday(snapshot) : null), [snapshot]);
 
   /*
    * One recall open at a time. Each open panel mounts a mic, and a mic owns
@@ -179,10 +120,20 @@ export default function TodayPage() {
         <PageHeader
                     title="Today"
           description="Ten minutes, built from what you actually said: what you got wrong first, then what is weakest, then one thing to prove."
+          /*
+           * The picker's slot is 44 px before the subject list lands, not zero.
+           * It was the last shift left on this screen: the header grew when the
+           * courses resolved and pushed the whole path section down 56 px.
+           * Same reservation /study already makes.
+           */
           actions={
-            courses.length > 0 ? (
-              <CoursePicker courses={courses} value={courseId ?? ""} onChange={changeCourse} allOption label="Subject" />
-            ) : undefined
+            <div className="flex min-h-11 min-w-0 items-center">
+              {courses.length > 0 ? (
+                <CoursePicker courses={courses} value={courseId ?? ""} onChange={changeCourse} allOption label="Subject" />
+              ) : (
+                <span className="skeleton h-9 w-44" aria-hidden />
+              )}
+            </div>
           }
         />
 
@@ -197,36 +148,47 @@ export default function TodayPage() {
             <h2 id="path-heading" className="heading text-xl">
               Your 10-minute path
             </h2>
-            {path ? (
+            {view ? (
+              // The server clock is not the student's clock. "built 18:56 UTC"
+              // on a Liverpool morning is a log line, not a sentence.
               <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-                {totalMinutes} min · built {shortTimeUtc(path.generatedAt)}
+                {view.minutes} min · updated just now
               </span>
             ) : null}
           </div>
 
-          {path ? (
+          {view && view.path.length > 0 ? (
             <div className="mt-3 flex items-center gap-3">
               <div
                 className="meter flex-1"
                 role="meter"
                 aria-valuemin={0}
                 aria-valuemax={10}
-                aria-valuenow={Math.min(10, totalMinutes)}
+                aria-valuenow={Math.min(10, view.minutes)}
                 aria-label="Minutes planned for today"
               >
-                <span style={{ transform: `scaleX(${Math.min(1, totalMinutes / 10)})` }} />
+                <span style={{ transform: `scaleX(${Math.min(1, view.minutes / 10)})` }} />
               </div>
               <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
-                {totalMinutes} of 10 min planned
+                {view.minutes} of 10 min planned
               </span>
             </div>
           ) : null}
 
-          {loading && !path ? (
+          {!view ? (
             <div className="mt-4">
-              <LoadingBlock label="Composing today's path from your own events…" lines={4} />
+              {loading ? (
+                <LoadingBlock label="Composing today's path from your own events…" lines={4} />
+              ) : (
+                <div
+                  className="rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
+                  style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
+                >
+                  The path couldn&apos;t be built right now. Use retry above — your history is intact.
+                </div>
+              )}
             </div>
-          ) : path && path.path.length === 0 ? (
+          ) : view.path.length === 0 ? (
             <div
               className="mt-4 rounded-xl border border-dashed px-5 py-6"
               style={{ borderColor: "var(--color-hairline)" }}
@@ -234,14 +196,16 @@ export default function TodayPage() {
               <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
                 Nothing yet. Say something in Study and tomorrow&apos;s ten minutes will be waiting here.
               </p>
-              <Link href="/study" className="btn-lime mt-4">
+              {/* One shape for "Start talking" everywhere: the paper pill the
+                  landing hero uses. Lime belongs to the mic. */}
+              <Link href="/study" className="btn-primary mt-4">
                 <Mic size={16} aria-hidden />
                 Start talking
               </Link>
             </div>
-          ) : path ? (
+          ) : (
             <ol className="mt-4 space-y-3">
-              {path.path.map((segment, i) => (
+              {view.path.map((segment, i) => (
                 <li key={`${segment.kind}-${segment.conceptId ?? "summary"}`}>
                   <SegmentCard
                     index={i + 1}
@@ -254,133 +218,117 @@ export default function TodayPage() {
                 </li>
               ))}
             </ol>
-          ) : (
-            <div
-              className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
-              style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
-            >
-              The path couldn&apos;t be built right now. Use retry above — your history is intact.
-            </div>
           )}
         </section>
 
-        {week ? <WeekStrip days={week.days} /> : null}
+        {/*
+          * Everything below the path waits for the snapshot. A cold account has
+          * nothing to say here, and five dashed boxes saying so in five
+          * different ways is what made the screen read as placeholder.
+          */}
+        {view && view.hasHistory ? (
+          <>
+            <WeekStrip days={view.week} />
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-2">
-          <section aria-labelledby="due-heading">
-            <h2 id="due-heading" className="heading text-xl">
-              Due for review
-            </h2>
-            {loading && !review ? (
-              <div className="mt-4">
-                <LoadingBlock label="Loading your review queue…" lines={3} />
-              </div>
-            ) : queue.length > 0 ? (
-              <ul className="mt-4 space-y-3">
-                {queue.map((item) => (
-                  <DueRow
-                    key={item.conceptId}
-                    item={item}
-                    courseId={courseId ?? undefined}
-                    open={openPanel === `due-${item.conceptId}`}
-                    onToggle={() => togglePanel(`due-${item.conceptId}`)}
-                    onAnswered={() => void quietRefresh()}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p
-                className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
-                style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
-              >
-                {thinHistory ? (
-                  <>
-                    Nothing due — say something in{" "}
-                    <Link href="/study" className="underline underline-offset-4" style={{ color: "var(--color-band-getting)" }}>
-                      Study
-                    </Link>{" "}
-                    and it will show up here.
-                  </>
+            <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-2">
+              <section aria-labelledby="due-heading">
+                <h2 id="due-heading" className="heading text-xl">
+                  Due for review
+                </h2>
+                {view.due.length > 0 ? (
+                  <ul className="mt-4 space-y-3">
+                    {view.due.map((item) => (
+                      <DueRow
+                        key={item.conceptId}
+                        item={item}
+                        courseId={courseId ?? undefined}
+                        open={openPanel === `due-${item.conceptId}`}
+                        onToggle={() => togglePanel(`due-${item.conceptId}`)}
+                        onAnswered={() => void quietRefresh()}
+                      />
+                    ))}
+                  </ul>
                 ) : (
-                  "Nothing due right now — review priority updates as you learn."
-                )}
-              </p>
-            )}
-          </section>
-
-          <div className="space-y-8">
-            <section aria-labelledby="recurring-heading">
-              <h2 id="recurring-heading" className="heading text-xl">
-                What keeps tripping you up
-              </h2>
-              {loading && !review && !learner ? (
-                <div className="mt-4">
-                  <LoadingBlock label="Reading your history…" lines={2} />
-                </div>
-              ) : recurringStatement ? (
-                <div className="surface-card mt-4 p-4">
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                    {recurringStatement}
-                  </p>
-                  {miscConcept ? (
-                    <Link
-                      href={`/map?concept=${encodeURIComponent(miscConcept.conceptId)}`}
-                      className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                      style={{ color: "var(--color-band-getting)" }}
-                    >
-                      See it on your map →
-                    </Link>
-                  ) : null}
-                </div>
-              ) : miscConcept ? (
-                <div className="surface-card mt-4 p-4">
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                    <span className="font-semibold" style={{ color: "var(--color-band-mixed)" }}>
-                      Mixed up ·{" "}
-                    </span>
-                    {nameOf(miscConcept.conceptId)} has {miscConcept.misconceptionCount} incorrect answer
-                    {miscConcept.misconceptionCount === 1 ? "" : "s"} so far.
-                  </p>
-                  <Link
-                    href={`/map?concept=${encodeURIComponent(miscConcept.conceptId)}`}
-                    className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                    style={{ color: "var(--color-band-getting)" }}
+                  <p
+                    className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
+                    style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
                   >
-                    See it on your map →
-                  </Link>
-                </div>
-              ) : (
-                <p
-                  className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
-                  style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
-                >
-                  Nothing is tripping you up yet.
-                </p>
-              )}
-            </section>
-
-            <section aria-labelledby="improved-heading">
-              <h2 id="improved-heading" className="heading text-xl">
-                Recently improved
-              </h2>
-              {improved && improved.lastSuccessfulRecallAt ? (
-                <div className="surface-card mt-4 p-4">
-                  <p className="heading text-base">{nameOf(improved.conceptId)}</p>
-                  <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                    You got it right on {shortDate(improved.lastSuccessfulRecallAt)} — {improved.successfulRecallCount} time{improved.successfulRecallCount === 1 ? "" : "s"} in total.
+                    Nothing due right now — everything you have said is in today&apos;s ten minutes.
                   </p>
-                </div>
-              ) : (
-                <p
-                  className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
-                  style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
-                >
-                  Nothing here yet — your first right answer shows up here.
-                </p>
-              )}
-            </section>
-          </div>
-        </div>
+                )}
+              </section>
+
+              <div className="space-y-8">
+                <section aria-labelledby="recurring-heading">
+                  <h2 id="recurring-heading" className="heading text-xl">
+                    What keeps tripping you up
+                  </h2>
+                  {view.recurring ? (
+                    <div className="surface-card mt-4 p-4">
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                        {view.recurring}
+                      </p>
+                      {view.mixedUp ? (
+                        <Link
+                          href={`/map?concept=${encodeURIComponent(view.mixedUp.conceptId)}`}
+                          className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+                          style={{ color: "var(--color-band-getting)" }}
+                        >
+                          See it on your map →
+                        </Link>
+                      ) : null}
+                    </div>
+                  ) : view.mixedUp ? (
+                    <div className="surface-card mt-4 p-4">
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                        <span className="font-semibold" style={{ color: "var(--color-band-mixed)" }}>
+                          Mixed up ·{" "}
+                        </span>
+                        {view.nameOf(view.mixedUp.conceptId)} has {view.mixedUp.misconceptionCount} incorrect answer
+                        {view.mixedUp.misconceptionCount === 1 ? "" : "s"} so far.
+                      </p>
+                      <Link
+                        href={`/map?concept=${encodeURIComponent(view.mixedUp.conceptId)}`}
+                        className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+                        style={{ color: "var(--color-band-getting)" }}
+                      >
+                        See it on your map →
+                      </Link>
+                    </div>
+                  ) : (
+                    <p
+                      className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
+                      style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
+                    >
+                      Nothing is tripping you up yet.
+                    </p>
+                  )}
+                </section>
+
+                <section aria-labelledby="improved-heading">
+                  <h2 id="improved-heading" className="heading text-xl">
+                    Recently improved
+                  </h2>
+                  {view.improved && view.improved.lastSuccessfulRecallAt ? (
+                    <div className="surface-card mt-4 p-4">
+                      <p className="heading text-base">{view.nameOf(view.improved.conceptId)}</p>
+                      <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                        You got it right on {shortDate(view.improved.lastSuccessfulRecallAt)} — {view.improved.successfulRecallCount} time{view.improved.successfulRecallCount === 1 ? "" : "s"} in total.
+                      </p>
+                    </div>
+                  ) : (
+                    <p
+                      className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
+                      style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
+                    >
+                      Nothing here yet — your first right answer shows up here.
+                    </p>
+                  )}
+                </section>
+              </div>
+            </div>
+          </>
+        ) : null}
     </>
   );
 }
@@ -392,7 +340,7 @@ function DueRow({
   onToggle,
   onAnswered,
 }: {
-  item: ReviewItem;
+  item: DueItem;
   courseId?: string;
   open: boolean;
   onToggle: () => void;

@@ -249,8 +249,12 @@ export default function ExamPage() {
                   aria-selected={mode === m}
                   aria-controls="exam-panel"
                   onClick={() => { setMode(m); setFailure(null); }}
-                  className={mode === m ? "btn-ghost !px-4 !py-1.5 text-sm font-semibold" : "btn-ghost !border-transparent !px-4 !py-1.5 text-sm"}
-                  style={mode === m ? { background: "var(--color-panel)", color: "var(--color-paper)" } : undefined}
+                  className={mode === m ? "btn-ghost !px-4 !py-1.5 text-sm" : "btn-ghost !border-transparent !px-4 !py-1.5 text-sm"}
+                  /* fontWeight is inline, not `font-semibold`: globals.css is
+                     authored outside Tailwind's layers, so .btn-ghost's
+                     font-weight:500 beat the utility and the weight never
+                     rendered. An inline style beats the unlayered class. */
+                  style={mode === m ? { background: "var(--color-panel)", color: "var(--color-paper)", fontWeight: 600 } : undefined}
                 >
                   {m === "exam" ? "Answer questions" : "Teach VIVA"}
                 </button>
@@ -280,7 +284,7 @@ export default function ExamPage() {
         >
           {mode === "exam" ? (
             !q ? (
-              <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="mt-6 grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
                 <section className="surface-card p-6">
                   <h2 className="heading text-xl">Answer under exam conditions</h2>
                   <ul className="mt-4 space-y-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
@@ -317,7 +321,7 @@ export default function ExamPage() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="mt-4 grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-4">
                   <QuizQuestion
                     large
@@ -357,7 +361,7 @@ export default function ExamPage() {
               </div>
             )
           ) : !teach ? (
-            <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="mt-6 grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
               <section className="surface-card p-6">
                 <h2 className="heading text-xl">Teach it back</h2>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
@@ -382,7 +386,7 @@ export default function ExamPage() {
               <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Opening your map…" lines={5} /> : null}</div>
             </div>
           ) : (
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="mt-4 grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-4">
                 <section className="surface-card p-6" aria-live="polite">
                   <div className="flex flex-wrap items-center justify-between gap-2">

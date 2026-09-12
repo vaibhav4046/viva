@@ -88,6 +88,10 @@ export function compileTranscript(
   } else if (has(/remember this|remember it|don't forget|save this|important|exam important|might be on the exam|mark this/)) {
     intent = has(/exam/) ? "exam_marker" : "remember";
     requestedAction = "store"; importance = 0.9; confusion = 0.15; confidence = 0.9;
+  } else if (has(/\b(hint|clue|nudge)\b|i'?m stuck|im stuck|\bstuck\b|give me a start|help me out|i give up|no idea where to start/)) {
+    // A process turn, not a position: it must not be filed against a passage
+    // and it must not cost the learner anything for admitting they are stuck.
+    intent = "hint"; requestedAction = "none"; importance = 0.5; confusion = 0.7; confidence = 0.85;
   } else if (has(/come back|tomorrow|later|review|revise|spaced/)) {
     intent = "review_request"; requestedAction = "review"; importance = 0.75; confusion = 0.2; confidence = 0.85;
   } else if (has(/compare|versus|vs\.? |difference between|different from|similar to/)) {

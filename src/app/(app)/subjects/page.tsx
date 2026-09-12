@@ -116,6 +116,8 @@ export default function SubjectsPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let subject: Built | null = null;
+      let failed = false;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -127,10 +129,18 @@ export default function SubjectsPage() {
           let msg: { line?: string; subject?: Built; error?: { message: string } };
           try { msg = JSON.parse(part); } catch { continue; }
           if (msg.line) setLines((prev) => [...prev, msg.line as string]);
-          if (msg.error) setError(msg.error.message);
-          if (msg.subject) setBuilt(msg.subject);
+          if (msg.error) { failed = true; setError(msg.error.message); }
+          if (msg.subject) { subject = msg.subject; setBuilt(msg.subject); }
         }
       }
+      /*
+       * There is exactly one thing a student wants after pressing Build my
+       * subject, and it is not a card with another button on it. Leaving them
+       * on the form with their own 862 words still in the box reads like the
+       * build did not work. The result card still renders for the beat before
+       * the route changes, and a build that failed stays put so it can say so.
+       */
+      if (subject && !failed) open(subject.id);
     } catch {
       setError("The connection dropped while VIVA was reading. Nothing was saved — try again.");
     } finally {
@@ -164,7 +174,7 @@ export default function SubjectsPage() {
         </div>
       ) : null}
 
-      <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+      <ul className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
         {(subjects ?? []).map((s) => {
           const line = builtByLine(s.builtBy);
           return (
@@ -184,7 +194,15 @@ export default function SubjectsPage() {
                     {line}
                   </span>
                 ) : null}
-                <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-sm" style={{ color: "var(--color-cognition)" }}>
+                {/*
+                  * The same words in the same product get the same shape: the
+                  * paper pill the result card below already uses. A lime text
+                  * link here was the third of four costumes for "Start talking"
+                  * and two of them were visible on this screen at once.
+                  * `btn-primary` on a span, not a button — the whole card is
+                  * already the control.
+                  */}
+                <span className="btn-primary mt-auto">
                   Start talking <ArrowRight size={15} aria-hidden />
                 </span>
               </button>
@@ -214,7 +232,22 @@ export default function SubjectsPage() {
               aria-selected={tab === key}
               onClick={() => { setTab(key); setError(null); }}
               className="chip chip-link min-h-11 px-4"
-              style={tab === key ? { borderColor: "var(--color-cognition)", color: "var(--color-paper)" } : undefined}
+              /*
+               * Same selected state as /exam's Answer questions / Teach VIVA
+               * toggle: graphite fill, hairline border, weight 600. A lime
+               * border here put two lime objects in one card, 400 px apart,
+               * and one of them is the primary action.
+               */
+              style={
+                tab === key
+                  ? {
+                      background: "var(--color-panel)",
+                      borderColor: "var(--color-hairline)",
+                      color: "var(--color-paper)",
+                      fontWeight: 600,
+                    }
+                  : { borderColor: "transparent" }
+              }
             >
               <Icon size={13} aria-hidden /> {label}
             </button>

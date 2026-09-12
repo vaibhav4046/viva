@@ -18,7 +18,8 @@ import { Trace, rid, serverLog } from "@/lib/observe";
 /**
  * POST /api/voice/transcribe — the hold-to-talk path.
  *
- * multipart/form-data in: `audio` (WAV or raw PCM), `subjectId`, `mode`
+ * multipart/form-data in: `audio` (16-bit PCM WAV — raw `audio/pcm` is refused,
+ * see the note at the top of src/lib/audio/wav.ts), `subjectId`, `mode`
  * ("study" | "verbatim"), `languageCodes`, `context`.
  *
  * Dictation is the primary; Sync is the fallback on anything that looks like
@@ -67,7 +68,10 @@ export async function subjectVoiceConfig(
   userId: string,
   subjectId: string | null
 ): Promise<{ keyterms: string[]; languageCodes: string[] }> {
-  const subject = await resolveSubject(getStore(), userId, subjectId);
+  // An id that does not resolve must not bias recognition towards a different
+  // syllabus, and must not 500 a dictation call either: no bias, no borrowing.
+  const subject = await resolveSubject(getStore(), userId, subjectId).catch(() => null);
+  if (!subject) return { keyterms: [], languageCodes: ["en"] };
   const seen = new Set<string>();
   const keyterms: string[] = [];
   for (const term of subject.keyterms) {
@@ -203,6 +207,22 @@ export async function POST(req: Request): Promise<Response> {
     // always has something to show in both tabs.
     const verbatim = result.text;
     const clean = wantsClean ? (result.clean ?? verbatim) : verbatim;
+
+    // A clip with no speech in it is a normal outcome — a muted headset, the
+    // wrong input device — and the provider answers 200 with "". Returned as a
+    // success it became a review box the learner could not send and could not
+    // clear, promising to send on its own forever. It is a coded failure, so
+    // the mic says one true sentence and goes back to idle.
+    if (!verbatim.trim()) {
+      serverLog("voice.no_speech", trace.id, { audioMs: result.audioDurationMs, mode: result.mode });
+      return fail("NO_SPEECH", 422, false);
+    }
+
+    // A clip with no speech in it is a normal outcome — a muted headset, the
+    // wrong input device — and the provider answers 200 with "". Returned as a
+    // success it became a review box the learner could not send and could not
+    // clear, promising to send on its own forever. It is a coded failure, so
+    // the mic says one true sentence and goes back to idle.
 
     serverLog("voice.completed", trace.id, {
       mode: result.mode, fellBackFrom: fellBackFrom ?? "", audioMs: result.audioDurationMs,

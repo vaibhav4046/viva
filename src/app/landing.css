@@ -181,8 +181,15 @@
   color: var(--color-ash);
 }
 
+/*
+ * Phone tracking. -0.075em at the 34 px floor is -2.55 px a gap, and a word
+ * space in this face is about 0.25em — so a third of it disappeared and
+ * "VIVA REMEMBERS." read as one word. Display type still wants to be tight;
+ * -0.03em (-1.02 px at 34 px) is tight without eating the space between the
+ * product's own name and the next word.
+ */
 @media (max-width: 480px) {
-  .vv-headline span { letter-spacing: -0.075em; line-height: 1.06; }
+  .vv-headline span { letter-spacing: -0.03em; line-height: 1.06; }
 }
 
 @media (prefers-reduced-motion: reduce) {

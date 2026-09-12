@@ -382,7 +382,7 @@ export default function StudyPage() {
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,34%)_minmax(0,1fr)_320px]">
+      <div className="mt-5 grid gap-5 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,34%)_minmax(0,1fr)_320px]">
         {/* Source: last on a phone, first on a wide screen. */}
         <div className="order-3 min-w-0 xl:order-1 xl:col-start-1 xl:row-start-1">
           <SourceReader highlightIds={tutor?.evidenceIds ?? []} courseId={courseId ?? undefined} onChunks={setPassageIds} />

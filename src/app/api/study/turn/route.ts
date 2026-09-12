@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { compileTranscript } from "@/lib/compiler";
-import { resolveSubject } from "@/lib/courses/subject";
+import { resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { getStore, learnerDNA } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
   const asrSession = input.asr?.sessionId ?? input.transcriptionSessionId ?? null;
 
   const store = getStore();
-  const course = await resolveSubject(store, identity.userId, input.subjectId ?? input.courseId);
+  const course = await resolveSubject(store, identity.userId, input.subjectId ?? input.courseId).catch(subjectMissing);
+  if (course instanceof Response) return done(course);
   await store.seedCourse(identity.userId, course.id);
 
   trace.start("plan");
@@ -165,6 +166,15 @@ export async function POST(req: NextRequest) {
     assessment = graded.verdict;
     misconception = graded.possibleMisconception;
     source = graded.gradedBy === "model" ? "model" : "heuristic";
+  } else if (plan.intent === "hint" && !plan.openQuestion) {
+    // Stuck, with nothing open to be stuck on. Offer the way in rather than
+    // filing the request as a statement about whatever retrieval returned.
+    text = "There is nothing open to hint at yet. Say \"quiz me\" and I will ask you something — then a hint has something to point at.";
+    question = null;
+    strategy = "probe";
+    citations = [];
+    citedIds = [];
+    source = "heuristic";
   } else if (plan.intent === "hint" && plan.openQuestion) {
     // The next-smallest nudge, and on a second ask the line it came from.
     // Never "Noted." — a stuck student saying so is the whole product working.
@@ -209,6 +219,10 @@ export async function POST(req: NextRequest) {
       citations = [];
       citedIds = [];
       opensQuestion = claimCheck.openQuestion;
+      // Not checked is not wrong: nothing was learned about this concept, so
+      // nothing may move. A correct sentence VIVA could not grade used to cost
+      // the learner 0.02 for the privilege of saying it.
+      masterySignal = "flat";
       source = "heuristic";
     } else {
       const turn = await tutorReply({
@@ -220,7 +234,10 @@ export async function POST(req: NextRequest) {
       strategy = turn.reply.strategy;
       citedIds = turn.citedIds;
       citations = turn.reply.citations;
-      masterySignal = turn.reply.masterySignal;
+      // Same rule for the claim the checks did not catch: a heuristic reply
+      // emits no direction, and "no direction" must mean "no movement" rather
+      // than a quiet penalty for a sentence nobody graded.
+      masterySignal = turn.reply.masterySignal ?? "flat";
       misconception = turn.reply.misconception;
       source = turn.source;
       latencyMs = turn.latencyMs;
@@ -255,6 +272,17 @@ export async function POST(req: NextRequest) {
   const known = new Set(userChunks.map((c) => c.id));
   const v = verifyResponse(text, citedIds, known);
   if (!v.pass) text = v.repaired;
+
+  /*
+   * The note's source line follows the passage the REPLY used, not the top
+   * retrieval hit. Those are often different: a correction quoted p.11 and
+   * cited Passage 5 while the note filed underneath it said p.5. Notes outlive
+   * everything else on the screen, so a note pointing at a page the correcting
+   * sentence is not on is worse than a note with no page at all — which is
+   * also why a turn that cited nothing (a hint, a process turn) gets null.
+   */
+  const citedChunk = citedIds.map((id) => chunks.find((c) => c.id === id)).find(Boolean) ?? null;
+  const citedLocator = citedChunk ? { section: citedChunk.locator.section, page: citedChunk.locator.page } : null;
   trace.end("tutor");
 
   const sessionId = `sess_${trace.id}`;
@@ -279,7 +307,7 @@ export async function POST(req: NextRequest) {
     evidenceIds: citedIds,
     requestedAction,
     status: "responded",
-    sourceLocator: chunks[0] ? { section: chunks[0].locator.section, page: chunks[0].locator.page } : null,
+    sourceLocator: citedLocator,
     assessment,
     masterySignal,
     hint: (askedQuestion ?? plan.openQuestion)?.hint ?? null,

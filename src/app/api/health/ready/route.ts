@@ -1,5 +1,5 @@
 import { dbStatus } from "@/lib/db/db";
-import { storeDegradation } from "@/lib/store";
+import { storeDegradation, storeDurability } from "@/lib/store";
 import { providerStatus } from "@/lib/ai/provider";
 import { resolveTranscriptionMode } from "@/lib/assemblyai";
 
@@ -38,12 +38,15 @@ export async function GET() {
    * Collapsing these is what produced the original bug: a probe that reported
    * a healthy store while every write path returned 500.
    */
-  const degraded = store.degraded || !database.durable;
+  // One answer to "will a write survive", shared with /api/subjects/create so
+  // the two screens cannot disagree about it.
+  const { durable } = await storeDurability();
+  const degraded = !durable;
 
   return Response.json(
     {
       ready: true,
-      durable: database.durable && !store.degraded,
+      durable,
       degraded,
       transcription,
       provider,

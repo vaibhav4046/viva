@@ -37,6 +37,7 @@ const INTENT_MAP: Record<LearningIntent, TurnIntent> = {
   remember: "note",
   exam_marker: "note",
   connection: "note",
+  hint: "hint",
   note: "note",
 };
 
@@ -51,9 +52,11 @@ export const LEARNING_INTENT: Record<TurnIntent, LearningIntent> = {
   // path that moves mastery, and why a spoken answer must never land as a note.
   answer: "claim",
   // Asking for a nudge is not a wrong answer and must not cost anything: the
-  // reducer leaves `note` alone. A product built on students admitting they
-  // are stuck cannot charge them for saying so.
-  hint: "note",
+  // reducer has no case for `hint`, so it falls through unchanged. A product
+  // built on students admitting they are stuck cannot charge them for saying
+  // so — and the note log labels it as the process turn it is rather than
+  // filing it against a passage as a claim.
+  hint: "hint",
   note: "note",
 };
 
@@ -130,9 +133,24 @@ export function readHistory(events: LearningEvent[], course: Course): { memory: 
   return { memory, openQuestion: open.question, open };
 }
 
-const DECLARATIVE = /\b(is|are|was|were|means|happens|works|does|do|has|have|equals|when|because)\b/i;
-/** Anything that makes the sentence a request rather than a position. */
-const ASKING = /\?|\b(explain|eli5|clarify|what|why|how|who|which|tell me|help me|can you|quiz|test me|difference between|versus)\b/i;
+/**
+ * A verb whitelist used to stand here (is|are|means|…), which meant a sentence
+ * built on any other verb — "multi-head attention USES one head per layer" —
+ * never reached the claim checker and was filed as a note instead. The general
+ * rule runs the other way: a full sentence that is not asking for something is
+ * a position the learner is taking, whatever verb it happens to use.
+ */
+const DECLARATIVE = /[a-z]/i;
+/**
+ * Anything that makes the sentence a request rather than a position.
+ *
+ * The bare question words are anchored to the start. Loose, they matched
+ * mid-sentence — "attention weights already encode WHICH words are important"
+ * read as a question, so the subject's own listed misconception about order vs
+ * importance was filed unchecked. A request phrase can appear anywhere; a
+ * question word in the middle of a statement is just English.
+ */
+const ASKING = /\?|\b(explain|eli5|clarify|tell me|help me|can you|quiz|test me|difference between|versus)\b|^\s*\W*(what|why|how|who|which|when|where|is|are|does|do|can|could|should)\b/i;
 
 /**
  * First pass, no model needed. Two rules earn their keep here:
@@ -147,7 +165,6 @@ export function planTurn(draft: CompileDraft, history: TurnMemory[], openQuestio
   // every token compares itself to every other" reads as a request to compare
   // on keywords alone; it is the learner telling you what they believe.
   const declarative =
-    draft.conceptIds.length > 0 &&
     DECLARATIVE.test(draft.cleanedTranscript) &&
     !ASKING.test(draft.cleanedTranscript) &&
     draft.cleanedTranscript.split(/\s+/).length >= 5;
@@ -218,7 +235,7 @@ function historyBlock(history: TurnMemory[]): string {
 
 const TUTOR_SYSTEM = [
   'You are VIVA, a Socratic study partner. Reply ONLY as the JSON schema.',
-  "Rules: at most 90 words across fields; confirm what is right in one line; name what is wrong or missing in one line and cite the passage id that shows it;",
+  "Rules: at most 90 words across fields; confirm only what a given passage actually shows, and if none of them settles it say you could not check it rather than implying the source agrees; name what is wrong or missing in one line and cite the passage id that shows it;",
   "ask exactly one question that makes the learner do the thinking (never answer it yourself); plain English, no course codes, no praise words like \"great job\";",
   "if the passages do not support a correction, set wrong=null and ask a question that would reveal the gap. Never invent citations: every chunkId must be one of the ids given.",
 ].join(" ");

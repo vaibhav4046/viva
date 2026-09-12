@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getStore, learnerDNA } from "@/lib/store";
-import { listSubjectsFor, resolveSubject } from "@/lib/courses/subject";
+import { listSubjectsFor, resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
 
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     await store.deleteUserData(identity.userId);
   }
   const courseParam = req.nextUrl.searchParams.get("subject") ?? req.nextUrl.searchParams.get("courseId");
-  const course = await resolveSubject(store, identity.userId, courseParam);
+  const course = await resolveSubject(store, identity.userId, courseParam).catch(subjectMissing);
+  if (course instanceof Response) return done(course);
   await store.seedCourse(identity.userId, course.id);
   const [allMastery, allEvents, concepts] = await Promise.all([
     store.getMastery(identity.userId),

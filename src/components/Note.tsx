@@ -49,7 +49,18 @@ export function Note({
   const reduced = useReducedMotion();
   const kind = KIND[event.intent] ?? KIND.note;
   const spoken = event.origin === "voice";
-  const where = event.sourceLocator
+  /*
+   * "Quiz me." and "Come back to this tomorrow." are instructions to the app,
+   * not claims about a passage — filing them under a page number sends the
+   * student back to a paragraph that has nothing to do with what they said. No
+   * source line is the honest answer for those.
+   *
+   * Keyed on intent, not requestedAction: a claim the tutor answers with a
+   * follow-up question comes back with requestedAction "quiz" too, and that
+   * note does belong to a passage.
+   */
+  const process = event.intent === "quiz_request" || event.intent === "review_request";
+  const where = event.sourceLocator && !process
     ? `${event.sourceLocator.section ?? ""}${event.sourceLocator.page ? ` · p.${event.sourceLocator.page}` : ""}`.trim()
     : "";
 

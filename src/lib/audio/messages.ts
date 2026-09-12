@@ -16,6 +16,10 @@ export const VOICE_MESSAGES: Record<string, string> = {
   NO_AUDIO: "No audio came through. Hold the mic and speak.",
   NETWORK_DOWN: "You look offline. Reconnect and hold the mic again, or type instead.",
   EMPTY_AUDIO: "No audio came through. Hold the mic and speak.",
+  // A clip that recorded silence: the commonest real failure (muted headset,
+  // wrong input device) and the one that used to park the learner in a review
+  // box that promised to send and never did.
+  NO_SPEECH: "I did not catch anything — hold the mic and try again, or type instead.",
   AUDIO_TOO_SHORT: "That was too short. Hold a little longer and speak.",
   AUDIO_TOO_LONG: "That was over two minutes. Say it in a shorter burst.",
   AUDIO_TOO_LARGE: "That clip was too big. Say it in a shorter burst.",

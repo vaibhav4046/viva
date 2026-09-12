@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/voice/transcribe/route";
+import { AssemblyAIProvider } from "@/lib/assemblyai";
 import { TARGET_RATE, toPcm16kMono, validateWavInput } from "@/lib/audio/wav";
 import { assemblyAIBreaker } from "@/lib/circuit";
 
@@ -191,5 +192,127 @@ describe("POST /api/voice/transcribe with a 48 kHz stereo clip", () => {
     const body = await res.json();
     expect(body.verbatim).toBe("attention needs positions");
     expect(body.audioMs).toBe(3000);
+  });
+});
+
+/**
+ * The other door.
+ *
+ * The WAV door was fixed and the same clip posted as `audio/pcm` still went
+ * through at six times its real length: raw PCM carries no format metadata, so
+ * accepting it meant believing the caller's content type about rate and channel
+ * count, and then declaring `sample_rate: 16000, channels: 1` upstream anyway.
+ * The judge's repro — ffmpeg -ar 48000 -ac 2 -f s16le, posted as audio/pcm —
+ * came back HTTP 200, audioMs 57330, transcript "". There is no way to verify a
+ * declaration that is not in the bytes, so the door is closed: WAV only.
+ */
+describe("the audio/pcm door", () => {
+  /** Exactly the judge's bytes: 9.55 s of 48 kHz stereo with the header cut off. */
+  const REAL_MS = 9555;
+  const raw = wav({ sampleRate: 48000, channels: 2, ms: REAL_MS }).subarray(44);
+
+  it("is what the bug looked like: those bytes read as 57 s under the declaration", () => {
+    // Not an assertion about our code — it is the arithmetic that made the
+    // failure silent and the bill six times too big. 9,555 ms of 48 kHz stereo
+    // is 1,834,560 bytes, which is 57,330 ms of 16 kHz mono.
+    expect(asDeclaredMs(raw.length)).toBe(57_330);
+    expect(asDeclaredMs(raw.length)).toBeCloseTo(REAL_MS * 6, -2);
+  });
+
+  it("the validator refuses audio/pcm instead of guessing 16 kHz mono", () => {
+    const info = validateWavInput(raw, "audio/pcm");
+    expect(info.ok).toBe(false);
+    if (info.ok) return;
+    expect(info.code).toBe("UNSUPPORTED_FORMAT");
+  });
+
+  it("the converter refuses it too, rather than handing the bytes back untouched", () => {
+    const out = toPcm16kMono(raw, "audio/pcm");
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("UNSUPPORTED_FORMAT");
+  });
+
+  it("neither function trusts a content type it has not verified", () => {
+    // A 16 kHz mono raw clip is refused as well: correct bytes behind an
+    // unverifiable declaration is still an unverifiable declaration.
+    for (const ct of ["audio/pcm", "audio/x-pcm", "application/octet-stream", "audio/webm", ""]) {
+      expect(validateWavInput(wav({ sampleRate: TARGET_RATE, channels: 1, ms: 1000 }).subarray(44), ct).ok, ct).toBe(false);
+      expect(toPcm16kMono(wav({ sampleRate: TARGET_RATE, channels: 1, ms: 1000 }), ct).ok, ct).toBe(false);
+    }
+  });
+
+  it("the endpoint spends nothing on it: 415 before a single upstream call", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      calls.push(String(url));
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const form = new FormData();
+    form.append("audio", new Blob([new Uint8Array(raw)], { type: "audio/pcm" }), "clip.raw");
+    form.append("subjectId", "course_transformers_w4");
+    const res = await POST(
+      new Request("http://localhost/api/voice/transcribe", {
+        method: "POST",
+        body: form,
+        headers: { "x-forwarded-for": "10.8.1.1" },
+      })
+    );
+
+    expect(calls).toHaveLength(0);
+    expect(res.status).toBe(415);
+    const body = await res.json();
+    expect(body.error.code).toBe("UNSUPPORTED_FORMAT");
+    expect(body).not.toHaveProperty("audioMs");
+    expect(body).not.toHaveProperty("verbatim");
+  });
+
+  it("the same recording as a WAV still transcribes, at its real length", async () => {
+    let audioBytes = 0;
+    let declared: Record<string, unknown> = {};
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      const body = init?.body as unknown as FormData;
+      declared = JSON.parse(await (body.get("config") as File).text()) as Record<string, unknown>;
+      audioBytes = (body.get("audio") as File).size;
+      return new Response(
+        JSON.stringify({ text: "attention needs positions", llm_response: null, llm_error: null, confidence: 0.99, audio_duration_ms: REAL_MS, session_id: "s" }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const form = new FormData();
+    form.append("audio", new Blob([new Uint8Array(wav({ sampleRate: 48000, channels: 2, ms: REAL_MS }))], { type: "audio/wav" }), "clip.wav");
+    form.append("subjectId", "course_transformers_w4");
+    const res = await POST(
+      new Request("http://localhost/api/voice/transcribe", {
+        method: "POST",
+        body: form,
+        headers: { "x-forwarded-for": "10.8.1.2" },
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).verbatim).toBe("attention needs positions");
+    expect(declared.sample_rate).toBe(TARGET_RATE);
+    expect(declared.channels).toBe(1);
+    expect(asDeclaredMs(audioBytes)).toBe(REAL_MS);
+    expect(audioBytes).not.toBe(raw.length);
+  });
+
+  it("the Sync fallback cannot re-send headerless bytes as a WAV either", async () => {
+    // Second order from the same finding: the fallback wraps req.audio in a Blob
+    // typed audio/wav, so a non-WAV reaching it is the same mislabelling one
+    // layer down. It refuses before the request is built.
+    const calls: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      calls.push(String(url));
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await expect(
+      new AssemblyAIProvider("sync").transcribe({ audio: raw, contentType: "audio/pcm" })
+    ).rejects.toMatchObject({ code: "UNSUPPORTED_FORMAT" });
+    expect(calls).toHaveLength(0);
   });
 });

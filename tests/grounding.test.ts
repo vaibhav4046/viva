@@ -45,4 +45,24 @@ describe("citations", () => {
     expect(v.pass).toBe(false);
     expect(v.repaired).not.toMatch(/p\.99/);
   });
+
+  /*
+   * Every other call to `verifyResponse` in this suite passed `[]`, so the loop
+   * that checks each cited id had never executed once — deleting its body left
+   * the suite green. These three cases run it in both directions.
+   */
+  it("rejects a citation that resolves to no stored passage", () => {
+    const v = verifyResponse("Attention averages the value vectors.", ["ch_not_real"], new Set(["ch_sa_1"]));
+    expect(v.pass).toBe(false);
+    expect(v.violations).toContain("unknown evidence id ch_not_real");
+  });
+  it("names every unknown id, not just the first", () => {
+    const v = verifyResponse("Attention averages the value vectors.", ["ch_nope_1", "ch_sa_1", "ch_nope_2"], new Set(["ch_sa_1"]));
+    expect(v.violations).toEqual(["unknown evidence id ch_nope_1", "unknown evidence id ch_nope_2"]);
+  });
+  it("passes a citation that does resolve", () => {
+    const v = verifyResponse("Attention averages the value vectors.", ["ch_sa_1"], new Set(["ch_sa_1"]));
+    expect(v.pass).toBe(true);
+    expect(v.violations).toEqual([]);
+  });
 });

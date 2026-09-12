@@ -4,6 +4,7 @@ import path from "path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { ZodType } from "zod";
 import { setReasoningProvider, type ReasoningProvider } from "@/lib/ai/provider";
+import { cleanTitle } from "@/lib/intake/build";
 import { resolveSubject } from "@/lib/courses/subject";
 import { chunkPages, CHUNK_CHARS } from "@/lib/intake/chunk";
 import { extractSubjectBody } from "@/lib/intake/extract";
@@ -269,5 +270,26 @@ describe("a saved subject behaves like any other", () => {
     } finally {
       await store.deleteUserData(user).catch(() => {});
     }
+  });
+});
+
+describe("a subject keeps the name the student gave it", () => {
+  it("keeps an em dash, an en dash and a colon", () => {
+    // Reproduced live: the allowlist had no dash, so a student's own subject
+    // renamed itself the moment they created it.
+    expect(cleanTitle("COMP319 Networks \u2014 TCP congestion control", "x"))
+      .toBe("COMP319 Networks \u2014 TCP congestion control");
+    expect(cleanTitle("Stats 2: Bayes \u2013 priors & posteriors", "x"))
+      .toBe("Stats 2: Bayes \u2013 priors & posteriors");
+  });
+  it("keeps accents and non-Latin scripts", () => {
+    expect(cleanTitle("Th\u00e9orie des probabilit\u00e9s", "x")).toBe("Th\u00e9orie des probabilit\u00e9s");
+    expect(cleanTitle("\u0938\u0902\u0917\u0923\u0915 \u0935\u093f\u091c\u094d\u091e\u093e\u0928", "x"))
+      .toBe("\u0938\u0902\u0917\u0923\u0915 \u0935\u093f\u091c\u094d\u091e\u093e\u0928");
+  });
+  it("still strips control characters, paths and the .pdf tail", () => {
+    expect(cleanTitle("../../etc/passwd.pdf", "x")).toBe("passwd");
+    expect(cleanTitle("Week 4\tnotes\nline two", "x")).toBe("Week 4 notes line two");
+    expect(cleanTitle("   ", "Your notes")).toBe("Your notes");
   });
 });

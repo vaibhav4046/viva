@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { resolveSubject } from "@/lib/courses/subject";
+import { resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { gradeAnswer, scoreTeachback } from "@/lib/tutor";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
   if (!p.success) return done(err("BAD_REQUEST", "conceptId and transcript (1-2000 chars) are required.", false, 400));
 
   const store = getStore();
-  const course = await resolveSubject(store, identity.userId, p.data.subjectId ?? p.data.courseId);
+  const course = await resolveSubject(store, identity.userId, p.data.subjectId ?? p.data.courseId).catch(subjectMissing);
+  if (course instanceof Response) return done(course);
   await store.seedCourse(identity.userId, course.id);
   const concepts = await store.getConcepts(identity.userId, course.id);
   const concept = concepts.find((c) => c.id === p.data.conceptId);

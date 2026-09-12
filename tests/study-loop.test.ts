@@ -242,3 +242,34 @@ describe("the turn endpoint takes what the recorder produces", () => {
     expect(body.error.message).toMatch(/shorter burst/);
   });
 });
+
+describe("a note points at the passage the reply actually used", () => {
+  type WithEvent = TurnBody & {
+    event: { intent: string; sourceLocator: { section: string | null; page: number | null } | null };
+  };
+
+  it("files the correction against the cited chunk, not the top retrieval hit", async () => {
+    freshUser("locator");
+    const body = (await read(
+      await studyTurn(say("Positional encoding is added to the attention weights after the softmax."))
+    )) as WithEvent;
+    const cited = body.turn.tutor.citations[0]?.chunkId;
+    expect(cited).toBeTruthy();
+    const chunk = COURSE.sources.flatMap((s) => s.chunks).find((c) => c.id === cited);
+    // The note used to take chunks[0] — a turn quoting p.11 filed a note saying
+    // p.5, and a note is the artefact that outlives the screen it came from.
+    expect(body.event.sourceLocator?.page).toBe(chunk?.locator.page);
+    expect(body.event.sourceLocator?.section).toBe(chunk?.locator.section);
+  });
+
+  it("asking for a hint with nothing open is a process turn with no source line", async () => {
+    freshUser("hint_cold");
+    const body = (await read(await studyTurn(say("Give me a hint, I am stuck on this."))))  as WithEvent;
+    expect(body.turn.intent).toBe("hint");
+    expect(body.event.intent).toBe("hint");
+    // Not filed against whatever retrieval returned, and it costs nothing.
+    expect(body.event.sourceLocator).toBeNull();
+    expect(body.turn.tutor.citations).toEqual([]);
+    expect(body.delta === null || body.delta === 0).toBe(true);
+  });
+});

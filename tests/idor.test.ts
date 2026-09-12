@@ -113,10 +113,10 @@ describe("cross-user isolation of a subject someone built", () => {
       expect(await s.getSubject(b, id)).toBeNull();
       expect(await s.listSubjects(b)).toEqual([]);
 
-      // Resolving B against A's id falls back to a starter — never A's material.
-      const forB = await resolveSubject(s, b, id);
-      expect(forB.id).not.toBe(id);
-      expect(forB.demo).toBe(true);
+      // Resolving B against A's id fails loudly. It used to fall back to the
+      // default starter, which hid the miss and taught B a syllabus nobody
+      // chose; a coded miss is both safer and honest.
+      await expect(resolveSubject(s, b, id)).rejects.toMatchObject({ code: "SUBJECT_NOT_FOUND" });
 
       // Nothing of A's text is reachable from B, by chunk pool or by search.
       const bChunks = await s.getCourseChunks(b, id);

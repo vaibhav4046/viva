@@ -125,7 +125,7 @@ export default function MapPage() {
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mt-5 grid gap-5 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0">
           {data ? (
             <Graph mastery={data.mastery} selected={selectedId} onSelect={select} concepts={data.concepts} title={null} />

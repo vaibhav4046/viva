@@ -89,7 +89,19 @@ export function QuizVerdictPanel({
           </span>
         ) : null}
       </div>
-      {result.correctPoints.length > 0 ? <ResultBlock tone="correct">{result.correctPoints.join(" ")}</ResultBlock> : null}
+      {/*
+        * The band word is the only status word on this card. A partial answer
+        * used to print the band chip "Partly there" and, directly under it, a
+        * CORRECT block reading "You have part of it: order" — three labels, two
+        * of them agreeing and the largest one disagreeing, for a one-word
+        * answer. The block that carries CORRECT is also the block that echoes
+        * the keyword the marker matched, so while the question is still open
+        * for a retry it doubles as an answer key. Both go away by showing it
+        * only once the answer actually is correct.
+        */}
+      {result.verdict === "correct" && result.correctPoints.length > 0 ? (
+        <ResultBlock tone="correct">{result.correctPoints.join(" ")}</ResultBlock>
+      ) : null}
       {result.missingPoints.length > 0 ? <ResultBlock tone="missing">{result.missingPoints.join(" ")}</ResultBlock> : null}
       {result.possibleMisconception ? <ResultBlock tone="misconception">{result.possibleMisconception}</ResultBlock> : null}
       <ResultBlock tone="next">

@@ -5,8 +5,14 @@ import { Mic } from "lucide-react";
 import { InlineRecall } from "./InlineRecall";
 import type { PathSegment } from "./types";
 
+/*
+ * Every step is labelled by what to do with it — WEAK CONCEPT, SUMMARY — and
+ * step 1 was labelled with a diagnosis instead. "MISCONCEPTION" in red capitals
+ * is also the one word /exam and /study stopped using: the same event reads
+ * "Mixed up" two taps away.
+ */
 const KIND: Record<PathSegment["kind"], { label: string; color: string }> = {
-  misconception: { label: "MISCONCEPTION", color: "var(--color-band-mixed)" },
+  misconception: { label: "CLEAR THIS FIRST", color: "var(--color-band-mixed)" },
   weak_concept: { label: "WEAK CONCEPT", color: "var(--color-band-getting)" },
   recall: { label: "RECALL", color: "var(--color-cognition)" },
   teachback: { label: "TEACHBACK", color: "var(--color-band-getting)" },

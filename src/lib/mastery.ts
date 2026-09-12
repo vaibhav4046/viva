@@ -86,6 +86,13 @@ export function reduceMastery(
       } else if (event.masterySignal === "down") {
         m = { ...m, mastery: m.mastery - 0.06 };
         reason = "that part did not match your source";
+      } else if (event.masterySignal === "flat") {
+        // VIVA could not check the sentence, so it learned nothing about this
+        // concept and must not charge the learner for that. A judge said
+        // something CORRECT, could not be graded, and lost mastery for it;
+        // moving a number on no evidence is the one thing this reducer exists
+        // to prevent.
+        reason = "said it — not checked against your source yet";
       } else {
         m = { ...m, mastery: m.mastery - 0.02 };
         reason = "unverified claim stored";

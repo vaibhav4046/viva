@@ -29,6 +29,21 @@ function labelLines(name: string): string[] {
   return lines;
 }
 
+/*
+ * Edges are drawn before the nodes, so a label is already on top of a line in
+ * z-order — but the line still shows through the gaps inside and between the
+ * glyphs, and with the labels now wrapping to two lines every one of the four
+ * edges crossed a word. A stroke painted *under* the fill in the card colour
+ * knocks the line out around each glyph, which costs two attributes instead of
+ * a measured plate behind every <text>.
+ */
+const KNOCKOUT = {
+  stroke: "var(--color-graphite)",
+  strokeWidth: 3.5,
+  strokeLinejoin: "round",
+  paintOrder: "stroke",
+} as const;
+
 export function Graph({
   mastery,
   selected,
@@ -138,6 +153,7 @@ export function Graph({
                 fill="var(--color-paper)"
                 fontSize={12}
                 fontWeight={600}
+                {...KNOCKOUT}
               >
                 {labelLines(c.name).map((line, i) => (
                   <tspan key={line} x={x} dy={i === 0 ? 0 : 13}>
@@ -145,7 +161,7 @@ export function Graph({
                   </tspan>
                 ))}
               </text>
-              <text x={x} y={y + 42} textAnchor="middle" fill={color} fontSize={11} fontFamily="var(--font-mono)">
+              <text x={x} y={y + 42} textAnchor="middle" fill={color} fontSize={11} fontFamily="var(--font-mono)" {...KNOCKOUT}>
                 {BAND_LABEL[band]}
               </text>
             </g>

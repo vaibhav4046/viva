@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { findSubjectOwning, resolveSubject } from "@/lib/courses/subject";
+import { findSubjectOwning, resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     courseIdIn = body?.courseId;
   } catch { /* optional */ }
   const store = getStore();
-  const course = await resolveSubject(store, identity.userId, courseIdIn);
+  const course = await resolveSubject(store, identity.userId, courseIdIn).catch(subjectMissing);
+  if (course instanceof Response) return done(course);
   const examQuestions = course.examQuestions;
   await store.seedCourse(identity.userId, course.id);
   if (!conceptId) {

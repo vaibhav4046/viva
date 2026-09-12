@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { POST, condenseContext, subjectVoiceConfig } from "@/app/api/voice/transcribe/route";
 import { GET as WARM } from "@/app/api/voice/warm/route";
+import { POST as TELEMETRY } from "@/app/api/voice/telemetry/route";
 import { assemblyAIBreaker } from "@/lib/circuit";
 import { VOICE_MESSAGES } from "@/lib/audio/messages";
 
@@ -116,8 +117,12 @@ describe("subject keyterms", () => {
     expect(new Set(terms.map((t) => t.toLowerCase())).size).toBe(terms.length);
   });
 
-  it("an unknown subject falls back to the default rather than sending nothing", async () => {
-    expect((await subjectVoiceConfig(U, "course_does_not_exist")).keyterms.length).toBeGreaterThan(0);
+  it("an unknown subject biases recognition towards nothing at all", async () => {
+    // This used to fall back to the default lab's word list, which is the same
+    // cross-syllabus bias the test above guards against, just via a bad id.
+    const cfg = await subjectVoiceConfig(U, "course_does_not_exist");
+    expect(cfg.keyterms).toEqual([]);
+    expect(cfg.languageCodes).toEqual(["en"]);
   });
 });
 
@@ -330,5 +335,108 @@ describe("GET /api/voice/warm", () => {
     await WARM();
     expect(calls[0].url).toBe("https://dictation.assemblyai.com/warm");
     expect(new Headers(calls[0].init?.headers).get("authorization")).toBeNull();
+  });
+});
+
+/**
+ * A clip with no speech in it.
+ *
+ * The commonest real voice failure is not a 429 or a timeout: it is a muted
+ * headset or the wrong input device, and the provider answers that with a 200
+ * and an empty string. Returned as a success it became a review box with an
+ * empty textarea, Send disabled and the caption "Sends on its own in a moment."
+ * — a promise the product could not keep, still on screen eighteen seconds
+ * later. It is a coded failure now, so the mic says one true sentence.
+ */
+describe("silence is a coded failure, not a success", () => {
+  it("an empty transcript comes back as NO_SPEECH, never as a 200", async () => {
+    mockCalls(() =>
+      new Response(JSON.stringify({ ...okDictation, text: "", llm_response: "", confidence: 0, audio_duration_ms: 4000 }), { status: 200 })
+    );
+    const res = await POST(request({ subjectId: "course_transformers_w4" }));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error.code).toBe("NO_SPEECH");
+    expect(body.error.message).toBe(VOICE_MESSAGES.NO_SPEECH);
+    expect(body.error.retryable).toBe(false);
+    // Nothing for a review panel to latch onto.
+    expect(body).not.toHaveProperty("verbatim");
+    expect(body).not.toHaveProperty("clean");
+  });
+
+  it("whitespace-only counts as silence too", async () => {
+    mockCalls(() => new Response(JSON.stringify({ ...okDictation, text: "  \n ", llm_response: null }), { status: 200 }));
+    const res = await POST(request({ subjectId: "course_transformers_w4" }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.code).toBe("NO_SPEECH");
+  });
+
+  it("the sentence names the cause and a way out, with no vendor or status in it", () => {
+    const msg = VOICE_MESSAGES.NO_SPEECH;
+    expect(msg).toMatch(/type instead/i);
+    expect(msg).not.toMatch(/\b(4|5)\d\d\b/);
+    expect(msg).not.toMatch(/assemblyai|dictation|422/i);
+  });
+
+  it("a silent clip through the fallback is still NO_SPEECH, not an empty review", async () => {
+    mockCalls((url) =>
+      url === DICTATION_URL
+        ? problem(503)
+        : new Response(JSON.stringify({ text: "", confidence: 0, audio_duration_ms: 4000, session_id: "s" }), { status: 200 })
+    );
+    const res = await POST(request({ subjectId: "course_transformers_w4" }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.code).toBe("NO_SPEECH");
+  });
+
+  it("one real word is still a transcript — the guard is on empty, not on short", async () => {
+    mockCalls(() => new Response(JSON.stringify({ ...okDictation, text: "yes", llm_response: null }), { status: 200 }));
+    const res = await POST(request({ subjectId: "course_transformers_w4" }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).verbatim).toBe("yes");
+  });
+});
+
+/**
+ * POST /api/voice/telemetry — where the dictation event goes now.
+ *
+ * The client's release-to-review number used to be written into an in-tab Map
+ * with no readers and no network call: it read like evidence and was not. The
+ * body is a closed vocabulary of metrics, so nothing a caller invents (least of
+ * all transcript text) can reach a log line.
+ */
+describe("POST /api/voice/telemetry", () => {
+  const post = (body: unknown, ip: string) =>
+    TELEMETRY(new Request("http://localhost/api/voice/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-forwarded-for": ip },
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    }));
+
+  it("accepts a measured round trip", async () => {
+    expect((await post({ latencyMs: 1166, audioMs: 9555, requestTimeMs: 554, mode: "dictation" }, "10.5.0.1")).status).toBe(204);
+  });
+
+  it("refuses anything without a real number in it", async () => {
+    expect((await post("not json", "10.5.0.2")).status).toBe(400);
+    expect((await post({ latencyMs: "soon" }, "10.5.0.3")).status).toBe(400);
+    expect((await post({ mode: "dictation" }, "10.5.0.4")).status).toBe(400);
+  });
+
+  it("swallows a hostile body instead of logging it", async () => {
+    // Clamped, enum-checked, and every unknown field ignored: no free text ever
+    // reaches a log line from here.
+    const res = await post(
+      { latencyMs: 1e99, audioMs: -5, mode: 'evil","event":"fake', fellBackFrom: "DROP", verbatim: "secret transcript" },
+      "10.5.0.5"
+    );
+    expect(res.status).toBe(204);
+  });
+
+  it("is rate limited like the endpoint it reports on", async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 15; i++) codes.push((await post({ latencyMs: 100 }, "10.5.0.6")).status);
+    expect(codes.filter((c) => c === 204).length).toBe(12);
+    expect(codes.at(-1)).toBe(429);
   });
 });

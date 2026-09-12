@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { resolveSubject } from "@/lib/courses/subject";
+import { resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { assessAnswer, gradeAnswer, sealAnswerKey } from "@/lib/tutor";
 import { MAX_ATTEMPTS } from "@/lib/tutor/respond";
 import { bandLabelFor } from "@/lib/mastery";
@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
   const p = Body.safeParse(body);
   if (!p.success) return done(err("BAD_REQUEST", "questionId and answer required.", false, 400));
   const store = getStore();
-  const course = await resolveSubject(store, identity.userId, p.data.subjectId ?? p.data.courseId);
+  const course = await resolveSubject(store, identity.userId, p.data.subjectId ?? p.data.courseId).catch(subjectMissing);
+  if (course instanceof Response) return done(course);
   const q = course.examQuestions.find((x) => x.id === p.data.questionId);
   // Never score against the wrong question: unknown ids are caller errors, not Q1.
   if (!q) return done(err("UNKNOWN_QUESTION", "That question id is not part of this exam.", false, 400));

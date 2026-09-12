@@ -1,0 +1,13 @@
+{
+  "runId": "VIVA-canonical-001",
+  "note": "Deterministic golden-path record: confusion → explain → quiz → wrong answer → hint → correction. Mastery moves are computed by the real reducer.",
+  "steps": [
+    { "t": 0, "say": "I don't understand why attention needs positional encoding.", "intent": "confusion", "concept": "c_position", "mastery": "0.44 → 0.36", "reason": "new unresolved confusion" },
+    { "t": 12, "say": "Explain it without jargon.", "intent": "explain", "evidence": ["ch_pos_1", "ch_pos_2"], "strategy": "socratic" },
+    { "t": 24, "say": "Quiz me on it.", "intent": "quiz_request", "question": "If a Transformer had no positional information, what important property of the sequence would it struggle to distinguish?" },
+    { "t": 36, "say": "It wouldn't know which words are important.", "verdict": "incorrect", "mastery": "0.36 → 0.24", "reason": "unsupported claim — possible misconception" },
+    { "t": 48, "hint": "It can still tell which tokens are related. What does it lose — importance, or something about arrangement?", "say": "It can use attention to compare tokens, but without position it doesn't know their order.", "verdict": "correct", "mastery": "0.24 → 0.30", "reason": "correct recall" }
+  ],
+  "provider": "assemblyai (live mic) with typed fallback; ?debug=1 shows real measured latency",
+  "paidInference": "$0.00 LLM heuristic path; AssemblyAI per-minute only when mic used"
+}

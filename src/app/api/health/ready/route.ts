@@ -1,0 +1,46 @@
+import { dbStatus } from "@/lib/db/db";
+import { storeDegradation } from "@/lib/store";
+
+/**
+ * GET /api/health/ready — readiness. Reports whether critical dependencies
+ * are reachable. Never exposes secrets or counts a missing optional dep
+ * as a lie: each dependency reports configured/reachable explicitly.
+ */
+export async function GET() {
+  const transcription = process.env.ASSEMBLYAI_API_KEY
+    ? { configured: true, mode: (process.env.ASSEMBLYAI_TRANSCRIPTION_MODE ?? "sync").toLowerCase() }
+    : { configured: false, mode: null };
+  const database = await dbStatus();
+  const store = storeDegradation();
+
+  /*
+   * Two separate questions, deliberately not merged:
+   *
+   *   ready   — can this instance serve a request? getStore() always has the
+   *             in-process file store to fall back to, so once we are far
+   *             enough to answer at all, the answer is yes. Returning 503 here
+   *             because the durable backend is down would take a working demo
+   *             offline and is its own kind of lie.
+   *   durable — will a write survive a redeploy or a new instance? This is the
+   *             field that goes false, and it is the one that matters.
+   *
+   * Collapsing these is what produced the original bug: a probe that reported
+   * a healthy store while every write path returned 500.
+   */
+  const degraded = store.degraded || !database.durable;
+
+  return Response.json(
+    {
+      ready: true,
+      durable: database.durable && !store.degraded,
+      degraded,
+      transcription,
+      database,
+      store: store.degraded
+        ? { mode: "ephemeral-fallback", from: store.from, reason: store.reason, since: store.since }
+        : { mode: database.durable ? "durable" : "ephemeral" },
+      ts: new Date().toISOString(),
+    },
+    { status: 200 }
+  );
+}

@@ -1,0 +1,35 @@
+node_modules/
+.next/
+out/
+dist/
+.data/
+demo-footage/.pw-browsers/
+test-results/
+tsconfig.tsbuildinfo
+.env.local
+.env*.local
+.vercel
+*.log
+.DS_Store
+.next-prod/
+.claude/
+.data-test-fallback/
+
+# Winner-kit hygiene: nothing below is product, and judges clone this repo.
+.viva/
+openspec/
+design-system/
+*.webm
+*.mp4
+__pycache__/
+.pw-browsers/
+# Skill data is 4.5 MB of regenerable tooling (npx ui-ux-pro-max-cli init).
+# The agent and command definitions ARE committed — they are the workflow.
+.claude/skills/
+tsconfig.tsbuildinfo
+
+# AI build tooling stays local. Standing rule: no Claude artefacts in this
+# repo, and a judge cloning it should find a product, not a build mandate.
+CLAUDE.md
+VIVA_MASTER_PROMPT.md
+.claude/

@@ -1,0 +1,559 @@
+/*
+ * VIVA landing — single viewport, full-bleed video, three stacked regions.
+ *
+ * Composition follows the AI Runtime reference (header / hero / stat footer,
+ * all inside one 100dvh frame, nothing scrolls). The palette, type and
+ * semantics are VIVA's own: Academic Noir, per section 18 of the product
+ * directive — obsidian canvas, paper type, cognition lime for anything live,
+ * signal blue for concepts, coral for misconceptions.
+ *
+ * Every token below resolves to a variable already declared in globals.css.
+ * No new colours are invented here.
+ *
+ * No animation library. Six entrance beats and a count-up do not justify
+ * 46 KB of runtime on the page the judges load first, and everything animated
+ * here is transform/opacity/filter only, so it stays on the compositor.
+ */
+
+.vv-page {
+  /* Channel triplets so every translucent value on this page is mixed from a
+     real VIVA token instead of an ad-hoc grey. Keep these two in step with
+     --color-paper / --color-obsidian in globals.css. */
+  --vv-paper-rgb: 244 241 232;
+  --vv-obsidian-rgb: 8 10 13;
+
+  --vv-shadow: 0 4px 14px rgb(var(--vv-obsidian-rgb) / 0.55);
+  --vv-pill: var(--color-panel);
+  --vv-pill-hover: color-mix(in oklab, var(--color-panel) 90%, var(--color-paper));
+  --vv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  padding: clamp(16px, 2.4vh, 28px) clamp(14px, 3vw, 32px);
+  font-family: var(--font-sans);
+  color: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Lock the document itself — this route is the one page that never scrolls. */
+body:has(.vv-page) {
+  overflow: hidden;
+  background: var(--color-obsidian);
+}
+
+/* ------------------------------------------------------------------ *
+ * Background
+ * ------------------------------------------------------------------ */
+
+.vv-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-obsidian);
+  z-index: 0;
+}
+
+
+/*
+ * Text scrim. The loop is a dot lattice and so is the headline, so without
+ * this the two lattices sit at a similar scale and read as noise. The centre
+ * ellipse knocks the field back hard behind the type and lets it breathe again
+ * toward the edges; the linear pass keeps the nav pill and the stat row clean.
+ */
+.vv-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(72% 52% at 50% 46%, rgb(var(--vv-obsidian-rgb) / 0.9) 0%, rgb(var(--vv-obsidian-rgb) / 0.72) 45%, rgb(var(--vv-obsidian-rgb) / 0) 82%),
+    radial-gradient(130% 90% at 50% 45%, rgb(var(--vv-obsidian-rgb) / 0) 0%, rgb(var(--vv-obsidian-rgb) / 0.45) 72%, rgb(var(--vv-obsidian-rgb) / 0.85) 100%),
+    linear-gradient(to bottom, rgb(var(--vv-obsidian-rgb) / 0.78) 0%, rgb(var(--vv-obsidian-rgb) / 0.18) 24%, rgb(var(--vv-obsidian-rgb) / 0.25) 66%, rgb(var(--vv-obsidian-rgb) / 0.85) 100%);
+}
+
+/* ------------------------------------------------------------------ *
+ * Shared entrance
+ * ------------------------------------------------------------------ */
+
+@keyframes vvReveal {
+  from { opacity: 0; transform: translateY(22px) scale(0.98); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes vvSlideDown {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes vvHeadlineFade {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes vvRevealPulse {
+  0%   { opacity: 0; transform: translateY(22px) scale(0.98); filter: blur(6px); }
+  70%  { opacity: 1; transform: translateY(0) scale(1.03); filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: blur(0); }
+}
+
+.vv-anim {
+  opacity: 0;
+  animation: vvReveal 0.85s var(--vv-ease) forwards;
+  animation-delay: var(--d, 0s);
+}
+
+/* ------------------------------------------------------------------ *
+ * Header
+ * ------------------------------------------------------------------ */
+
+.vv-header {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 2.8vw, 28px);
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  animation: vvSlideDown 0.7s var(--vv-ease) both;
+}
+
+.vv-logo {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: clamp(40px, 4.4vw, 46px);
+  height: clamp(40px, 4.4vw, 46px);
+  border-radius: 50%;
+  background: var(--color-paper);
+  box-shadow: var(--vv-shadow);
+  transition: transform 220ms var(--vv-ease);
+}
+.vv-logo:hover { transform: scale(1.04); }
+.vv-logo svg { width: 72%; height: 72%; display: block; }
+
+.vv-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex: 1;
+  max-width: 430px;
+  height: clamp(44px, 5.2vw, 48px);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--color-paper);
+  box-shadow: var(--vv-shadow);
+}
+
+.vv-nav-link {
+  position: relative;
+  padding: 6px 10px 10px;
+  font-size: clamp(13px, 1.4vw, 15px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--color-graphite);
+  /*
+   * 0.65, not the reference's 0.5. Graphite at 50% over paper blends to
+   * #838382 — 3.36:1, which axe flags as a serious contrast failure at 15px.
+   * 0.65 lands at ~5.5:1 and still reads as clearly de-emphasised.
+   */
+  opacity: 0.65;
+  transition: opacity 200ms var(--vv-ease);
+}
+.vv-nav-link:hover { opacity: 0.85; }
+.vv-nav-link[aria-current="page"] { opacity: 1; }
+
+/* Three dots under the active item — the nav echo of the display type. */
+.vv-nav-link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-graphite);
+  transform: translateX(-50%);
+  box-shadow: -5px 0 0 var(--color-graphite), 5px 0 0 var(--color-graphite);
+}
+
+.vv-signin {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: clamp(44px, 5.2vw, 48px);
+  padding: 0 clamp(16px, 2vw, 22px);
+  border-radius: 999px;
+  background: var(--vv-pill);
+  box-shadow: var(--vv-shadow);
+  font-size: clamp(13px, 1.4vw, 15px);
+  font-weight: 500;
+  color: var(--color-mist);
+  white-space: nowrap;
+  transition: background 200ms var(--vv-ease), color 200ms var(--vv-ease), transform 200ms var(--vv-ease);
+}
+.vv-signin:hover {
+  background: var(--vv-pill-hover);
+  color: var(--color-paper);
+  transform: translateY(-1px);
+}
+
+/* ------------------------------------------------------------------ *
+ * Hero
+ * ------------------------------------------------------------------ */
+
+.vv-hero {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 0;
+}
+
+/* Carries id="hero" for the e2e golden path; <main> above carries id="main"
+   for the skip link. Same centred column, no visual change. */
+.vv-hero-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+
+
+/* --- headline ----------------------------------------------------- */
+
+.vv-headline {
+  margin: 0;
+  overflow: hidden;
+}
+
+.vv-headline span {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(30px, 6.4vw, 86px);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  color: var(--color-paper);
+  opacity: 0;
+  animation: vvHeadlineFade 0.85s var(--vv-ease) forwards;
+}
+.vv-headline span:nth-child(1) { animation-delay: 0.12s; }
+.vv-headline span:nth-child(2) { animation-delay: 0.3s; }
+
+/*
+ * Dot-matrix display treatment.
+ *
+ * A real LED panel rather than a pixel font: the glyph is clipped out of a
+ * dot lattice, so it stays vector-crisp at any density — 4K and 8K included —
+ * and costs zero font bytes. Pitch is in `em`, so the dot count per letter is
+ * identical at 30px and at 86px.
+ *
+ * Guarded by @supports; without background-clip the text simply stays solid.
+ */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .vv-dot {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-image: radial-gradient(circle at 50% 50%, var(--color-paper) 0 40%, transparent 42%);
+    background-size: 0.052em 0.052em;
+    background-position: 0 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  /* Line two carries the payload word, lit in cognition lime. */
+  .vv-dot-lime {
+    background-image: radial-gradient(circle at 50% 50%, var(--color-cognition) 0 40%, transparent 42%);
+  }
+}
+
+/* Windows high-contrast: drop the stipple, keep the words. */
+@media (forced-colors: active) {
+  .vv-dot,
+  .vv-dot-lime {
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+    color: CanvasText;
+  }
+}
+
+/* --- subhead + CTA ------------------------------------------------- */
+
+.vv-sub {
+  max-width: min(560px, 92%);
+  margin: clamp(14px, 2.2vh, 22px) auto 0;
+  font-size: clamp(15.5px, 1.55vw, 18.5px);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--color-mist);
+  opacity: 0.8;
+}
+
+.vv-cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: clamp(18px, 2.8vh, 30px);
+}
+
+.vv-cta {
+  display: inline-block;
+  padding: clamp(11px, 1.6vh, 13px) clamp(22px, 3vw, 28px);
+  border-radius: 999px;
+  background: var(--color-paper);
+  color: var(--color-obsidian);
+  font-size: clamp(13.5px, 1.5vw, 14.5px);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px rgb(var(--vv-paper-rgb) / 0.15),
+    0 0 22px rgb(var(--vv-paper-rgb) / 0.32),
+    0 0 44px rgb(var(--vv-paper-rgb) / 0.12);
+  transition: transform 220ms var(--vv-ease), box-shadow 220ms var(--vv-ease);
+  opacity: 0;
+  animation: vvRevealPulse 0.85s var(--vv-ease) forwards;
+  animation-delay: var(--d, 0s);
+}
+.vv-cta:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 0 0 1px rgb(var(--vv-paper-rgb) / 0.28),
+    0 0 30px rgb(var(--vv-paper-rgb) / 0.45),
+    0 0 66px rgb(var(--vv-paper-rgb) / 0.2);
+}
+
+.vv-cta-alt {
+  display: inline-block;
+  padding: clamp(11px, 1.6vh, 13px) clamp(20px, 2.6vw, 24px);
+  border: 1px solid rgb(var(--vv-paper-rgb) / 0.32);
+  border-radius: 999px;
+  color: var(--color-mist);
+  font-size: clamp(13.5px, 1.5vw, 14.5px);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 220ms var(--vv-ease), color 220ms var(--vv-ease), background 220ms var(--vv-ease);
+}
+.vv-cta-alt:hover {
+  border-color: var(--color-paper);
+  color: var(--color-paper);
+  background: rgb(var(--vv-paper-rgb) / 0.06);
+}
+
+/* ------------------------------------------------------------------ *
+ * Stats footer
+ * ------------------------------------------------------------------ */
+
+
+.vv-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.vv-stat-glyph {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: clamp(15px, 1.7vw, 19px);
+  line-height: 1;
+  color: var(--color-slate);
+}
+
+.vv-stat-value {
+  font-size: clamp(18px, 2.2vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--color-paper);
+  font-variant-numeric: tabular-nums;
+}
+
+.vv-stat-label {
+  font-size: clamp(11px, 1.2vw, 12.5px);
+  line-height: 1.35;
+  color: var(--color-ash);
+}
+
+/* ------------------------------------------------------------------ *
+ * Mobile
+ * ------------------------------------------------------------------ */
+
+.vv-burger { display: none; }
+.vv-menu { display: none; }
+.vv-overlay { display: none; }
+
+@media (max-width: 720px) {
+  .vv-header {
+    justify-content: space-between;
+    max-width: none;
+  }
+  .vv-nav,
+  .vv-signin { display: none; }
+
+  .vv-logo { width: 48px; height: 48px; }
+
+  .vv-burger {
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--vv-pill);
+    box-shadow: var(--vv-shadow);
+    transition: background 220ms var(--vv-ease);
+  }
+  .vv-burger span {
+    display: block;
+    grid-area: 1 / 1;
+    width: 18px;
+    height: 1.5px;
+    border-radius: 2px;
+    background: var(--color-paper);
+    transition: transform 260ms var(--vv-ease), opacity 200ms var(--vv-ease), background 220ms var(--vv-ease);
+  }
+  .vv-burger span:nth-child(1) { transform: translateY(-6.5px); }
+  .vv-burger span:nth-child(3) { transform: translateY(6.5px); }
+
+  .vv-burger[aria-expanded="true"] { background: var(--color-paper); }
+  .vv-burger[aria-expanded="true"] span { background: var(--color-graphite); }
+  .vv-burger[aria-expanded="true"] span:nth-child(1) { transform: translateY(0) rotate(45deg); }
+  .vv-burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .vv-burger[aria-expanded="true"] span:nth-child(3) { transform: translateY(0) rotate(-45deg); }
+
+  @keyframes vvOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes vvMenuIn {
+    from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes vvLinkIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .vv-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgb(var(--vv-obsidian-rgb) / 0.72);
+    backdrop-filter: blur(6px);
+    animation: vvOverlayIn 0.28s var(--vv-ease) both;
+  }
+  .vv-overlay[hidden] { display: none; }
+
+  .vv-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: fixed;
+    z-index: 41;
+    top: 84px;
+    left: 14px;
+    right: 14px;
+    padding: 22px 18px 20px;
+    border-radius: 28px;
+    background: var(--color-paper);
+    box-shadow: 0 20px 60px rgb(var(--vv-obsidian-rgb) / 0.6);
+    animation: vvMenuIn 0.38s var(--vv-ease) both;
+  }
+  .vv-menu[hidden] { display: none; }
+
+  .vv-menu a {
+    position: relative;
+    padding: 13px 8px;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--color-graphite);
+    text-align: center;
+    opacity: 0;
+    animation: vvLinkIn 0.32s var(--vv-ease) forwards;
+  }
+  .vv-menu a:nth-child(1) { animation-delay: 0.06s; }
+  .vv-menu a:nth-child(2) { animation-delay: 0.11s; }
+  .vv-menu a:nth-child(3) { animation-delay: 0.16s; }
+  .vv-menu a:nth-child(4) { animation-delay: 0.21s; }
+
+  .vv-menu a[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--color-graphite);
+    transform: translateX(-50%);
+    box-shadow: -5px 0 0 var(--color-graphite), 5px 0 0 var(--color-graphite);
+  }
+
+  .vv-menu .vv-menu-cta {
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 999px;
+    background: var(--color-graphite);
+    color: var(--color-paper);
+    font-weight: 600;
+    opacity: 0;
+    animation: vvLinkIn 0.32s var(--vv-ease) 0.26s forwards;
+  }
+  .vv-menu .vv-menu-cta::after { content: none; }
+
+  body.vv-menu-open { overflow: hidden; }
+
+  .vv-headline span { letter-spacing: -0.08em; line-height: 1.05; }
+  .vv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px clamp(10px, 4vw, 26px); }
+  .vv-sub { font-size: 15px; }
+}
+
+@media (max-width: 420px) {
+  .vv-headline span { letter-spacing: -0.09em; line-height: 1.04; }
+}
+
+/* Short viewports: pull the hero in so the stat row always survives. */
+@media (max-height: 700px) {
+  .vv-sub { margin-top: 10px; }
+  .vv-cta-row { margin-top: 14px; }
+  .vv-stat-glyph { font-size: clamp(13px, 1.5vw, 16px); }
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — show the settled frame, hold the video still.
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .vv-bg {
+  }
+  .vv-header,
+  .vv-anim,
+  .vv-headline span,
+  .vv-cta,
+  .vv-menu,
+  .vv-menu a,
+  .vv-overlay {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}

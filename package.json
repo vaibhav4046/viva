@@ -1,0 +1,48 @@
+{
+  "name": "viva",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "test:assemblyai-live": "vitest run tests/assemblyai-live.test.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "smoke": "node scripts/smoke.mjs",
+    "test:e2e": "python scripts/e2e-golden.py",
+    "test:evals": "vitest run tests/intent.test.ts tests/grounding.test.ts tests/tutor.test.ts",
+    "test:accessibility": "playwright test",
+    "test:routes": "node scripts/check-routes.mjs",
+    "lint:copy": "node scripts/lint-copy.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "lucide-react": "^1.45.0",
+    "motion": "^13.2.0",
+    "next": "16.3.4",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.23.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "three": "^0.186.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.13",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

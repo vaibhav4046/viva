@@ -113,6 +113,36 @@
   }
 }
 
+/*
+ * Floor the effect below the size where it stops being legible.
+ *
+ * `em` pitch keeps the dots-per-letter constant, which is right, but it also
+ * means the tile shrinks with the type: at the 30px mobile size the lattice is
+ * 1.56px, and on a 1x display that averages to nothing — the headline rendered
+ * as an empty gap on a phone at deviceScaleFactor 1. It only looked fine on the
+ * 2x screens it was tested on.
+ *
+ * So: solid type wherever the display size is small, dots only where there are
+ * enough device pixels to resolve them. A headline must never depend on a
+ * rendering trick to be readable.
+ */
+@media (max-width: 900px) {
+  .vv-dot {
+    background-image: none !important;
+    -webkit-text-fill-color: var(--color-paper);
+    color: var(--color-paper);
+  }
+}
+
+/* Same guard for low-density displays at any width. */
+@media (max-resolution: 1.5dppx) and (max-width: 1200px) {
+  .vv-dot {
+    background-image: none !important;
+    -webkit-text-fill-color: var(--color-paper);
+    color: var(--color-paper);
+  }
+}
+
 /* Windows high-contrast: drop the stipple, keep the words. */
 @media (forced-colors: active) {
   .vv-dot {

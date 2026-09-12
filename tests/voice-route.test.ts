@@ -99,23 +99,25 @@ async function configOf(call: Call): Promise<Record<string, unknown>> {
 }
 
 describe("subject keyterms", () => {
-  it("come from the subject, not a hardcoded Transformers list", () => {
-    const transformers = subjectKeyterms("course_transformers_w4").map((t) => t.toLowerCase());
-    const probability = subjectKeyterms("course_probability").map((t) => t.toLowerCase());
+  const U = "u_keyterms_probe";
+
+  it("come from the subject, not a hardcoded Transformers list", async () => {
+    const transformers = (await subjectKeyterms(U, "course_transformers_w4")).map((t) => t.toLowerCase());
+    const probability = (await subjectKeyterms(U, "course_probability")).map((t) => t.toLowerCase());
     expect(transformers).toContain("self-attention");
     expect(probability.some((t) => t.includes("bayes"))).toBe(true);
     // The old build biased every subject towards attention; this is the guard.
     expect(probability).not.toContain("self-attention");
   });
 
-  it("dedupes and never exceeds the 100-term ceiling", () => {
-    const terms = subjectKeyterms("course_transformers_w4");
+  it("dedupes and never exceeds the 100-term ceiling", async () => {
+    const terms = await subjectKeyterms(U, "course_transformers_w4");
     expect(terms.length).toBeLessThanOrEqual(100);
     expect(new Set(terms.map((t) => t.toLowerCase())).size).toBe(terms.length);
   });
 
-  it("an unknown subject falls back to the default rather than sending nothing", () => {
-    expect(subjectKeyterms("course_does_not_exist").length).toBeGreaterThan(0);
+  it("an unknown subject falls back to the default rather than sending nothing", async () => {
+    expect((await subjectKeyterms(U, "course_does_not_exist")).length).toBeGreaterThan(0);
   });
 });
 

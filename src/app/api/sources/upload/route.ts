@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getCourse } from "@/lib/courses";
+import { resolveSubject } from "@/lib/courses/subject";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
 import { getStore } from "@/lib/store";
@@ -91,10 +91,9 @@ export async function POST(req: NextRequest) {
   const section = `Upload: ${title}`;
   const pieces = chunkText(normalized);
 
-  const courseField = form.get("courseId");
-  const course = getCourse(typeof courseField === "string" ? courseField : null);
-
+  const courseField = form.get("subjectId") ?? form.get("courseId");
   const store = getStore();
+  const course = await resolveSubject(store, identity.userId, typeof courseField === "string" ? courseField : null);
   await store.seedCourse(identity.userId, course.id);
   const saved = await store.addSource(identity.userId, {
     title,

@@ -51,9 +51,13 @@ const BANNED = [
 
 /** Chunk ids such as ch_pos_1 must never be rendered. */
 const NEWLINE = /\n/g;
-const CHUNK_ID = /\bch_[a-z]+_\d+\b/;
+// Passage ids come in two shapes: the seeded `ch_pos_1` form and the
+// per-subject `src_<id>_c9` form that intake generates. The rule only knew
+// the first, so a generated subject leaked raw ids into a sentence and the
+// lint still reported clean.
+const CHUNK_ID = /\b(?:ch_[a-z]+_\d+|src_[a-z0-9]+_[a-z0-9]+_c\d+)\b/;
 /** …but a literal that IS just an id is data (a lookup key), not copy. */
-const CHUNK_ID_ONLY = /^\s*ch_[a-z]+_\d+\s*$/;
+const CHUNK_ID_ONLY = /^\s*(?:ch_[a-z]+_\d+|src_[a-z0-9]+_[a-z0-9]+_c\d+)\s*$/;
 
 /**
  * Blank out everything that is not text a reader can see, keeping every
@@ -165,6 +169,8 @@ const SELF_TEST = [
   { src: "const why = `Lowest VIVA estimate among concepts`;", hits: 1, note: "template literal" },
   { src: '<span title="Deterministic review priority">x</span>', hits: 1, note: "JSX attribute string" },
   { src: 'return `Evidence: ch_rl_2, ch_bp_2; read it`;', hits: 1, note: "chunk id in a sentence" },
+  { src: 'return `Evidence: src_mtyo8821_wkygtn_c9; read it`;', hits: 1, note: "subject-scoped passage id in a sentence" },
+  { src: '  evidenceIds: ["src_mtyo8821_wkygtn_c9"],', hits: 0, note: "subject-scoped id as a data key" },
   { src: "  interpretationConfidence: number;", hits: 0, note: "type field name" },
   { src: "  interpretation_confidence, evidence_ids, status)", hits: 0, note: "SQL column name" },
   { src: '  evidenceIds: ["ch_mh_1"],', hits: 0, note: "chunk id as a data key" },

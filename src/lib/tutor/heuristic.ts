@@ -1,4 +1,5 @@
 import { getCourse, DEFAULT_COURSE_ID } from "../courses";
+import type { Course } from "../courses/types";
 import { scoreChunks, verifyEvidence } from "../retrieval";
 import type { SourceChunk } from "../types";
 
@@ -69,9 +70,11 @@ function affirmedHits(fullText: string, keywords: string[]): string[] {
 export function assessAnswer(
   questionId: string,
   answerTranscript: string,
-  opts: { courseId?: string | null } = {}
+  opts: { courseId?: string | null; course?: Course } = {}
 ): Assessment {
-  const course = getCourse(opts.courseId);
+  // A subject the learner built is not in the registry, so the caller passes
+  // it in. Falling back to a starter here would grade the wrong question.
+  const course = opts.course ?? getCourse(opts.courseId);
   const q = course.examQuestions.find((x) => x.id === questionId) ?? course.examQuestions[0];
   const courseChunks: SourceChunk[] = course.sources.flatMap((s) => s.chunks);
   const retrieved = scoreChunks(courseChunks, q.question + " " + answerTranscript, {
@@ -155,9 +158,11 @@ export function tutorRespond(opts: {
   jargonFree?: boolean;
   mastery?: number;
   courseId?: string | null;
+  /** The resolved subject. A learner's own is not in the registry. */
+  course?: Course;
 }): TutorResult {
   const { intent, cleanedTranscript, conceptName, evidenceIds } = opts;
-  const course = getCourse(opts.courseId);
+  const course = opts.course ?? getCourse(opts.courseId);
   const jargon = /without jargon|simply|simple|eli5|no jargon/i.test(cleanedTranscript);
   const label = conceptName ?? "this concept";
 
@@ -174,15 +179,19 @@ export function tutorRespond(opts: {
   }
   if (intent === "confusion" || intent === "question" || intent === "explain") {
     const explainer = opts.conceptId ? course.explainers[opts.conceptId] : undefined;
-    if (explainer) {
-      const body = jargon || opts.jargonFree ? explainer.jargonFree : explainer.formal;
+    // A subject VIVA read itself has no plain-language rewrite to give, so
+    // asking for one returns the passage rather than an empty reply.
+    const body = explainer
+      ? (jargon || opts.jargonFree ? explainer.jargonFree || explainer.formal : explainer.formal)
+      : "";
+    if (explainer && body) {
       return { text: body, evidenceIds, strategy: "socratic", missingConcepts: explainer.missing };
     }
     return {
       text:
         evidenceIds.length > 0
-          ? `Evidence: ${evidenceIds.join(", ")}; read it, then teach it back.`
-          : `I cannot establish ${label} from the provided material, so I won't guess. Point me at the page or section.`,
+          ? `The passage on ${label} is open beside this. Read it, then say it back to me in your own words — I'll tell you what you left out.`
+          : `I can't find ${label} anywhere in your source, so I won't guess at it. Point me at the page, or add the notes that cover it.`,
       evidenceIds,
       strategy: evidenceIds.length > 0 ? "hint" : "direct",
       missingConcepts: [],

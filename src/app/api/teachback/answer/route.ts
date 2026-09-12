@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { getCourse } from "@/lib/courses";
+import { resolveSubject } from "@/lib/courses/subject";
 import { gradeAnswer, scoreTeachback } from "@/lib/tutor";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
@@ -13,6 +13,7 @@ const Body = z.object({
   transcript: z.string().min(1).max(2000),
   clientEventId: z.string().max(80).optional(),
   courseId: z.string().max(80).optional(),
+  subjectId: z.string().max(80).optional(),
 });
 
 function feedbackFor(
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
   const p = Body.safeParse(body);
   if (!p.success) return done(err("BAD_REQUEST", "conceptId and transcript (1-2000 chars) are required.", false, 400));
 
-  const course = getCourse(p.data.courseId);
   const store = getStore();
+  const course = await resolveSubject(store, identity.userId, p.data.subjectId ?? p.data.courseId);
   await store.seedCourse(identity.userId, course.id);
   const concepts = await store.getConcepts(identity.userId, course.id);
   const concept = concepts.find((c) => c.id === p.data.conceptId);

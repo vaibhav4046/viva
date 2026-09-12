@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { DEFAULT_COURSE_ID, getCourse } from "@/lib/courses";
+import type { Subject } from "@/lib/courses/types";
 import { blankMastery, reduceMastery } from "@/lib/mastery";
 import { scoreChunks } from "@/lib/retrieval";
 import { buildSeedDoc } from "./seed";
@@ -25,6 +26,8 @@ type UserDoc = {
   mastery: Record<string, ConceptMastery>;
   tutor: { role: string; content: string; evidenceIds: string[]; at: string }[];
   uploads: UploadedSource[];
+  /** Subjects this user built from their own notes, keyed by subject id. */
+  subjects: Record<string, Subject>;
   seeds: Record<string, boolean>;
   productEvents: StoredProductEvent[];
   sessionId: string;
@@ -62,7 +65,7 @@ function userPath(userId: string): string {
 
 function seedDoc(userId: string): UserDoc {
   const seed = buildSeedDoc(userId);
-  return { ...seed, tutor: [], uploads: [], seeds: { [DEFAULT_COURSE_ID]: true }, productEvents: [] };
+  return { ...seed, tutor: [], uploads: [], subjects: {}, seeds: { [DEFAULT_COURSE_ID]: true }, productEvents: [] };
 }
 
 export class FileEventStore implements EventStore {
@@ -75,6 +78,7 @@ export class FileEventStore implements EventStore {
       if (!Array.isArray(doc.tutor)) doc.tutor = [];
       if (!Array.isArray(doc.uploads)) doc.uploads = [];
       if (!Array.isArray(doc.productEvents)) doc.productEvents = [];
+      if (!doc.subjects || typeof doc.subjects !== "object") doc.subjects = {};
       if (!doc.seeds || typeof doc.seeds !== "object") doc.seeds = {};
       // Legacy docs were seeded with the default lab only.
       doc.seeds[DEFAULT_COURSE_ID] = true;
@@ -156,14 +160,38 @@ export class FileEventStore implements EventStore {
     return (await this.load(userId)).mastery;
   }
 
+  async saveSubject(userId: string, subject: Subject): Promise<void> {
+    await withLock(userId, async () => {
+      const doc = await this.load(userId);
+      doc.subjects[subject.id] = subject;
+      doc.seeds[subject.id] = true;
+      // Every concept starts at 0.5 and unseen, which the map reads as "Not yet".
+      const now = new Date().toISOString();
+      for (const c of subject.concepts) {
+        if (!doc.mastery[c.id]) doc.mastery[c.id] = blankMastery(c.id, now);
+      }
+      await this.save(doc);
+    });
+  }
+
+  async getSubject(userId: string, subjectId: string): Promise<Subject | null> {
+    return (await this.load(userId)).subjects[subjectId] ?? null;
+  }
+
+  async listSubjects(userId: string): Promise<Subject[]> {
+    return Object.values((await this.load(userId)).subjects);
+  }
+
   async getCourseChunks(userId: string, courseId: string = DEFAULT_COURSE_ID): Promise<SourceChunk[]> {
     const doc = await this.load(userId);
-    const seeded = getCourse(courseId).sources.flatMap((s) => s.chunks);
+    const own = doc.subjects[courseId];
+    const seeded = (own ?? getCourse(courseId)).sources.flatMap((s) => s.chunks);
     return [...seeded, ...doc.uploads.filter((u) => u.courseId === courseId).flatMap((u) => u.chunks)];
   }
 
-  async getConcepts(_userId: string, courseId: string = DEFAULT_COURSE_ID): Promise<ConceptDef[]> {
-    return getCourse(courseId).concepts.map((c) => ({ id: c.id, name: c.name, description: c.description, aliases: c.aliases, related: c.related }));
+  async getConcepts(userId: string, courseId: string = DEFAULT_COURSE_ID): Promise<ConceptDef[]> {
+    const own = (await this.load(userId)).subjects[courseId];
+    return (own ?? getCourse(courseId)).concepts.map((c) => ({ id: c.id, name: c.name, description: c.description, aliases: c.aliases, related: c.related }));
   }
 
   async retrieveEvidence(userId: string, query: string, opts: { sourceId?: string | null; conceptIds?: string[]; limit?: number; courseId?: string } = {}) {

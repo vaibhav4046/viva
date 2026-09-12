@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getStore, learnerDNA } from "@/lib/store";
-import { getCourse, listCourses } from "@/lib/courses";
+import { listSubjectsFor, resolveSubject } from "@/lib/courses/subject";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
 import { buildSeedDoc } from "@/lib/store/seed";
@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get("reset") === "1") {
     await store.deleteUserData(identity.userId);
   }
-  const courseParam = req.nextUrl.searchParams.get("courseId");
-  const course = getCourse(courseParam);
+  const courseParam = req.nextUrl.searchParams.get("subject") ?? req.nextUrl.searchParams.get("courseId");
+  const course = await resolveSubject(store, identity.userId, courseParam);
   await store.seedCourse(identity.userId, course.id);
   const [allMastery, allEvents, concepts] = await Promise.all([
     store.getMastery(identity.userId),
@@ -32,13 +32,15 @@ export async function GET(req: NextRequest) {
     : allMastery;
   const events = courseParam ? allEvents.filter((e) => e.courseId === course.id) : allEvents;
   const priors: Record<string, number> = {};
-  for (const [id, m] of Object.entries(buildSeedDoc(identity.userId).mastery)) {
-    if (!courseParam || conceptIds.has(id)) priors[id] = m.mastery;
+  if (course.demo) {
+    for (const [id, m] of Object.entries(buildSeedDoc(identity.userId).mastery)) {
+      if (!courseParam || conceptIds.has(id)) priors[id] = m.mastery;
+    }
   }
   const productEvents = await store.productEventSummary(identity.userId, 7);
   return done(Response.json({
     mastery, events, concepts, priors,
-    courses: listCourses(),
+    courses: await listSubjectsFor(store, identity.userId),
     productEvents,
     activeCourseId: course.id,
     learner: learnerDNA(mastery, events.filter((e) => e.intent === "confusion").map((e) => e.id), events.length),

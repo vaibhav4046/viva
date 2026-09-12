@@ -1,4 +1,5 @@
 import { getCourse } from "./courses";
+import type { ConceptDef } from "./courses/types";
 import type { LearningIntent } from "./types";
 
 export type CompileDraft = {
@@ -15,10 +16,10 @@ export type CompileDraft = {
 
 const NEGATION = /\b(not|n't|never|no\b|isn't|aren't|don't|doesn't)\b/i;
 
-function findConcepts(text: string, courseId?: string | null): string[] {
+function findConcepts(text: string, concepts: ConceptDef[]): string[] {
   const t = text.toLowerCase();
   const scored: { id: string; best: number }[] = [];
-  for (const c of getCourse(courseId).concepts) {
+  for (const c of concepts) {
     const names = [c.name.toLowerCase(), ...c.aliases.map((a) => a.toLowerCase())];
     let best = 0;
     for (const n of names) {
@@ -49,11 +50,17 @@ export function cleanTranscript(raw: string): string {
  */
 export function compileTranscript(
   raw: string,
-  opts: { selection?: string; hasActiveSource?: boolean; courseId?: string | null } = {}
+  opts: {
+    selection?: string;
+    hasActiveSource?: boolean;
+    /** The subject's own concepts. Falls back to a starter's when absent. */
+    concepts?: ConceptDef[];
+    courseId?: string | null;
+  } = {}
 ): CompileDraft {
   const cleanedTranscript = cleanTranscript(raw);
   const t = raw.toLowerCase();
-  const conceptIds = findConcepts(raw + " " + (opts.selection ?? ""), opts.courseId);
+  const conceptIds = findConcepts(raw + " " + (opts.selection ?? ""), opts.concepts ?? getCourse(opts.courseId).concepts);
   const primaryConceptId = conceptIds[0] ?? null;
 
   const has = (...res: RegExp[]) => res.some((r) => r.test(t));

@@ -1,6 +1,5 @@
 "use client";
 import { m, useReducedMotion } from "motion/react";
-import { CONCEPTS } from "@/lib/course";
 import { GENTLE } from "@/lib/motion";
 import { BAND_COLOR, BAND_LABEL, BAND_ORDER, bandFor } from "@/components/bands";
 import type { ConceptMastery } from "@/lib/types";
@@ -17,7 +16,7 @@ export function Graph({
   mastery,
   selected,
   onSelect,
-  concepts = CONCEPTS,
+  concepts = [],
   /** null when the page's own H1 already says "Your map". */
   title = "Your map",
 }: {

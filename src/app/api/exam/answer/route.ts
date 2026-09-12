@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { getCourse } from "@/lib/courses";
+import { resolveSubject } from "@/lib/courses/subject";
 import { assessAnswer, gradeAnswer } from "@/lib/tutor";
 import { getStore, learnerDNA } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
@@ -13,6 +13,7 @@ const Body = z.object({
   answer: z.string().min(1).max(2000),
   clientEventId: z.string().max(80).optional(),
   courseId: z.string().max(80).optional(),
+  subjectId: z.string().max(80).optional(),
 });
 
 /**
@@ -35,16 +36,16 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return done(err("BAD_REQUEST", "Expected JSON.", false, 400)); }
   const p = Body.safeParse(body);
   if (!p.success) return done(err("BAD_REQUEST", "questionId and answer required.", false, 400));
-  const course = getCourse(p.data.courseId);
+  const store = getStore();
+  const course = await resolveSubject(store, identity.userId, p.data.subjectId ?? p.data.courseId);
   const q = course.examQuestions.find((x) => x.id === p.data.questionId);
   // Never score against the wrong question: unknown ids are caller errors, not Q1.
   if (!q) return done(err("UNKNOWN_QUESTION", "That question id is not part of this exam.", false, 400));
-  const store = getStore();
   await store.seedCourse(identity.userId, course.id);
 
   // Keyword coverage grades it first: that stands alone when the model is
   // unavailable, and it is the floor the model cannot grade below.
-  const baseline = assessAnswer(q.id, p.data.answer, { courseId: course.id });
+  const baseline = assessAnswer(q.id, p.data.answer, { course });
   const retrieved = await store.retrieveEvidence(identity.userId, `${q.question} ${p.data.answer}`, {
     sourceId: null, conceptIds: [q.conceptId], limit: 3, courseId: course.id,
   });

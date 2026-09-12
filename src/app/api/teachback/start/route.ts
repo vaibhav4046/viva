@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { getCourse } from "@/lib/courses";
+import { resolveSubject } from "@/lib/courses/subject";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     }
   } catch { /* body optional */ }
 
-  const course = getCourse(courseIdIn);
   const store = getStore();
+  const course = await resolveSubject(store, identity.userId, courseIdIn);
   await store.seedCourse(identity.userId, course.id);
   const [concepts, mastery] = await Promise.all([
     store.getConcepts(identity.userId, course.id),

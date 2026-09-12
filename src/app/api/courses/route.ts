@@ -1,22 +1,7 @@
-import { getCourse, listCourses } from "@/lib/courses";
-
 /**
- * GET /api/courses — public lab metadata for pickers (no identity required,
- * no chunk bodies). Counts are structural facts from the course registry.
+ * GET /api/courses — the older name for GET /api/subjects.
+ *
+ * Same handler, same payload, so nothing that already calls this path has to
+ * change on the day the last caller moves over.
  */
-export async function GET() {
-  const courses = listCourses().map((c) => {
-    const course = getCourse(c.id);
-    return {
-      id: course.id,
-      code: course.code,
-      title: course.title,
-      subject: course.subject,
-      conceptCount: course.concepts.length,
-      chunkCount: course.sources.reduce((n, s) => n + s.chunks.length, 0),
-      examCount: course.examQuestions.length,
-      trapCount: course.traps.length,
-    };
-  });
-  return Response.json({ courses });
-}
+export { GET } from "../subjects/route";

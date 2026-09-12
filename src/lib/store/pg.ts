@@ -1,5 +1,6 @@
 import { dbQuery } from "@/lib/db/db";
-import { DEFAULT_COURSE_ID, getCourse } from "@/lib/courses";
+import { COURSES, DEFAULT_COURSE_ID } from "@/lib/courses";
+import type { Course, Subject } from "@/lib/courses/types";
 import { blankMastery, reduceMastery } from "@/lib/mastery";
 import { uid, type ConceptMastery, type LearningEvent, type SourceChunk } from "@/lib/types";
 import type { ConceptDef, EventStore, RecordInput, RecordOutcome } from "./repo";
@@ -72,8 +73,20 @@ export class PgEventStore implements EventStore {
     await this.seedCourse(userId, DEFAULT_COURSE_ID);
   }
 
+  /**
+   * Seed a starter. An id we do not ship belongs to a subject the learner
+   * built: `saveSubject` already wrote its rows, so there is nothing to seed
+   * here — and falling back to the default would seed the wrong subject.
+   */
   async seedCourse(userId: string, courseId: string): Promise<void> {
-    const course = getCourse(courseId);
+    const course = COURSES[courseId];
+    if (!course) return;
+    await this.seedCourseRows(userId, course);
+    await this.seedPriors(userId, course);
+  }
+
+  /** Rows for one course or subject: course, sources, chunks, concepts, edges. */
+  private async seedCourseRows(userId: string, course: Course | Subject): Promise<void> {
     await this.ensureUser(userId, "Demo learner");
     const scopedCourse = scopeId(course.id, userId, course.id);
     await dbQuery(
@@ -107,42 +120,84 @@ export class PgEventStore implements EventStore {
         );
       }
     }
-    // Realistic priors for the golden demo (labeled demo data, §11). Only the
-    // default lab carries them; other labs start from blank mastery.
-    if (course.id !== DEFAULT_COURSE_ID) return;
+  }
+
+  /**
+   * A starter's labelled opening map and its one remembered sentence. Both
+   * come from the course record, so no single subject is named in here.
+   */
+  private async seedPriors(userId: string, course: Course): Promise<void> {
     const now = new Date().toISOString();
-    const priors: Record<string, Partial<ConceptMastery>> = {
-      [scopeId("c_self_attention", userId, course.id)]: { exposureCount: 4, successfulRecallCount: 2, mastery: 0.68, confidence: 0.55, reviewPriority: 0.35, lastSuccessfulRecallAt: now },
-      [scopeId("c_qkv", userId, course.id)]: { exposureCount: 3, successfulRecallCount: 1, confusionCount: 1, mastery: 0.58, confidence: 0.5, reviewPriority: 0.45, lastSuccessfulRecallAt: now },
-      [scopeId("c_position", userId, course.id)]: { exposureCount: 2, confusionCount: 1, mastery: 0.44, confidence: 0.4, reviewPriority: 0.62 },
-      [scopeId("c_multihead", userId, course.id)]: { exposureCount: 1, mastery: 0.5, confidence: 0.35, reviewPriority: 0.5 },
-    };
-    for (const [cid, p] of Object.entries(priors)) {
-      const base = blankMastery(stripScope(cid), now);
+    const scopedCourse = scopeId(course.id, userId, course.id);
+    for (const [conceptId, prior] of Object.entries(course.priors ?? {})) {
+      const base = blankMastery(conceptId, now);
       await dbQuery(
         `INSERT INTO mastery_state(user_id, concept_id, exposure_count, successful_recall_count, failed_recall_count,
           confusion_count, misconception_count, last_seen_at, last_successful_recall_at, mastery, confidence, review_priority)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          ON CONFLICT (user_id, concept_id) DO NOTHING`,
-        [userId, cid, p.exposureCount ?? base.exposureCount, p.successfulRecallCount ?? 0, p.failedRecallCount ?? 0,
-         p.confusionCount ?? 0, p.misconceptionCount ?? 0, now, p.lastSuccessfulRecallAt ?? null,
-         p.mastery ?? 0.5, p.confidence ?? 0.3, p.reviewPriority ?? 0.5]
+        [userId, scopeId(conceptId, userId, course.id), prior.exposureCount ?? base.exposureCount,
+         prior.successfulRecallCount ?? 0, prior.failedRecallCount ?? 0, prior.confusionCount ?? 0,
+         prior.misconceptionCount ?? 0, now, prior.recalled ? now : null,
+         prior.mastery ?? base.mastery, prior.confidence ?? base.confidence, prior.reviewPriority ?? base.reviewPriority]
       );
     }
-    // Seed remember event so history is non-empty.
-    const seedSource = course.sources[0];
+    const opening = course.opening;
+    const source = opening ? course.sources.find((s) => s.chunks.some((c) => c.id === opening.chunkId)) : undefined;
+    if (!opening || !source) return;
     await dbQuery(
       `INSERT INTO learning_events(id, user_id, session_id, course_id, source_id, idempotency_key, transcript,
         cleaned_transcript, origin, transcription_confidence, intent, concept_ids, primary_concept_id,
         importance, confusion, interpretation_confidence, evidence_ids, requested_action, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'voice',0.97,'remember',$9,$10,0.7,0.1,0.85,$11,'store','grounded')
        ON CONFLICT (user_id, idempotency_key) DO NOTHING`,
-      [`evt_seed_001::${userId}`, userId, `sess_demo::${userId}`, scopedCourse, seedSource ? scopeId(seedSource.id, userId, course.id) : null, "seed-001",
-       "Multi-head attention runs several attention computations in parallel.",
-       "Multi-head attention runs several attention computations in parallel.",
-       JSON.stringify([scopeId("c_multihead", userId, course.id)]), scopeId("c_multihead", userId, course.id),
-       JSON.stringify([scopeId("ch_mh_1", userId, course.id)])]
+      [`evt_seed_001::${userId}`, userId, `sess_demo::${userId}`, scopedCourse,
+       scopeId(source.id, userId, course.id), "seed-001", opening.text, opening.text,
+       JSON.stringify([scopeId(opening.conceptId, userId, course.id)]),
+       scopeId(opening.conceptId, userId, course.id),
+       JSON.stringify([scopeId(opening.chunkId, userId, course.id)])]
     );
+  }
+
+  /**
+   * Persist a subject the learner built. The document holds the parts only
+   * this subject knows (questions, explainers, keyterms); its passages and
+   * concepts also land in the normal tables, so retrieval, the map and the
+   * mastery fold need no second code path.
+   */
+  async saveSubject(userId: string, subject: Subject): Promise<void> {
+    await this.ensureUser(userId);
+    await dbQuery(
+      `INSERT INTO subjects(id, user_id, doc) VALUES ($1,$2,$3)
+       ON CONFLICT (id, user_id) DO UPDATE SET doc = EXCLUDED.doc`,
+      [subject.id, userId, JSON.stringify(subject)]
+    );
+    await this.seedCourseRows(userId, subject);
+    const now = new Date().toISOString();
+    for (const c of subject.concepts) {
+      const base = blankMastery(c.id, now);
+      await dbQuery(
+        `INSERT INTO mastery_state(user_id, concept_id, exposure_count, successful_recall_count, failed_recall_count,
+          confusion_count, misconception_count, last_seen_at, last_successful_recall_at, mastery, confidence, review_priority)
+         VALUES ($1,$2,0,0,0,0,0,$3,NULL,$4,$5,$6)
+         ON CONFLICT (user_id, concept_id) DO NOTHING`,
+        [userId, scopeId(c.id, userId, subject.id), now, base.mastery, base.confidence, base.reviewPriority]
+      );
+    }
+  }
+
+  async getSubject(userId: string, subjectId: string): Promise<Subject | null> {
+    const rows = await dbQuery<{ doc: Subject }>(
+      "SELECT doc FROM subjects WHERE user_id=$1 AND id=$2", [userId, subjectId]
+    );
+    return rows[0]?.doc ?? null;
+  }
+
+  async listSubjects(userId: string): Promise<Subject[]> {
+    const rows = await dbQuery<{ doc: Subject }>(
+      "SELECT doc FROM subjects WHERE user_id=$1 ORDER BY created_at DESC", [userId]
+    );
+    return rows.map((r) => r.doc);
   }
 
   async recordLearning(userId: string, input: RecordInput): Promise<RecordOutcome> {

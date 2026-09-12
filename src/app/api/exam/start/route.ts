@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { COURSES, getCourse } from "@/lib/courses";
+import { findSubjectOwning, resolveSubject } from "@/lib/courses/subject";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -24,10 +24,9 @@ export async function POST(req: NextRequest) {
     conceptId = body?.conceptId ?? null;
     courseIdIn = body?.courseId;
   } catch { /* optional */ }
-  const course = getCourse(courseIdIn);
-  const examQuestions = course.examQuestions;
-
   const store = getStore();
+  const course = await resolveSubject(store, identity.userId, courseIdIn);
+  const examQuestions = course.examQuestions;
   await store.seedCourse(identity.userId, course.id);
   if (!conceptId) {
     // Adaptive: ask about the caller's weakest tracked concept that has questions.
@@ -46,7 +45,7 @@ export async function POST(req: NextRequest) {
     } else {
       // The concept belongs to another lab (e.g. Today in "all courses" mode):
       // resolve the owning lab instead of answering from the wrong one.
-      const owner = Object.values(COURSES).find((c) => c.concepts.some((x) => x.id === conceptId));
+      const owner = await findSubjectOwning(store, identity.userId, conceptId);
       if (owner) {
         await store.seedCourse(identity.userId, owner.id);
         activeCourse = owner;

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
+import { resolveSubject } from "@/lib/courses/subject";
 import { compoundMemory } from "@/lib/memory";
 import { checkLimit, limitKey } from "@/lib/limits";
 import { clientIp, withIdentityCookie } from "@/lib/http";
@@ -19,20 +20,31 @@ export async function GET(req: NextRequest) {
   }
 
   const store = getStore();
-  await store.seedDemoCourse(identity.userId);
-  const [queue, concepts, events] = await Promise.all([
+  const param = req.nextUrl.searchParams.get("subjectId") ?? req.nextUrl.searchParams.get("subject") ?? req.nextUrl.searchParams.get("courseId");
+  const subject = await resolveSubject(store, identity.userId, param);
+  await store.seedCourse(identity.userId, subject.id);
+  const [queue, concepts, allEvents] = await Promise.all([
     store.getReviewQueue(identity.userId),
-    store.getConcepts(identity.userId),
+    store.getConcepts(identity.userId, subject.id),
     store.listEvents(identity.userId, 50),
   ]);
   const names = new Map(concepts.map((c) => [c.id, c.name]));
+  // Scoped when a subject was named: this subject's concepts and its own turns.
+  const conceptIds = new Set(concepts.map((c) => c.id));
+  const events = param ? allEvents.filter((e) => e.courseId === subject.id) : allEvents;
   return done(Response.json({
-    queue: queue.map((q) => ({ ...q, conceptName: names.get(q.conceptId) ?? q.conceptId })),
-    compound: compoundMemory(events.map((e) => ({
-      intent: e.intent,
-      primaryConceptId: e.primaryConceptId,
-      cleanedTranscript: e.cleanedTranscript,
-    }))),
+    subjectId: subject.id,
+    queue: queue
+      .filter((q) => !param || conceptIds.has(q.conceptId))
+      .map((q) => ({ ...q, conceptName: names.get(q.conceptId) ?? q.conceptId })),
+    compound: compoundMemory(
+      events.map((e) => ({
+        intent: e.intent,
+        primaryConceptId: e.primaryConceptId,
+        cleanedTranscript: e.cleanedTranscript,
+      })),
+      Object.fromEntries(names)
+    ),
     backend: store.backend,
   }));
 }

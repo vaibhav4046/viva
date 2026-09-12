@@ -1,25 +1,11 @@
 /**
- * Compound memory: deterministic statements built ONLY from actual history.
- * Max 3 statements. Returns [] when history is thin (seed event only).
+ * Compound memory: statements built ONLY from what actually happened.
+ * Max 3 statements. Returns [] when history is thin (the opening event only).
+ *
+ * Concept names come from the caller (the subject the learner is in), so this
+ * file knows nothing about any particular subject and the same three rules
+ * work on notes about the Krebs cycle as on the starters.
  */
-
-export const MEMORY_CONCEPT_NAMES: Record<string, string> = {
-  c_position: "positional information",
-  c_self_attention: "self-attention",
-  c_qkv: "queries, keys and values",
-  c_multihead: "multi-head attention",
-  c_backprop: "backpropagation vs gradient descent",
-  c_policy_value: "policy vs value iteration",
-};
-
-const CONCEPT_ORDER = [
-  "c_position",
-  "c_self_attention",
-  "c_qkv",
-  "c_multihead",
-  "c_backprop",
-  "c_policy_value",
-];
 
 const SUCCESS_INTENTS = new Set(["remember", "claim", "teachback", "quiz_request", "exam_marker"]);
 const STRUGGLE_INTENTS = new Set(["confusion", "question", "explain"]);
@@ -30,10 +16,16 @@ export type MemoryEvent = {
   cleanedTranscript: string;
 };
 
-export function compoundMemory(events: MemoryEvent[]): string[] {
+export function compoundMemory(events: MemoryEvent[], conceptNames: Record<string, string> = {}): string[] {
   if (events.length <= 1) return [];
   const out: string[] = [];
-  const name = (id: string) => MEMORY_CONCEPT_NAMES[id] ?? id;
+  const name = (id: string) => conceptNames[id] ?? id;
+
+  // Order of first mention, so the same history always reads the same way.
+  const order: string[] = [];
+  for (const e of events) {
+    if (e.primaryConceptId && !order.includes(e.primaryConceptId)) order.push(e.primaryConceptId);
+  }
 
   // (a) Repeated confusions on the same concept.
   const confusions = new Map<string, number>();
@@ -42,14 +34,14 @@ export function compoundMemory(events: MemoryEvent[]): string[] {
       confusions.set(e.primaryConceptId, (confusions.get(e.primaryConceptId) ?? 0) + 1);
     }
   }
-  for (const id of CONCEPT_ORDER) {
+  for (const id of order) {
     if (out.length >= 3) break;
     const n = confusions.get(id) ?? 0;
     if (n >= 2) out.push(`You've flagged ${name(id)} as confusing ${n} times.`);
   }
 
   // (b) Failed recall (confusion) then later success on the same concept.
-  for (const id of CONCEPT_ORDER) {
+  for (const id of order) {
     if (out.length >= 3) break;
     let firstConfusion = -1;
     let laterSuccess = false;
@@ -77,7 +69,7 @@ export function compoundMemory(events: MemoryEvent[]): string[] {
     }
     let weakest: string | null = null;
     let best = 0;
-    for (const id of CONCEPT_ORDER) {
+    for (const id of order) {
       const n = struggle.get(id) ?? 0;
       if (n > best) {
         best = n;

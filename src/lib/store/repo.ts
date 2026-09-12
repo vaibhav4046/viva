@@ -1,3 +1,4 @@
+import type { Subject } from "@/lib/courses/types";
 import type { ConceptMastery, LearningEvent, LearningIntent, SourceChunk } from "@/lib/types";
 
 /**
@@ -56,8 +57,14 @@ export type ProductEventSummary = { name: string; count: number };
 export interface EventStore {
   readonly backend: "postgres" | "file" | "blob";
   ensureUser(userId: string, displayName?: string): Promise<void>;
-  /** Seed one lab's course material (sources, concepts) for this user. */
+  /** Seed one starter's material (sources, concepts) for this user. */
   seedCourse(userId: string, courseId: string): Promise<void>;
+  /** Persist a subject this user built from their own notes. */
+  saveSubject(userId: string, subject: Subject): Promise<void>;
+  /** The caller's own subject, or null. Never another user's. */
+  getSubject(userId: string, subjectId: string): Promise<Subject | null>;
+  /** Every subject this user built. Starters are not included. */
+  listSubjects(userId: string): Promise<Subject[]>;
   /** Delegating alias for the default lab (Transformers). */
   seedDemoCourse(userId: string): Promise<void>;
   recordLearning(userId: string, input: RecordInput): Promise<RecordOutcome>;

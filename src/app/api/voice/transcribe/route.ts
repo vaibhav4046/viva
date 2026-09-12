@@ -9,8 +9,10 @@ import {
 import { validateWavInput } from "@/lib/audio/wav";
 import { voiceMessage } from "@/lib/audio/messages";
 import { assemblyAIBreaker } from "@/lib/circuit";
-import { getCourse } from "@/lib/courses";
+import { resolveSubject } from "@/lib/courses/subject";
+import { getStore } from "@/lib/store";
 import { checkLimit, limitKey } from "@/lib/limits";
+import { resolveIdentity } from "@/lib/auth/identity";
 import { Trace, rid, serverLog } from "@/lib/observe";
 
 /**
@@ -58,17 +60,16 @@ function fail(code: string, status: number, retryable: boolean, retryAfterSec?: 
  * Transformers word list, which quietly biased every other subject towards
  * attention and gradients; these come from the subject the learner is in.
  */
-export function subjectKeyterms(subjectId: string | null): string[] {
+export async function subjectKeyterms(userId: string, subjectId: string | null): Promise<string[]> {
+  const subject = await resolveSubject(getStore(), userId, subjectId);
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const concept of getCourse(subjectId).concepts) {
-    for (const term of [concept.name, ...concept.aliases]) {
-      const key = term.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(term);
-      if (out.length === MAX_KEYTERMS) return out;
-    }
+  for (const term of subject.keyterms) {
+    const key = term.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(term);
+    if (out.length === MAX_KEYTERMS) return out;
   }
   return out;
 }
@@ -151,13 +152,14 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const subjectId = field(form, "subjectId");
+    const { identity } = await resolveIdentity(req);
     const wantsClean = (field(form, "mode") ?? "study") !== "verbatim";
     const languageCodes = parseLanguageCodes(field(form, "languageCodes"));
     const contextRaw = field(form, "context");
     const request = {
       audio: buf,
       contentType,
-      keyterms: subjectKeyterms(subjectId),
+      keyterms: await subjectKeyterms(identity.userId, subjectId),
       sttPrompt: condenseContext(contextRaw ? contextRaw.split("\n") : []),
       languageCodes,
       ...(wantsClean ? { llmInstruction: STUDY_INSTRUCTION } : {}),

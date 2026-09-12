@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { compileTranscript } from "@/lib/compiler";
-import { getCourse } from "@/lib/courses";
+import { resolveSubject } from "@/lib/courses/subject";
 import { getStore, learnerDNA } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -65,16 +65,16 @@ export async function POST(req: NextRequest) {
   if (!parsed.success || !raw) return done(err("BAD_REQUEST", "text is required.", false, 400));
   const input = parsed.data;
   const origin = input.origin ?? input.inputKind ?? "voice";
-  const course = getCourse(input.subjectId ?? input.courseId);
   const asrConfidence = input.asr?.confidence ?? input.confidence ?? null;
   const asrLatency = input.asr?.requestTimeMs ?? input.latencyMs ?? null;
   const asrSession = input.asr?.sessionId ?? input.transcriptionSessionId ?? null;
 
   const store = getStore();
+  const course = await resolveSubject(store, identity.userId, input.subjectId ?? input.courseId);
   await store.seedCourse(identity.userId, course.id);
 
   trace.start("plan");
-  const draft = compileTranscript(raw, { selection: input.selection, hasActiveSource: true, courseId: course.id });
+  const draft = compileTranscript(raw, { selection: input.selection, hasActiveSource: true, concepts: course.concepts });
   const priorEvents = await store.listEvents(identity.userId, 30);
   const { memory, openQuestion } = readHistory(priorEvents, course);
   let plan = planTurn(draft, memory, openQuestion);
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
   if (plan.intent === "answer" && plan.openQuestion) {
     const q = plan.openQuestion;
-    const baseline = assessAnswer(q.id, raw, { courseId: course.id });
+    const baseline = assessAnswer(q.id, raw, { course });
     graded = await gradeAnswer({
       subject: course.title,
       question: q.question,

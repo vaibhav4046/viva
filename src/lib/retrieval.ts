@@ -1,4 +1,3 @@
-import { SOURCE_CHUNKS } from "./course";
 import type { EvidenceVerdict, SourceChunk } from "./types";
 
 const STOP = new Set(
@@ -53,13 +52,17 @@ export function scoreChunks(
     .slice(0, limit);
 }
 
-/** Default-chunk wrapper. Stores pass the active course's chunks via `chunks`. */
+/**
+ * Score a subject's own passages. `chunks` is required: there is no default
+ * subject to fall back to, and quietly searching somebody else's material
+ * would be worse than returning nothing.
+ */
 export function retrieveEvidence(
   query: string,
-  opts: { sourceId?: string | null; conceptIds?: string[]; limit?: number; chunks?: SourceChunk[] } = {}
+  opts: { chunks: SourceChunk[]; sourceId?: string | null; conceptIds?: string[]; limit?: number }
 ): { chunk: SourceChunk; score: number }[] {
   const { chunks, ...rest } = opts;
-  return scoreChunks(chunks ?? SOURCE_CHUNKS, query, rest);
+  return scoreChunks(chunks, query, rest);
 }
 
 /**
@@ -82,12 +85,12 @@ export function verifyEvidence(
     if (coverage >= 0.25) support.push(c.id);
     else insufficient.push(c.id);
   }
-  // Contradiction heuristic for the two classic misconceptions in the demo.
-  const low = claim.toLowerCase();
-  if (/wouldn't know which words are important|doesn't know.*important|importance/i.test(claim)) {
-    // Source says order is lost, not importance -> mark the positional chunks as contradicting the claim.
+  // A claim about what matters, answered by passages that talk about order,
+  // is the shape of a contradiction in any subject: the learner is asserting
+  // one property while the source discusses another.
+  if (/\bimportan(?:t|ce)\b/i.test(claim)) {
     for (const c of chunks) {
-      if (/positional|order|permutation/i.test(c.text) && !contradiction.includes(c.id)) {
+      if (/\b(order|ordering|sequence|position|positional|permutation)\b/i.test(c.text) && !contradiction.includes(c.id)) {
         contradiction.push(c.id);
       }
     }

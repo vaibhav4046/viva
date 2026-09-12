@@ -38,6 +38,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",

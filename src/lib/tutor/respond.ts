@@ -255,7 +255,7 @@ function heuristicTurn(opts: {
     conceptId: plan.primaryConceptId,
     evidenceIds,
     mastery: opts.mastery,
-    courseId: opts.course.id,
+    course: opts.course,
   });
   const question = /\?/.test(t.text) ? t.text.slice(0, 200) : null;
   const reply: TutorReply = {

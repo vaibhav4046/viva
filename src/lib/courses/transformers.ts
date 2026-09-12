@@ -252,4 +252,17 @@ export const TRANSFORMERS: Course = {
       correct: "Backprop computes the direction; gradient descent, scaled by the learning rate, decides how far to move.",
     },
   ],
+  // Labelled starting map for the starter (§11): the shape a mid-week student
+  // walks in with, so the first spoken sentence has something to move.
+  priors: {
+    c_self_attention: { exposureCount: 4, successfulRecallCount: 2, mastery: 0.68, confidence: 0.55, reviewPriority: 0.35, recalled: true },
+    c_qkv: { exposureCount: 3, successfulRecallCount: 1, confusionCount: 1, mastery: 0.58, confidence: 0.5, reviewPriority: 0.45, recalled: true },
+    c_position: { exposureCount: 2, confusionCount: 1, mastery: 0.44, confidence: 0.4, reviewPriority: 0.62 },
+    c_multihead: { exposureCount: 1, mastery: 0.5, confidence: 0.35, reviewPriority: 0.5 },
+  },
+  opening: {
+    conceptId: "c_multihead",
+    chunkId: "ch_mh_1",
+    text: "Multi-head attention runs several attention computations in parallel.",
+  },
 };

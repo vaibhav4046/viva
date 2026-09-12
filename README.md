@@ -62,13 +62,25 @@ honest 503 and the typed box still works — nothing is ever faked.
 
 ```bash
 curl -s -X POST https://viva-five-murex.vercel.app/api/voice/transcribe \
-  -H "Content-Type: audio/wav" \
-  --data-binary @your-16khz-mono.wav
+  -F "audio=@your-16khz-mono.wav;type=audio/wav" \
+  -F "subjectId=course_transformers_w4" \
+  -F "mode=study"
 ```
 
-Returns a real result: `mode`, `confidence`, a real `session_id`, and
-`demoFixture: false`. Verified live on 12 September 2026 at 0.9895 and 0.9957
-confidence on two spoken samples.
+A real run against production, 12 September 2026:
+
+```json
+{ "mode": "dictation",
+  "confidence": 0.988,
+  "sessionId": "e36868b6-b49f-417f-b4a9-1d53a7c26a14",
+  "requestTimeMs": 604,
+  "verbatim": "Um, I don't really understand why attention needs positional encoding. I think, maybe, it's about which words are important?",
+  "clean":    "I don't really understand why attention needs positional encoding; I think maybe it's about which words are important." }
+```
+
+That pair is the whole argument for using the Dictation API rather than a
+plain transcript: `Um,` is gone and `I think` / `maybe` are still there.
+Median release-to-review in the browser is 853 ms over five runs.
 
 ---
 

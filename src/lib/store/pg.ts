@@ -52,7 +52,10 @@ function toEvent(r: Record<string, unknown>): LearningEvent {
 
 function toMastery(r: Record<string, unknown>): ConceptMastery {
   return {
-    conceptId: r.concept_id as string,
+    // Stripped, like the keys these rows are filed under and like the
+    // blankMastery() call three screens down. Leaving it scoped put a raw row
+    // id on /today for every concept the learner had touched.
+    conceptId: stripScope(r.concept_id as string),
     exposureCount: Number(r.exposure_count ?? 0),
     successfulRecallCount: Number(r.successful_recall_count ?? 0),
     failedRecallCount: Number(r.failed_recall_count ?? 0),

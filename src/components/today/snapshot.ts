@@ -1,5 +1,5 @@
 import { compoundMemory } from "@/lib/memory";
-import { projectWeek, selectDailyPath, type WeekDay } from "@/lib/planner";
+import { conceptNamer, projectWeek, selectDailyPath, type WeekDay } from "@/lib/planner";
 import type { ConceptMastery, LearningEvent } from "@/lib/types";
 import type { PathSegment } from "./types";
 
@@ -56,8 +56,7 @@ export type TodayView = {
 
 export function deriveToday(snapshot: LearnerSnapshot, now: Date = new Date()): TodayView {
   const { mastery, events, concepts } = snapshot;
-  const names = new Map(concepts.map((c) => [c.id, c.name]));
-  const nameOf = (id: string) => names.get(id) ?? id;
+  const nameOf = conceptNamer(concepts);
 
   // The store's own review queue is a second round trip and, on Postgres, a
   // second source of truth. The ladder alone ranks the same concepts in the
@@ -85,7 +84,12 @@ export function deriveToday(snapshot: LearnerSnapshot, now: Date = new Date()): 
       primaryConceptId: e.primaryConceptId,
       cleanedTranscript: e.cleanedTranscript,
     })),
-    Object.fromEntries(names)
+    // Named through the same resolver the rest of the screen uses, keyed by
+    // the ids actually present, so compoundMemory's own `?? id` fallback has
+    // nothing left to fall back to.
+    Object.fromEntries(
+      events.flatMap((e) => (e.primaryConceptId ? [[e.primaryConceptId, nameOf(e.primaryConceptId)] as const] : []))
+    )
   );
 
   const mixedUp =

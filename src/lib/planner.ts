@@ -98,11 +98,23 @@ export function ownerCourse(conceptId: string | null): string | null {
 
 /**
  * A name for a concept id: the caller's own list first, then anything VIVA
- * ships, and only then the raw id — which a student should never see.
+ * ships, and never the id itself.
+ *
+ * Postgres namespaces every row `base::user::course`, and one of those ids
+ * reached a student's plan as a card title and inside a sentence — "c_position
+ * ::demo_1e1d05052db01852e9d2082b0ecc5a57::course_transformers_w4 has 2
+ * incorrect answers" — for exactly the concepts they had worked on. Two things
+ * are wrong there and both are fixed: the store no longer hands out scoped ids,
+ * and a scoped id that arrives anyway is looked up by its base rather than
+ * printed. If nothing knows the name, a neutral phrase is the honest answer;
+ * a student reading their own plan should never meet a database key.
  */
-function namerFor(concepts: { id: string; name: string }[]): (id: string) => string {
+export function conceptNamer(concepts: { id: string; name: string }[]): (id: string) => string {
   const names = new Map(concepts.map((c) => [c.id, c.name]));
-  return (id: string) => names.get(id) ?? factsIndex().get(id)?.name ?? id;
+  return (id: string) => {
+    const base = id.includes("::") ? id.slice(0, id.indexOf("::")) : id;
+    return names.get(id) ?? names.get(base) ?? factsIndex().get(base)?.name ?? "this concept";
+  };
 }
 
 /**
@@ -158,7 +170,7 @@ function holding(m: ConceptMastery): boolean {
 /** One rule tier, sorted and excluding concepts already claimed by the ladder. */
 function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<string>): RankedCandidate[] {
   const { mastery, events, queue, concepts } = input;
-  const nameOf = namerFor(concepts);
+  const nameOf = conceptNamer(concepts);
 
   if (kind === "misconception") {
     // Queue membership (the store's own "due" flag) is preferred when present;
@@ -268,7 +280,7 @@ const TEACHBACK_MINUTES = 2;
  * until the nine concept minutes are spent, then the summary.
  */
 export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
-  const nameOf = namerFor(input.concepts);
+  const nameOf = conceptNamer(input.concepts);
   const used = new Set<string>();
   const path: PathSegmentOut[] = [];
 
@@ -482,7 +494,7 @@ const dayWord = (n: number) => (n === 1 ? "a day" : `${n} days`);
  */
 export function projectWeek(input: PlannerInput, now: Date): WeekProjection {
   const nowMs = now.getTime();
-  const titleOf = namerFor(input.concepts);
+  const titleOf = conceptNamer(input.concepts);
   const items: WeekSegment[][] = Array.from({ length: WEEK_DAYS }, () => []);
   const onToday = new Set<string>();
   const scheduled = new Set<string>();

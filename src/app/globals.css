@@ -71,6 +71,11 @@ body {
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  /* A student's own notes decide how long a word on this page can be — a URL,
+   * a chemical name, an accession number. `anywhere` rather than `break-word`
+   * because only `anywhere` shrinks a flex or grid child's min-content width,
+   * and that width is what pushed /today to 806 px inside a 390 px phone. */
+  overflow-wrap: anywhere;
 }
 
 /* ------------------------------- type ------------------------------- */

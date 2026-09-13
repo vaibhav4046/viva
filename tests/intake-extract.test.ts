@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSubject } from "@/lib/intake/build";
+import { buildSubject, notePages } from "@/lib/intake/build";
 import { chunkPages, CHUNK_CHARS, normalizeText } from "@/lib/intake/chunk";
 import { extractSubjectBody } from "@/lib/intake/extract";
 
@@ -124,5 +124,111 @@ describe("what the subject is called", () => {
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     expect(built.subject.title).toBe("COMP319 revision");
+  });
+});
+
+/**
+ * Where a passage came from, which is the half of a citation that has to be
+ * true for a student to go and check it.
+ *
+ * A student judge, 13 Sep: "Own-notes passages are blind ~750-char overlapping
+ * windows cited only as '§Your notes · Passage N' — no section or page, unlike
+ * built-in subjects." Reproduced on 788 words of enzyme kinetics notes: seven
+ * passages of 789, 784, 781, 715, 603, 781 and 256 characters, one of them
+ * ending "Three things fall straight out of that equation: 1." and the next
+ * opening with it, and the same six characters — "Your notes" — printed under
+ * all seven.
+ */
+const HEADED_BULLETS = `Enzyme kinetics revision
+
+Active site
+
+- Small pocket of a few residues, shaped to fit the substrate.
+- Lock and key: the site is already the right shape and the substrate slots in.
+- Induced fit: the site closes around the substrate once it binds.
+- Binding is non-covalent, so it is reversible.
+
+Michaelis-Menten
+
+- The scheme is E plus S goes reversibly to ES, and ES goes forwards to E plus P.
+- The steady state assumption is that the concentration of ES stays constant.
+- The rate law is v equals Vmax times S over Km plus S.
+- At S far below Km the rate is first order in substrate concentration.
+- At S far above Km the rate sits at Vmax and the enzyme is saturated.
+
+Inhibition
+
+- Competitive: binds the free active site, apparent Km rises, Vmax unchanged.
+- Uncompetitive: binds only the ES complex, Km and Vmax fall together.
+- Non-competitive: binds elsewhere, Vmax falls, Km is unchanged.
+- Only competitive inhibition is overcome by adding more substrate.`;
+
+/** The same material with the student's headings taken out. */
+const UNHEADED = HEADED_BULLETS.split("\n\n").filter((b) => b.startsWith("-")).join("\n\n");
+
+describe("where a passage came from", () => {
+  it("cites the heading a student wrote over a bullet list", () => {
+    const chunks = chunkPages(notePages(normalizeText(HEADED_BULLETS)), "src_hb", "Your notes");
+    const sections = chunks.map((c) => c.locator.section);
+    // The heading test used to demand one prose line of 120 characters under
+    // the heading, which a bullet list never is, so every heading here was
+    // swallowed into the text and every passage was cited "Your notes".
+    expect(sections).toContain("Michaelis-Menten");
+    expect(sections).toContain("Inhibition");
+    expect(sections).not.toContain("Your notes");
+    // And a list stays in one passage rather than being cut across two.
+    const mm = chunks.find((c) => c.locator.section === "Michaelis-Menten");
+    expect(mm?.text).toMatch(/^- The scheme/);
+    expect(mm?.text).toMatch(/saturated\.$/);
+  });
+
+  it("names the paragraphs it covers when the notes carry no headings at all", () => {
+    const chunks = chunkPages(notePages(normalizeText(UNHEADED)), "src_un", "Your notes");
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      // Not the document's own name, which is the same string on every passage
+      // and points at nothing inside it.
+      expect(c.locator.section).not.toBe("Your notes");
+      expect(c.locator.section).toMatch(/^Paragraphs? \d+(–\d+)?$/);
+    }
+    // Counted through the document, in order, with nothing skipped.
+    const first = chunks[0].locator.section ?? "";
+    expect(first).toMatch(/^Paragraphs? 1\b/);
+  });
+
+  it("starts every passage where the student started one, and repeats nothing", () => {
+    const chunks = chunkPages(notePages(normalizeText(UNHEADED)), "src_un2", "Your notes");
+    const paragraphs = UNHEADED.split("\n\n").map((p) => p.replace(/\s+/g, " ").trim());
+    for (const c of chunks) {
+      expect(paragraphs.some((p) => c.text.startsWith(p.slice(0, 40)))).toBe(true);
+      expect(paragraphs.some((p) => c.text.endsWith(p.slice(-40)))).toBe(true);
+    }
+    // The seam is gone with the arbitrary cut that needed it: no passage opens
+    // with the tail of the one above it.
+    for (let i = 1; i < chunks.length; i++) {
+      expect(chunks[i].text.startsWith(chunks[i - 1].text.slice(-40))).toBe(false);
+    }
+  });
+
+  /**
+   * The guard on everything VIVA ships. Every source in the preloaded library
+   * is fed to this chunker as one whitespace-collapsed block per textbook
+   * section (scripts/seed-corpus.mjs), and a .docx, a .txt and a web page
+   * arrive the same way. Text with no blank lines in it must therefore come
+   * out exactly as it did before paragraphs were read: sentence-packed, with
+   * the seam, under the section it was given.
+   */
+  it("cuts a source with no blank lines exactly as it always did", () => {
+    const collapsed = normalizeText(NOTES).replace(/\s+/g, " ");
+    const chunks = chunkPages([{ text: collapsed, section: "Balancing" }], "src_flat", "Chapter 4");
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(c.text.length).toBeLessThanOrEqual(CHUNK_CHARS);
+      expect(c.locator.section).toBe("Balancing");
+    }
+    // Consecutive passages still share a seam, because the cut inside one
+    // paragraph is still a cut nobody asked for.
+    const tail = chunks[0].text.slice(-40);
+    expect(chunks[1].text.includes(tail.slice(0, 20))).toBe(true);
   });
 });

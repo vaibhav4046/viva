@@ -223,7 +223,9 @@ describe("buildSubject", () => {
     expect(out.subject.origin).toBe("named");
     // The learner must be able to see these were not their own notes.
     expect(out.subject.sources[0].title).toMatch(/written for you/i);
-    expect(out.subject.sources[0].chunks[0].locator.section).toBe("Written for you");
+    // …and the citation says which of them, not just who wrote it: "Written
+    // for you" was the same string on all nine passages.
+    expect(out.subject.sources[0].chunks[0].locator.section).toBe("Step 1");
   });
 
   it("turns away material too thin to study from", async () => {

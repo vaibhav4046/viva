@@ -1,9 +1,11 @@
 import type { SourceChunk } from "@/lib/types";
 
 /**
- * Text in, passages out. 800 characters with 120 of overlap, cut on a word
- * boundary so no passage starts or ends mid-word, and never across a page
- * boundary — a citation has to be able to say which page it came from.
+ * Text in, passages out. Cut where the writer cut — at their paragraphs, their
+ * bullet lists, their numbered steps — and only fall back to counting
+ * characters inside a paragraph too long to be a passage on its own. Never
+ * across a page boundary: a citation has to be able to say which page it came
+ * from.
  */
 
 export const CHUNK_CHARS = 800;
@@ -20,7 +22,12 @@ export type IntakePage = { text: string; page?: number; section?: string };
 
 export function normalizeText(raw: string): string {
   return raw
-    .replace(/\r/g, "\n")
+    // A Windows line ending is ONE break, not two. `/\r/` alone turned every
+    // "\r\n" into a blank line, so a paste off a Windows machine had a
+    // paragraph break between every pair of lines — invisible while passages
+    // were cut by character count, and a citation that miscounts the
+    // student's own paragraphs now that they are cut where the writer cut.
+    .replace(/\r\n?/g, "\n")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]*\n[ \t]*/g, "\n")
@@ -47,22 +54,20 @@ function wordWindows(clean: string): string[] {
 }
 
 /**
- * Cut one page into passages that begin where a sentence begins.
+ * Cut one paragraph that is longer than a whole passage, on its sentences.
  *
- * They used to be cut at 800 characters and snapped to the nearest space, so
- * a judge reading their own notes back got "Passage 2: correct validity check
- * passes a (min, max) range down the recursion" — a passage opening on the
- * second half of a clause, repeating the tail of the one above it. Whole
- * sentences are packed instead, and the seam that keeps a straddling claim
- * retrievable is carried as whole sentences too rather than as a hundred
- * characters cut wherever they landed. A single sentence longer than a whole
- * passage still has to be cut somewhere, and that is the only case left that
- * cuts mid-clause.
+ * Passages used to be cut at 800 characters and snapped to the nearest space,
+ * so a judge reading their own notes back got "Passage 2: correct validity
+ * check passes a (min, max) range down the recursion" — a passage opening on
+ * the second half of a clause. Whole sentences are packed instead.
+ *
+ * This is now the only place that guesses at a boundary, so it is the only
+ * place that still carries a seam: the next passage re-opens with the last
+ * whole sentences of this one, because a claim straddling a cut nobody
+ * intended has to stay retrievable whole from one side of it. A single
+ * sentence longer than a passage is the one case left that cuts mid-clause.
  */
-function windows(text: string): string[] {
-  const clean = text.replace(/\s+/g, " ").trim();
-  if (clean.length <= CHUNK_CHARS) return clean ? [clean] : [];
-
+function sentenceWindows(clean: string): string[] {
   const out: string[] = [];
   let buf: string[] = [];
   let len = 0;
@@ -108,20 +113,100 @@ function windows(text: string): string[] {
   return out.filter(Boolean);
 }
 
-/** Section first, then the page number, then the source's own name. */
-function locatorFor(page: IntakePage, fallbackSection: string): SourceChunk["locator"] {
+/**
+ * The blocks the writer left: paragraphs, separated by a blank line. A run of
+ * bullets or numbered steps with no blank line between them is one block,
+ * which is the point — a list is one idea and belongs in one passage.
+ */
+function paragraphsOf(text: string): string[] {
+  return text
+    .split(/\n[ \t]*\n/)
+    .map((b) => b.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+/** A passage, and which of the document's paragraphs it covers whole. */
+type Window = { text: string; paragraphs: [number, number] | null };
+
+/**
+ * Pack whole paragraphs into passages.
+ *
+ * A judge pasted their own notes and got six passages of 758, 787, 743, 771,
+ * 745 and 430 characters: one ended "Three things fall straight out of that
+ * equation: 1." and the next opened with it, one ran from the turnover number
+ * through to the intercepts of a Lineweaver-Burk plot, and the last was a
+ * remainder. Whole sentences did not fix that, because the cut was never
+ * wrong by a few words — it was in a place the writer had not put one. Their
+ * own blank lines are a better boundary than any character count, and they
+ * cost nothing to read.
+ *
+ * A paragraph longer than a whole passage still has to be cut somewhere, and
+ * that case alone keeps the sentence packing and the seam.
+ *
+ * `base` is how many paragraphs of this document came before this page, so the
+ * numbers a citation shows count through the whole thing rather than
+ * restarting under every heading.
+ */
+function windows(text: string, base: number): { passages: Window[]; paragraphs: number } {
+  const blocks = paragraphsOf(text);
+  const passages: Window[] = [];
+  let buf: string[] = [];
+  let len = 0;
+  let first = 0;
+  let last = 0;
+  const flush = () => {
+    if (buf.length) passages.push({ text: buf.join(" "), paragraphs: [first, last] });
+    buf = [];
+    len = 0;
+  };
+
+  for (const [i, block] of blocks.entries()) {
+    const n = base + i + 1;
+    if (block.length > CHUNK_CHARS) {
+      flush();
+      // Cut inside one paragraph: the pieces cover no whole paragraph of it,
+      // so they carry no paragraph number. "Paragraph 4" three times running
+      // is true and useless, and on a document that is one unbroken block it
+      // would be worse than saying nothing.
+      for (const piece of sentenceWindows(block)) passages.push({ text: piece, paragraphs: null });
+      continue;
+    }
+    if (len + block.length + 1 > CHUNK_CHARS) flush();
+    if (!buf.length) first = n;
+    last = n;
+    buf.push(block);
+    len += block.length + 1;
+  }
+  flush();
+  return { passages: passages.filter((p) => p.text), paragraphs: blocks.length };
+}
+
+/**
+ * Section first, then the page number, then where in the document it is, and
+ * only then the source's own name.
+ *
+ * Every passage of a paste used to be stamped with the source's own name —
+ * "§Your notes", the same string on all seven of them, which locates nothing.
+ * A student checking whether they were quoted correctly needs somewhere to
+ * look: their heading if they wrote one, and failing that the paragraph,
+ * counted off their own blank lines, which is what a page number is for a PDF.
+ * Nothing here is invented. A document that offers neither still gets its own
+ * name rather than a number implying a precision it has not got.
+ */
+function locatorFor(page: IntakePage, at: [number, number] | null, fallbackSection: string): SourceChunk["locator"] {
   const section = page.section?.trim();
   if (section && page.page) return { section, page: page.page };
   if (section) return { section };
   if (page.page) return { section: `Page ${page.page}`, page: page.page };
+  if (at) return { section: at[0] === at[1] ? `Paragraph ${at[0]}` : `Paragraphs ${at[0]}–${at[1]}` };
   return { section: fallbackSection };
 }
 
 /**
  * Passages for one source, ordered, each carrying its page when the input had
  * one. `section` is what the source pane groups by, so it is the heading for a
- * web page or chapter, the page label for a PDF, and the source title for
- * pasted text.
+ * web page or chapter, the page label for a PDF, and the paragraphs it covers
+ * for pasted text that came with no headings at all.
  */
 export function chunkPages(
   pages: IntakePage[],
@@ -137,15 +222,18 @@ export function chunkPages(
 ): SourceChunk[] {
   const chunks: SourceChunk[] = [];
   let ordinal = 1;
+  let paragraphs = 0;
   for (const page of pages) {
-    for (const text of windows(page.text)) {
+    const cut = windows(page.text, paragraphs);
+    paragraphs += cut.paragraphs;
+    for (const passage of cut.passages) {
       if (chunks.length >= limit) return chunks;
       chunks.push({
         id: `${sourceId}_c${ordinal}`,
         sourceId,
         ordinal,
-        text,
-        locator: locatorFor(page, fallbackSection),
+        text: passage.text,
+        locator: locatorFor(page, passage.paragraphs, fallbackSection),
       });
       ordinal += 1;
     }

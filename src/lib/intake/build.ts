@@ -123,13 +123,23 @@ function titleFromNotes(text: string): string | null {
  * pages still has structure, and the heading a passage sat under is the
  * truest thing a citation can say about where it came from.
  *
- * Conservative on purpose. A heading has to start a block and be followed by
- * a real paragraph, so a bulleted list — short lines, no full stops, exactly
- * the shape of a heading — is not chopped into one passage per bullet. If
- * that reading produces an implausible number of sections it is abandoned and
- * the paste stays one page.
+ * Conservative on purpose. A heading has to start a block, must not itself be
+ * a bullet, and must have a real body under it, so a bulleted list — short
+ * lines, no full stops, exactly the shape of a heading — is not chopped into
+ * one passage per bullet. If that reading produces an implausible number of
+ * sections it is abandoned and the paste stays one page.
+ *
+ * What "a real body" means was the miss. It used to be one line longer than
+ * 120 characters, which is prose and only prose: notes written as a heading
+ * over a bullet list — the commonest revision shape there is — matched
+ * nothing, so the headings were swallowed into the text and every passage was
+ * cited "§Your notes". It is now the whole run of lines under the heading,
+ * which is one paragraph in prose notes and the whole list in bulleted ones.
  */
 const MAX_NOTE_SECTIONS = 24;
+
+/** A bullet is never a heading, however short it is. */
+const BULLET = /^\s*[-*•·‣+]\s+/;
 
 export function notePages(text: string): IntakePage[] {
   const lines = text.split("\n");
@@ -139,9 +149,13 @@ export function notePages(text: string): IntakePage[] {
     if (/[.!?;:,]$/.test(line)) return false;
     if (line.split(/\s+/).length > 12) return false;
     if (!/[A-Za-z]/.test(line)) return false;
+    if (BULLET.test(line)) return false;
     if (i > 0 && lines[i - 1].trim() !== "") return false;
-    const next = lines.slice(i + 1).find((l) => l.trim() !== "");
-    return Boolean(next && next.trim().length > 120);
+    let j = i + 1;
+    while (j < lines.length && !lines[j].trim()) j += 1;
+    let under = 0;
+    for (; j < lines.length && lines[j].trim(); j += 1) under += lines[j].trim().length;
+    return under > 120;
   };
 
   const pages: IntakePage[] = [];
@@ -275,7 +289,10 @@ export async function buildSubject(
         },
       };
     }
-    pages = drafted.passages.map((p) => ({ text: `${p.heading}. ${p.text}` }));
+    // The heading stays in the text, because the extractor reads a heading as
+    // a topic, and travels as the section too, because a citation that says
+    // "Written for you" seven times says only who wrote it, never which part.
+    pages = drafted.passages.map((p) => ({ text: `${p.heading}. ${p.text}`, section: p.heading }));
     origin = "named";
     written = true;
   } else if (input.kind === "pdf") {

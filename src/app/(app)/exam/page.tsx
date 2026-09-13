@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MotionConfig } from "motion/react";
-import { MicButton } from "@/components/voice/MicButton";
+import { MicButton, type VoiceTurn } from "@/components/voice/MicButton";
 import { Graph } from "@/components/Graph";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -149,7 +149,7 @@ export default function ExamPage() {
     }
   }
 
-  async function answer(transcript: string) {
+  async function answer(transcript: string, origin: VoiceTurn["origin"]) {
     if (!q || !courseId) return;
     setBusy("answer");
     setFailure(null);
@@ -157,7 +157,7 @@ export default function ExamPage() {
     try {
       const res = await fetch("/api/exam/answer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: q.id, answer: transcript, clientEventId, courseId }),
+        body: JSON.stringify({ questionId: q.id, answer: transcript, clientEventId, courseId, origin }),
       });
       if (!res.ok) throw new Error("exam answer failed");
       const d = (await res.json()) as ExamAnswerBody;
@@ -175,7 +175,7 @@ export default function ExamPage() {
       rememberEvent(d.event, clientEventId);
       rememberMastery(d.mastery);
     } catch {
-      setFailure({ message: "Couldn't score that answer — it may not have been recorded.", retry: () => void answer(transcript) });
+      setFailure({ message: "Couldn't score that answer — it may not have been recorded.", retry: () => void answer(transcript, origin) });
     } finally {
       setBusy(null);
     }
@@ -203,7 +203,7 @@ export default function ExamPage() {
     }
   }
 
-  async function answerTeach(transcript: string) {
+  async function answerTeach(transcript: string, origin: VoiceTurn["origin"]) {
     if (!teach || !courseId) return;
     setBusy("answer");
     setFailure(null);
@@ -211,7 +211,7 @@ export default function ExamPage() {
     try {
       const res = await fetch("/api/teachback/answer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conceptId: teach.conceptId, transcript, clientEventId, courseId }),
+        body: JSON.stringify({ conceptId: teach.conceptId, transcript, clientEventId, courseId, origin }),
       });
       if (!res.ok) throw new Error("teachback answer failed");
       const d = (await res.json()) as TeachResult;
@@ -220,7 +220,7 @@ export default function ExamPage() {
       rememberEvent(d.event, clientEventId);
       rememberMastery(d.mastery);
     } catch {
-      setFailure({ message: "Couldn't score that explanation — it may not have been recorded.", retry: () => void answerTeach(transcript) });
+      setFailure({ message: "Couldn't score that explanation — it may not have been recorded.", retry: () => void answerTeach(transcript, origin) });
     } finally {
       setBusy(null);
     }
@@ -378,7 +378,7 @@ export default function ExamPage() {
                     <>
                       <MicButton
                         subjectId={courseId ?? DEFAULT_COURSE_ID}
-                        onSubmit={(t) => void answer(t.text)}
+                        onSubmit={(t) => void answer(t.text, t.origin)}
                         onPhaseChange={onPhase}
                         busy={busy === "answer"}
                         context={examContext}
@@ -463,7 +463,7 @@ export default function ExamPage() {
                   <>
                     <MicButton
                       subjectId={courseId ?? DEFAULT_COURSE_ID}
-                      onSubmit={(t) => void answerTeach(t.text)}
+                      onSubmit={(t) => void answerTeach(t.text, t.origin)}
                       onPhaseChange={onPhase}
                       busy={busy === "answer"}
                       context={teachContext}

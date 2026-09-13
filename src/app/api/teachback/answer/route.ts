@@ -15,6 +15,8 @@ const Body = z.object({
   clientEventId: z.string().max(80).optional(),
   courseId: z.string().max(80).optional(),
   subjectId: z.string().max(80).optional(),
+  // The page sends how the words arrived; absent (older client) means spoken.
+  origin: z.enum(["voice", "typed", "external-dictation"]).optional(),
 });
 
 function feedbackFor(
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
     sourceId: course.sources[0]?.id ?? null,
     transcript: p.data.transcript,
     cleanedTranscript: p.data.transcript,
-    origin: "voice",
+    origin: p.data.origin ?? "voice",
     transcriptionConfidence: null,
     transcriptionLatencyMs: null,
     transcriptionSessionId: null,

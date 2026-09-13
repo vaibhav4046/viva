@@ -348,10 +348,35 @@ export async function learnerSnapshot(
     ? Object.fromEntries(Object.entries(allMastery).filter(([id]) => conceptIds.has(id)))
     : allMastery;
   const events = courseParam ? allEvents.filter((e) => e.courseId === course.id) : allEvents;
+
+  /*
+   * "All courses" hands back mastery for every subject and, until now, concepts
+   * for one — so /today held records it had no names for and printed a
+   * placeholder into the plan ("Where does this concept come up?"). Union in
+   * the concepts of every subject the learner has actually touched, which is
+   * exactly the set the plan can name, and no more: one store call per subject
+   * in recent history, typically one or two, rather than a read of all 26.
+   */
+  const named = concepts;
+  if (!courseParam) {
+    const touched = new Set(allEvents.map((e) => e.courseId).filter((id): id is string => Boolean(id)));
+    touched.delete(course.id);
+    if (touched.size > 0) {
+      const extra = await Promise.all([...touched].map((id) => store.getConcepts(userId, id).catch(() => [])));
+      const seen = new Set(concepts.map((c) => c.id));
+      for (const list of extra) {
+        for (const c of list) {
+          if (seen.has(c.id)) continue;
+          seen.add(c.id);
+          named.push(c);
+        }
+      }
+    }
+  }
   return {
     mastery,
     events,
-    concepts,
+    concepts: named,
     // Always empty, kept only so an older client does not crash on a missing
     // key. A concept with no record is "Not yet", which is the truth.
     priors: {},

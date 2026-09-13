@@ -106,7 +106,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </header>
 
-      <div className="flex-1 pb-20 md:pb-0">
+      {/* pb-28, not pb-20. The thumb bar is 57 px plus the home indicator, and
+          80 px of padding left the Send button clearing it by five pixels at
+          rest — so any turn that added a line pushed it under the bar, where a
+          tap navigates instead of sending. Measured on a 390 px phone. */}
+      <div className="flex-1 pb-28 md:pb-0">
         {children}
 
         {/* Connect is not a daily destination, so it does not earn a thumb-bar

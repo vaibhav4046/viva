@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { POST, condenseContext, subjectVoiceConfig } from "@/app/api/voice/transcribe/route";
+import { POST, condenseContext, isCleanup, subjectVoiceConfig } from "@/app/api/voice/transcribe/route";
 import { GET as WARM } from "@/app/api/voice/warm/route";
 import { POST as TELEMETRY } from "@/app/api/voice/telemetry/route";
 import { assemblyAIBreaker } from "@/lib/circuit";
-import { VOICE_MESSAGES } from "@/lib/audio/messages";
+import { CLEANUP_DROPPED, VOICE_MESSAGES } from "@/lib/audio/messages";
 
 /**
  * /api/voice/transcribe. The route's job is the part the provider cannot do:
@@ -438,5 +438,62 @@ describe("POST /api/voice/telemetry", () => {
     for (let i = 0; i < 15; i++) codes.push((await post({ latencyMs: 100 }, "10.5.0.6")).status);
     expect(codes.filter((c) => c === 204).length).toBe(12);
     expect(codes.at(-1)).toBe(429);
+  });
+});
+
+/**
+ * R9-1. A 115 s hold came back with `verbatim` at 1495 characters and `clean`
+ * at 120 — one sentence out of twelve — and the route handed the short one to
+ * a review box that defaults to Clean and commits on its own. Nothing bounded
+ * how far the rewrite could diverge from the words it was rewriting.
+ *
+ * The strings below are the real measured pair, from posting a 114.7 s WAV
+ * through this route against the live Dictation endpoint on 2026-09-13.
+ */
+describe("a cleanup that drops most of the clip is not a cleanup", () => {
+  const SENTENCE = "Um, I don't really understand why attention needs positional encoding. I think, maybe, it's about which words are important? ";
+  /** 1499 characters: the fixture said twelve times over a 115 s hold. */
+  const LONG_VERBATIM = SENTENCE.repeat(12).trim();
+  /** 120 characters: what llm_instruction actually returned for it. */
+  const COLLAPSED = "I don't really understand why attention needs positional encoding. I think, maybe, it's about which words are important.";
+
+  it("refuses the 8% rewrite and answers with the words that were said", async () => {
+    mockCalls(() =>
+      new Response(JSON.stringify({ ...okDictation, text: LONG_VERBATIM, llm_response: COLLAPSED }), { status: 200 })
+    );
+    const body = await (await POST(request())).json();
+    // Without the guard this is the 120-character sentence, and the review box
+    // sends it 1.5 s later with 92% of the clip gone.
+    expect(body.verbatim).toBe(LONG_VERBATIM);
+    expect(body.clean).toBe(LONG_VERBATIM);
+    expect(body.clean).not.toBe(COLLAPSED);
+    // …and it says why, so the panel can too.
+    expect(body.llmError).toBe(CLEANUP_DROPPED);
+  });
+
+  it("keeps a real cleanup, which is the whole point of the feature", async () => {
+    // Measured on the same endpoint the same day: 124 characters in, 118 out.
+    const verbatim = "Um, I don't really understand why attention needs positional encoding. I think, maybe, it's about which words are important?";
+    mockCalls(() =>
+      new Response(JSON.stringify({ ...okDictation, text: verbatim, llm_response: COLLAPSED }), { status: 200 })
+    );
+    const body = await (await POST(request())).json();
+    expect(body.clean).toBe(COLLAPSED);
+    expect(body.llmError).toBeNull();
+  });
+
+  it("leaves short clips alone, where one filler is the whole ratio", () => {
+    // "Um, um, yeah" -> "Yeah." keeps 42% and is a perfectly good tidy-up.
+    expect(isCleanup("Um, um, yeah", "Yeah.")).toBe(true);
+  });
+
+  it("bounds the divergence rather than trusting it", () => {
+    const source = "x".repeat(300);
+    // Every measured genuine cleanup kept 95-100% of the characters; every
+    // measured collapse kept 48% or less. The bound sits between them.
+    expect(isCleanup(source, "x".repeat(285))).toBe(true);
+    expect(isCleanup(source, "x".repeat(200))).toBe(true);
+    expect(isCleanup(source, "x".repeat(144))).toBe(false);
+    expect(isCleanup(source, "x".repeat(24))).toBe(false);
   });
 });

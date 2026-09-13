@@ -19,6 +19,9 @@
  * figure would be the kind of number this project does not print.
  */
 
+import { CLEANUP_DROPPED } from "@/lib/audio/messages";
+import { LIVE_ASR_MODE } from "@/lib/audio/stream";
+
 /** Everything the footer needs. `VoiceTurn` satisfies this structurally. */
 export type TurnFacts = {
   origin: "voice" | "typed" | "external-dictation";
@@ -34,6 +37,8 @@ export type TurnFacts = {
   verbatim?: string | null;
   /** The tidied rewrite, when there was one. */
   clean?: string | null;
+  /** Why there was no usable tidied rewrite, when there was not. */
+  llmError?: string | null;
 };
 
 const num = (v: number | null | undefined): v is number => typeof v === "number" && Number.isFinite(v);
@@ -58,6 +63,11 @@ export function turnFactsLine(facts: TurnFacts): string | null {
   // the move this product refuses to make about a learner's claim, so it does
   // not get to make it about their input either.
   if (facts.origin === "external-dictation") return "Pasted or dictated";
+  // The buffered clip failed and the learner sent the words the live socket
+  // had painted instead. Different transcript, different path, no cleanup and
+  // no upstream time — so it does not get to borrow the Dictation label, and
+  // there is no ms figure to print because none was ever measured for it.
+  if (facts.asrMode === LIVE_ASR_MODE) return "Live words · not the cleaned transcript";
   const parts = [facts.fellBackFrom || facts.asrMode === "sync" ? "Backup path" : "Dictation"];
   if (num(facts.requestTimeMs)) parts.push(`AssemblyAI ${Math.round(facts.requestTimeMs)} ms`);
   if (num(facts.confidence)) parts.push(`${Math.round(facts.confidence * 100)}% confident`);
@@ -68,10 +78,24 @@ export function turnFactsLine(facts: TurnFacts): string | null {
 export function pathTitle(facts: TurnFacts): string {
   if (facts.origin === "external-dictation")
     return "This arrived as one block rather than keystrokes, so it was pasted or dictated by another tool. VIVA did not transcribe it and claims no time for it.";
+  if (facts.asrMode === LIVE_ASR_MODE)
+    return "The clip never came back, so these are the words the live stream had painted while you spoke. Nothing tidied them, and there is no AssemblyAI time or confidence for them.";
   if (facts.fellBackFrom) {
     return "Dictation did not answer, so AssemblyAI's backup path transcribed this clip. The time is AssemblyAI's own, not the browser round trip.";
   }
   return "The time AssemblyAI spent on this clip — its own figure, not the browser round trip.";
+}
+
+/**
+ * What the disclosure says under the verbatim when there is no tidied version
+ * beside it. "Nothing needed tidying" was the only answer, and it is only one
+ * of three: the rewrite can also have been refused here for coming back
+ * missing most of the clip, and live words were never offered one at all.
+ */
+export function tidyNote(facts: TurnFacts): string {
+  if (facts.asrMode === LIVE_ASR_MODE) return "Nothing tidied these — the clip they belong to never came back.";
+  if (facts.llmError === CLEANUP_DROPPED) return "The tidy-up came back missing most of these words, so it was not used.";
+  return "Nothing needed tidying.";
 }
 
 export function TurnFooter({ facts }: { facts: TurnFacts | null | undefined }) {
@@ -101,7 +125,7 @@ export function TurnFooter({ facts }: { facts: TurnFacts | null | undefined }) {
               </p>
             </>
           ) : (
-            <p className="mt-1">Nothing needed tidying.</p>
+            <p className="mt-1">{tidyNote(facts)}</p>
           )}
         </details>
       ) : null}

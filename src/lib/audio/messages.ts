@@ -39,6 +39,27 @@ export function voiceMessage(code: string | undefined): string {
 }
 
 /**
+ * The rewrite came back too short to be a tidy-up of the words it was tidying,
+ * so the route sent the raw words instead. Written into `llmError` in place of
+ * the provider's own, because from the learner's side it is the same fact — no
+ * usable cleaned version — and the review panel already checks that one field.
+ * See `isCleanup` in src/app/api/voice/transcribe/route.ts for the bound.
+ */
+export const CLEANUP_DROPPED = "cleanup_dropped_the_clip";
+
+/**
+ * What the review panel says when the tidied version is not the one on screen.
+ * Two different reasons, two different sentences: the rewrite failed upstream,
+ * or it came back missing most of the clip and was refused here.
+ */
+export function cleanupNote(llmError: string | null | undefined): string | null {
+  if (!llmError) return null;
+  if (llmError === CLEANUP_DROPPED)
+    return "The tidy-up came back missing most of your words, so this is exactly what you said.";
+  return "Showing exactly what you said.";
+}
+
+/**
  * The same failures, said for the live-words socket instead of the clip.
  *
  * These cannot borrow VOICE_MESSAGES. Those sentences all end in some form of

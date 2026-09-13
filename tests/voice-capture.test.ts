@@ -6,7 +6,10 @@ import { BURST_CHARS, BURST_WINDOW_MS, emptyBurst, foldBurst } from "@/lib/audio
 import { ownsSpace } from "@/lib/audio/shortcut";
 import { MAX_MS } from "@/lib/audio/wav";
 import { MAX_CLIP_MS } from "@/lib/audio/worklet";
-import { pathTitle, turnFactsLine, type TurnFacts } from "@/components/voice/TurnFacts";
+import { pathTitle, tidyNote, turnFactsLine, type TurnFacts } from "@/components/voice/TurnFacts";
+import { autosendDelay } from "@/components/voice/MicButton";
+import { LIVE_ASR_MODE } from "@/lib/audio/stream";
+import { CLEANUP_DROPPED } from "@/lib/audio/messages";
 
 /**
  * The two pure pieces of the capture path: the WAV the AudioWorklet frames get
@@ -312,5 +315,112 @@ describe("turnFactsLine", () => {
     // trip as the provider's figure would be a number this product cannot back.
     expect(pathTitle(voice())).toContain("not the browser round trip");
     expect(pathTitle(voice({ fellBackFrom: "PROVIDER_BUSY" }))).toContain("backup path");
+  });
+});
+
+/**
+ * R9-1, second half. The review box committed on its own 1.5 s after the
+ * transcript landed, whatever was in it. Measured: a 115 s hold put 1495
+ * characters in that box and sent them a second and a half later, which is
+ * not a window anybody reads 1495 characters in.
+ */
+describe("the review box only commits itself on what could have been read", () => {
+  const SRC = readFileSync(fileURLToPath(new URL("../src/components/voice/MicButton.tsx", import.meta.url)), "utf8");
+
+  it("keeps the old 1.5 s floor for a one-line answer", () => {
+    expect(autosendDelay(0)).toBe(1500);
+    expect(autosendDelay(20)).toBe(1500);
+  });
+
+  it("scales with the amount there is to read", () => {
+    // 20 characters a second, ~240 words a minute: a skim, not a careful read.
+    expect(autosendDelay(120)).toBe(6000);
+    expect(autosendDelay(200)).toBe(10_000);
+  });
+
+  it("refuses to commit a clip nobody could have read in the window", () => {
+    // The measured 115 s hold: 1495 verbatim characters, and the 120-character
+    // rewrite the route now refuses to substitute for them.
+    expect(autosendDelay(1495)).toBeNull();
+    expect(autosendDelay(400)).toBeNull();
+  });
+
+  it("the timer is driven by that function, not by a flat constant", () => {
+    expect(SRC).toMatch(/const delay = autosendDelay\(draft\.trim\(\)\.length\);/);
+    expect(SRC).toMatch(/if \(delay === null\) return cancelAutosend;/);
+    expect(SRC).toMatch(/setTimeout\([\s\S]{0,120}?\}, delay\);/);
+  });
+
+  it("says so on screen, instead of promising a send that never comes", () => {
+    expect(SRC).toMatch(/Read it over and press Send\./);
+  });
+});
+
+/**
+ * R3-1. Killing /api/voice/** mid-capture gave the right sentence and full
+ * recovery — and threw away a complete streamed transcript that was on screen
+ * at the moment of failure. The learner watched their sentence appear and then
+ * watched it vanish.
+ *
+ * These words are NOT the Dictation transcript and must never be labelled as
+ * one. What follows guards both halves: they are offered, and they are honest.
+ */
+describe("the streamed words survive a clip that does not", () => {
+  const SRC = readFileSync(fileURLToPath(new URL("../src/components/voice/MicButton.tsx", import.meta.url)), "utf8");
+
+  it("offers them when the buffered POST fails", () => {
+    // The failure path reads the live socket's own state, not the render's.
+    expect(SRC).toMatch(/const streamed = liveRef\.current\.text\.trim\(\);/);
+    expect(SRC).toMatch(/if \(streamed\) \{[\s\S]{0,80}setRecovered\(streamed\)/);
+  });
+
+  it("keeps liveRef in step with the socket", () => {
+    expect(SRC).toMatch(/liveRef\.current = next;/);
+    // …and cleared on a new hold, so a stale sentence cannot be offered twice.
+    expect(SRC).toMatch(/liveRef\.current = EMPTY_LIVE;/);
+  });
+
+  it("sends them as live words, never as the Dictation path", () => {
+    const send = SRC.slice(SRC.indexOf("function sendRecovered"), SRC.indexOf("function submitTyped"));
+    expect(send).toMatch(/asrMode: LIVE_ASR_MODE/);
+    expect(send).toMatch(/confidence: null/);
+    expect(send).toMatch(/requestTimeMs: null/);
+    expect(send).toMatch(/sessionId: null/);
+  });
+
+  it("never commits them on its own — a salvage is the learner's call", () => {
+    // The autosend effect is gated on the review phase, which a failed clip
+    // never reaches; nothing else may start a timer for the recovered panel.
+    expect(SRC).not.toMatch(/autosendRef\.current = setTimeout\([\s\S]{0,200}sendRecovered/);
+    expect(SRC).toMatch(/onClick=\{sendRecovered\}/);
+  });
+
+  it("the footer refuses to call them Dictation, or to invent a time", () => {
+    const facts: TurnFacts = {
+      origin: "voice",
+      asrMode: LIVE_ASR_MODE,
+      requestTimeMs: null,
+      confidence: null,
+      verbatim: "Um, I don't really understand why attention needs positional encoding.",
+      clean: "Um, I don't really understand why attention needs positional encoding.",
+    };
+    const line = turnFactsLine(facts);
+    expect(line).toBe("Live words · not the cleaned transcript");
+    expect(line).not.toMatch(/Dictation/);
+    expect(line).not.toMatch(/ms/);
+    expect(pathTitle(facts)).toMatch(/never came back/);
+    expect(tidyNote(facts)).toMatch(/Nothing tidied these/);
+  });
+
+  it("still names Dictation for a clip Dictation actually transcribed", () => {
+    expect(turnFactsLine({ origin: "voice", asrMode: "dictation", requestTimeMs: 574, confidence: 0.98 }))
+      .toBe("Dictation · AssemblyAI 574 ms · 98% confident");
+  });
+
+  it("does not claim nothing needed tidying when the tidy-up was refused", () => {
+    expect(tidyNote({ origin: "voice", asrMode: "dictation", requestTimeMs: 574, confidence: 0.98, llmError: CLEANUP_DROPPED }))
+      .toMatch(/missing most of these words/);
+    expect(tidyNote({ origin: "voice", asrMode: "dictation", requestTimeMs: 574, confidence: 0.98 }))
+      .toBe("Nothing needed tidying.");
   });
 });

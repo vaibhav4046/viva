@@ -6,11 +6,11 @@ import { AlertCircle, Mic, Send, Square } from "lucide-react";
 import { logEvent } from "@/lib/analytics";
 import { EXIT, GENTLE, SNAPPY, SPRING } from "@/lib/motion";
 import { MAX_CLIP_MS, startCapture, warmDictation, type CaptureHandle } from "@/lib/audio/worklet";
-import { voiceMessage } from "@/lib/audio/messages";
+import { cleanupNote, voiceMessage } from "@/lib/audio/messages";
 import { ownsSpace } from "@/lib/audio/shortcut";
 import { emptyBurst, foldBurst, type BurstState, type TextOrigin } from "@/lib/audio/burst";
 import { keytermsFor } from "@/components/mirror";
-import { EMPTY_LIVE, openTranscriptSocket, type LiveState, type TranscriptSocket } from "@/lib/audio/stream";
+import { EMPTY_LIVE, LIVE_ASR_MODE, openTranscriptSocket, type LiveState, type TranscriptSocket } from "@/lib/audio/stream";
 import { LiveTranscript } from "@/components/voice/LiveTranscript";
 
 /**
@@ -52,6 +52,9 @@ export type VoiceTurn = {
    *  rather than the vendor name alone, long after the review panel is gone.
    *  Optional so a synthetic turn (a suggestion chip) need not spell it out. */
   fellBackFrom?: string | null;
+  /** Why no tidied version came back, when none did. Carried so the footer can
+   *  say which of the three reasons it was, long after the panel is gone. */
+  llmError?: string | null;
   edited: boolean;
 };
 
@@ -72,7 +75,27 @@ type TranscribeResponse = {
   llmError: string | null;
 };
 
+/**
+ * How long the review box waits before committing on its own.
+ *
+ * 1.5 s flat was a bet that the learner had already read the box, and on a long
+ * clip it is not one: a 115 s hold came back as 1495 characters, which nobody
+ * reads in a second and a half. The window is now the time it takes to skim
+ * what is actually in the box — 50 ms a character, about 20 characters a second
+ * or 240 words a minute — floored at the old 1.5 s so a one-line answer still
+ * feels immediate, and past a point abandoned entirely: a clip that needs more
+ * than twelve seconds of reading is one the learner should send themselves.
+ */
 const AUTOSEND_MS = 1500;
+const READ_MS_PER_CHAR = 50;
+const AUTOSEND_MAX_MS = 12_000;
+
+/** The delay for this much text, or null when it must not send itself at all. */
+export function autosendDelay(chars: number): number | null {
+  const needed = chars * READ_MS_PER_CHAR;
+  if (needed > AUTOSEND_MAX_MS) return null;
+  return Math.max(AUTOSEND_MS, needed);
+}
 
 /** What the chip says: which path answered, and how long it took upstream. */
 type PathFacts = { fellBackFrom: string | null; requestTimeMs: number | null };
@@ -174,6 +197,20 @@ export function MicButton({
    * abandon a clip that is about to succeed.
    */
   const [liveNote, setLiveNote] = useState<string | null>(null);
+  /**
+   * The streamed words, offered back after the buffered clip failed.
+   *
+   * Not the same transcript and never presented as one — see LIVE_ASR_MODE.
+   * But the learner watched these words appear, and dropping them on the floor
+   * because the POST died means re-saying a sentence that is already in hand.
+   */
+  const [recovered, setRecovered] = useState<string | null>(null);
+  /**
+   * The same live state as `live`, readable synchronously. `transcribe` is a
+   * callback that must not re-create itself every time a word lands, so it
+   * cannot close over the state variable.
+   */
+  const liveRef = useRef<LiveState>(EMPTY_LIVE);
   const captureRef = useRef<CaptureHandle | null>(null);
   const socketRef = useRef<TranscriptSocket | null>(null);
   const startingRef = useRef(false);
@@ -306,6 +343,14 @@ export function MicButton({
       } catch (e) {
         logEvent("dictation_failed");
         setError(voiceMessage((e as { code?: string })?.code));
+        // The clip is lost; the words the socket already painted are not. They
+        // were on screen a second ago, so throwing them away costs the learner
+        // the whole sentence over a failure that did not touch them.
+        const streamed = liveRef.current.text.trim();
+        if (streamed) {
+          setRecovered(streamed);
+          setEdited(false);
+        }
         setPhase("idle");
       }
     },
@@ -351,9 +396,14 @@ export function MicButton({
       // StrictMode cannot open two sockets on one mic.
       setLive(EMPTY_LIVE);
       setLiveNote(null);
+      setRecovered(null);
+      liveRef.current = EMPTY_LIVE;
       const socket = openTranscriptSocket({
         language: languages,
-        onState: setLive,
+        onState: (next) => {
+          liveRef.current = next;
+          setLive(next);
+        },
         // Without this the entire error path in stream.ts was unreachable from
         // the UI: PROVIDER_BUSY, the terminal-not-retried policy for 1008, all
         // of VOICE_MESSAGES. Verified against the deployment by filling the
@@ -414,9 +464,12 @@ export function MicButton({
   useEffect(() => {
     if (phase !== "review" || busy) return;
     cancelAutosend();
+    const delay = autosendDelay(draft.trim().length);
+    // Too much to have read: the box stays until the learner presses Send.
+    if (delay === null) return cancelAutosend;
     autosendRef.current = setTimeout(() => {
       if (draft.trim()) submitReview();
-    }, AUTOSEND_MS);
+    }, delay);
     return cancelAutosend;
     // submitReview is stable enough for this: it only reads current render state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -435,6 +488,36 @@ export function MicButton({
       sessionId: result.sessionId,
       asrMode: result.mode,
       fellBackFrom: result.fellBackFrom,
+      llmError: result.llmError,
+      edited,
+    });
+  }
+
+  /**
+   * Send the streamed words after the buffered clip failed.
+   *
+   * `asrMode` is LIVE_ASR_MODE, not "dictation": these words never went through
+   * the Dictation path, carry no cleanup, no `request_time_ms` and no
+   * confidence, and the turn footer says so. Offering them mislabelled would be
+   * worse than losing them; offering them labelled is better than either.
+   */
+  function sendRecovered() {
+    const text = recovered?.trim();
+    if (!text || busy) return;
+    setRecovered(null);
+    setError(null);
+    send({
+      text,
+      verbatim: text,
+      clean: text,
+      origin: "voice",
+      confidence: null,
+      requestTimeMs: null,
+      audioMs: null,
+      sessionId: null,
+      asrMode: LIVE_ASR_MODE,
+      fellBackFrom: null,
+      llmError: null,
       edited,
     });
   }
@@ -655,8 +738,18 @@ export function MicButton({
                 style={{ background: "var(--color-obsidian)", color: "var(--color-paper)" }}
               />
               <div className="mt-2 flex items-center justify-between gap-2">
+                {/* Two facts, and the second one is the one that changed:
+                    a box that will not send itself has to say so, or the
+                    learner sits waiting for a commit that is never coming. */}
                 <span className="mono" style={{ color: "var(--color-ash)" }}>
-                  {result.llmError ? "Showing exactly what you said." : "Sends on its own in a moment."}
+                  {[
+                    cleanupNote(result.llmError),
+                    autosendDelay(draft.trim().length) === null
+                      ? "Read it over and press Send."
+                      : "Sends on its own in a moment.",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 </span>
                 <button type="button" className="btn-lime !py-2" onClick={submitReview} disabled={!draft.trim() || busy}>
                   <Send size={14} aria-hidden />
@@ -685,6 +778,71 @@ export function MicButton({
                 Try again
               </button>
             </m.p>
+          )}
+        </AnimatePresence>
+
+        {/* The clip died; the words did not.
+            Measured: killing /api/voice/** at t+3 s of a hold gave the right
+            sentence and full recovery, and threw away a complete streamed
+            transcript that was on screen at that moment. It is offered back
+            here — labelled as the live words, never as the Dictation
+            transcript, and never auto-sent: this is a salvage, so the learner
+            decides. */}
+        <AnimatePresence initial={false}>
+          {recovered !== null && (
+            <m.div
+              key="recovered"
+              className="w-full rounded-lg border hairline px-3 py-3"
+              style={{ background: "var(--color-panel)" }}
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: EXIT }}
+              transition={SPRING}
+            >
+              <p className="mono text-xs leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                These are the live words from while you spoke, not the cleaned
+                transcript. Send them as they are, edit them, or hold the mic
+                again.
+              </p>
+              <label className="sr-only" htmlFor={`${fieldId}-recovered`}>
+                The live words, editable before sending
+              </label>
+              <textarea
+                id={`${fieldId}-recovered`}
+                value={recovered}
+                rows={3}
+                onChange={(e) => {
+                  setRecovered(e.target.value);
+                  setEdited(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendRecovered();
+                  }
+                }}
+                className="mt-2 w-full resize-none rounded-lg border hairline px-3 py-2 text-sm"
+                style={{ background: "var(--color-obsidian)", color: "var(--color-paper)" }}
+              />
+              <div className="mt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="btn-ghost !py-2"
+                  onClick={() => setRecovered(null)}
+                >
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  className="btn-lime !py-2"
+                  onClick={sendRecovered}
+                  disabled={!recovered.trim() || busy}
+                >
+                  <Send size={14} aria-hidden />
+                  Send these words
+                </button>
+              </div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>

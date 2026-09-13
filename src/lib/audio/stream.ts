@@ -141,6 +141,18 @@ export const EMPTY_LIVE: LiveState = Object.freeze({
   turns: [], order: null, words: [], committed: "", text: "",
 });
 
+/**
+ * The `asrMode` a turn carries when its words came from this socket rather
+ * than from the buffered Dictation POST.
+ *
+ * These are not the same transcript and must never be labelled as if they
+ * were: no `llm_instruction` ran over them, no `request_time_ms` and no
+ * confidence exist for them, and the words are whatever the streaming model
+ * had settled on when the clip failed. It is offered to the learner only when
+ * the authoritative path lost the clip, and the footer says which one it is.
+ */
+export const LIVE_ASR_MODE = "streaming";
+
 /** A Turn frame, narrowed to the fields this module reads. */
 export type TurnMessage = {
   type: "Turn";

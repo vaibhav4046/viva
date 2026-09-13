@@ -7,7 +7,7 @@ import {
   resolveTranscriptionMode,
 } from "@/lib/assemblyai";
 import { validateWavInput } from "@/lib/audio/wav";
-import { voiceMessage } from "@/lib/audio/messages";
+import { CLEANUP_DROPPED, voiceMessage } from "@/lib/audio/messages";
 import { assemblyAIBreaker } from "@/lib/circuit";
 import { resolveSubject } from "@/lib/courses/subject";
 import { getStore } from "@/lib/store";
@@ -101,6 +101,44 @@ export async function subjectVoiceConfig(
 
 /** One key term is a phrase, not an essay. Anything longer is not a term. */
 const MAX_KEYTERM_CHARS = 60;
+
+/**
+ * How far the tidy-up may shrink what it is tidying before it stops being a
+ * tidy-up. Nothing bounded this, and `llm_instruction` on a long clip does not
+ * fail loudly — it answers 200 with one sentence.
+ *
+ * Measured 2026-09-13 against this deployment's Dictation endpoint, with
+ * STUDY_INSTRUCTION, posting real WAVs through this route (9.55 s "confusion"
+ * fixture, 4.78 s "claim" fixture, and the first repeated N times):
+ *
+ *   clip              audio    verbatim   clean   kept
+ *   claim              4.8 s        76      76    100%
+ *   confusion          9.6 s       124     118     95%
+ *   claim + confusion 14.3 s       201     197     98%
+ *   confusion x2      19.1 s       249     120     48%   <- collapse starts
+ *   confusion x3      28.7 s       374     120     32%
+ *   confusion x6      57.3 s       749     120     16%
+ *   confusion x12    114.7 s      1499     120      8%   <- the reported case
+ *
+ * What the instruction is asked to remove — fillers, false starts — cost 0-5%
+ * of the characters on every clip that held one utterance. What the model
+ * threw away once the clip held more than one cost 52% or more. Nothing landed
+ * in between, so the bound sits in the middle of that gap: a tidy-up may
+ * remove 40% of a clip, which is eight times the worst removal measured here
+ * and several times the disfluency rate of ordinary speech, and the mildest
+ * collapse observed is still caught with room to spare.
+ *
+ * Short clips are exempt because there the ratio is one filler wide: "Um, um,
+ * yeah" -> "Yeah." keeps 33% and is a perfectly good tidy-up.
+ */
+export const MIN_CLEANUP_RATIO = 0.6;
+export const MIN_CLEANUP_CHARS = 80;
+
+/** True when `clean` is a plausible tidy-up of `verbatim` rather than a collapse. */
+export function isCleanup(verbatim: string, clean: string): boolean {
+  if (verbatim.length < MIN_CLEANUP_CHARS) return true;
+  return clean.length >= verbatim.length * MIN_CLEANUP_RATIO;
+}
 
 /** Parse the browser's key-term hint. Never throws; a bad hint is no hint. */
 export function parseKeytermHint(raw: string | null): string[] {
@@ -235,8 +273,17 @@ export async function POST(req: Request): Promise<Response> {
     // Verbatim is what was said; clean is the tidied rewrite. When the rewrite
     // was not asked for, or it failed, clean falls back to verbatim so the UI
     // always has something to show in both tabs.
+    //
+    // …and when it came back too short to be a rewrite of that verbatim, it
+    // falls back too. The review box defaults to Clean and commits on its own,
+    // so an unbounded rewrite is a silent way to throw most of a clip away:
+    // measured at 1499 characters in, 120 out on a 115 s clip. `isCleanup`
+    // owns the bound and `llmError` carries the reason to the panel.
     const verbatim = result.text;
-    const clean = wantsClean ? (result.clean ?? verbatim) : verbatim;
+    const rewritten = wantsClean ? result.clean : null;
+    const collapsed = rewritten !== null && !isCleanup(verbatim, rewritten);
+    const clean = rewritten === null || collapsed ? verbatim : rewritten;
+    const llmError = collapsed ? CLEANUP_DROPPED : result.llmError;
 
     // A clip with no speech in it is a normal outcome — a muted headset, the
     // wrong input device — and the provider answers 200 with "". Returned as a
@@ -251,7 +298,8 @@ export async function POST(req: Request): Promise<Response> {
     serverLog("voice.completed", trace.id, {
       mode: result.mode, fellBackFrom: fellBackFrom ?? "", audioMs: result.audioDurationMs,
       requestTimeMs: result.requestTimeMs, latencyMs: result.latencyMs, confidence: result.confidence,
-      llmError: result.llmError ?? "", keyterms: request.keyterms.length,
+      llmError: llmError ?? "", keyterms: request.keyterms.length,
+      cleanChars: clean.length, verbatimChars: verbatim.length,
     });
 
     return Response.json({
@@ -264,7 +312,7 @@ export async function POST(req: Request): Promise<Response> {
       audioMs: result.audioDurationMs ?? valid.durationMs,
       sessionId: result.sessionId,
       mode: result.mode,
-      llmError: result.llmError,
+      llmError,
       fellBackFrom,
       latencyMs: result.latencyMs,
       traceId: trace.id,

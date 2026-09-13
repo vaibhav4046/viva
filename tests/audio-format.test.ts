@@ -142,6 +142,17 @@ describe("toPcm16kMono", () => {
     if (out.ok) return;
     expect(out.code).toBe("BAD_AUDIO");
   });
+
+  it("a header declaring a zero sample rate is refused, not resampled to death", () => {
+    // Rate 0 makes the resample ratio 0 and the output length infinite — an
+    // uncaught RangeError in the last function before the bytes go upstream.
+    const base = wav({ sampleRate: TARGET_RATE, channels: 1, ms: 100 });
+    base.writeUInt32LE(0, 24);
+    const out = toPcm16kMono(base, "audio/wav");
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("UNSUPPORTED_FORMAT");
+  });
 });
 
 describe("POST /api/voice/transcribe with a 48 kHz stereo clip", () => {

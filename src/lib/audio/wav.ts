@@ -261,6 +261,10 @@ export function toPcm16kMono(buf: Buffer, contentType: string): PcmResult {
   const { fmt, dataOff, dataLen } = parsed;
   if (fmt.audioFormat !== 1 || fmt.bits !== 16) return { ok: false, code: "UNSUPPORTED_FORMAT", message: "WAV must be 16-bit PCM." };
   if (fmt.channels < 1 || fmt.channels > 2) return { ok: false, code: "UNSUPPORTED_FORMAT", message: "WAV must be mono or stereo." };
+  // A rate of zero states nothing to resample from: srcRate/dstRate is 0, the
+  // output length divides by it, and resample dies on an infinite typed array.
+  // Refuse here — this is the last place before the bytes go on the wire.
+  if (fmt.sampleRate < 1) return { ok: false, code: "UNSUPPORTED_FORMAT", message: "WAV declares no sample rate." };
   // Already the target format: hand back the data chunk with no copy and no
   // arithmetic. Note this is a parsed offset, not a hardcoded 44 — the repo's
   // own fixtures carry an 18-byte `fmt ` chunk and start at byte 46.

@@ -81,10 +81,22 @@ export function reduceMastery(
         };
         reason = "unsupported claim — possible misconception";
       } else if (event.masterySignal === "up") {
+        // No got-it here, on purpose. "up" only says something moved the right
+        // way, and one of the things that can emit it is a model liking the
+        // sound of a sentence. A got-it is a claim about the learner's record,
+        // so it is written only when something checked the sentence against
+        // the source — and that arrives as `assessment: "correct"` above,
+        // which is the same standing an exam answer gets.
         m = { ...m, mastery: m.mastery + 0.04 };
         reason = "said it right, not yet checked out loud";
       } else if (event.masterySignal === "down") {
-        m = { ...m, mastery: m.mastery - 0.06 };
+        // Found wrong: either the source check quoted the line that disproves
+        // it, or the model reading those passages said so. Both are the same
+        // standing as an exam "incorrect" for the tally the student reads, so
+        // this is a missed-it. The mastery move stays smaller than a graded
+        // wrong answer and logs no misconception — nothing here was marked
+        // against a question.
+        m = { ...m, failedRecallCount: m.failedRecallCount + 1, mastery: m.mastery - 0.06 };
         reason = "that part did not match your source";
       } else if (event.masterySignal === "flat") {
         // VIVA could not check the sentence, so it learned nothing about this
@@ -118,10 +130,27 @@ export function reduceMastery(
   return { next: m, delta, reason };
 }
 
+/**
+ * Where the number sits, in the four words the map has for it.
+ *
+ * The floors have to be reachable in one turn, or the map reads the same after
+ * evidence as before it. A fresh concept starts at 0.5: one correct recall
+ * (+0.06) clears 0.55 and reads "Getting there", but with the bottom floor at
+ * 0.35 one wrong answer (-0.12, so 0.38) stayed inside the same band as a
+ * sentence nobody could check. A judge explained multi-head attention
+ * correctly, had policy-vs-value-iteration exactly backwards, and got "Shaky"
+ * for both.
+ *
+ * So the bottom floor sits between the two turn-sized moves that can land near
+ * it: a self-reported confusion (-0.08, so 0.42) is someone saying they are
+ * unsure, which is Shaky; a graded wrong answer (-0.12, so 0.38) is someone
+ * holding it backwards, which is Mixed up. Widening the deltas instead would
+ * have made the same reading out of less evidence.
+ */
 export function masteryState(mastery: number): "strong" | "developing" | "uncertain" | "misconception" | "unseen" {
   if (mastery >= 0.75) return "strong";
   if (mastery >= 0.55) return "developing";
-  if (mastery >= 0.35) return "uncertain";
+  if (mastery >= 0.4) return "uncertain";
   return "misconception";
 }
 

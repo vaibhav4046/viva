@@ -314,6 +314,15 @@ export async function POST(req: NextRequest) {
       citations = cited.map((c) => ({ chunkId: c.id, quote: c.text.slice(0, 160) }));
       citedIds = citations.map((c) => c.chunkId);
       masterySignal = "up";
+      // The learner's tally is a record of what was checked, so it may only
+      // move when something did the checking. This branch is that case and the
+      // only one on this route: a line of their own source says the same thing
+      // in the same polarity, and it is quoted underneath. That is the standing
+      // an exam answer has, so it is recorded the same way — `assessment` is
+      // what the reducer and the store already read as "this was graded", and
+      // spending it here keeps the got-it out of reach of a model's opinion,
+      // which can only ever emit "down" or "flat" below.
+      assessment = "correct";
       opensQuestion = claimCheck.openQuestion;
       source = "heuristic";
     } else if (claimCheck.status === "unsupported") {

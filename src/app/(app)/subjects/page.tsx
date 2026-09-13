@@ -603,7 +603,7 @@ export default function SubjectsPage() {
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
               {builtByLine(built.builtBy) ?? ""}
               {built.builtBy === "reading"
-                ? " That means plainer questions and no worked analogies — everything you see comes straight out of your own words."
+                ? " That means plainer questions and no worked analogies — everything you see comes straight out of your own words. It also means that when you say something wrong here, VIVA will more often tell you it could not check than catch it. It still quotes your own lines back when it can, and it will not agree with you to be nice."
                 : ""}
             </p>
             {/* The route says whether this landed somewhere durable and supplies

@@ -193,6 +193,13 @@ export function SourceReader({
                   // "notes-a · §notes-a" is one fact printed twice: a document
                   // with no headings of its own falls back to its own name.
                   const showSection = from !== section;
+                  const locator = [
+                    from,
+                    showSection && section !== "—" ? `§${section}` : null,
+                    typeof c.locator.page === "number" ? `p.${c.locator.page}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
                   return (
                     <article
                       key={c.id}
@@ -205,12 +212,21 @@ export function SourceReader({
                     >
                       <p style={{ color: "var(--color-mist)" }}>{c.text}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className="mono min-w-0 text-[11px]" style={{ color: "var(--color-ash)" }}>
-                          {/* Which document, first, once there is more than one:
-                              "p.4" says nothing when four things have a page 4. */}
-                          {from ? `${from} · ` : ""}
-                          {showSection ? `§${section} · ` : ""}p.{c.locator.page ?? "—"}
-                        </p>
+                        {/* Which document, first, once there is more than one:
+                            "p.4" says nothing when four things have a page 4.
+
+                            A page number only when there is one. Pasted notes
+                            have no pages, and every passage of a student's own
+                            subject was printing the literal "p.—", which reads
+                            as a page the app has lost rather than a page that
+                            never existed. */}
+                        {locator ? (
+                          <p className="mono min-w-0 text-[11px]" style={{ color: "var(--color-ash)" }}>
+                            {locator}
+                          </p>
+                        ) : (
+                          <span />
+                        )}
                         <span id={`cite-${c.id}`} className={hot ? "chip chip-hot" : "chip"}>
                           {hot ? <span className="font-semibold">Quoted · </span> : null}
                           Passage {number}

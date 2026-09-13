@@ -78,11 +78,91 @@ export function cleanTitle(raw: unknown, fallback: string): string {
   return clean.slice(0, 120) || fallback;
 }
 
-function sourceTitleFor(input: IntakeInput): string {
-  if (input.kind === "pdf") return input.title;
-  if (input.kind === "paste") return `${input.title} — your notes`;
-  if (input.kind === "docs") return input.title;
-  return `${input.title} — written for you`;
+function sourceTitleFor(kind: IntakeInput["kind"], title: string): string {
+  if (kind === "pdf" || kind === "docs") return title;
+  // "Your notes — your notes" is what a judge was shown, because the route
+  // has to name the subject before anything has read it and its fallback is
+  // the word "notes". Say it once.
+  if (kind === "paste") return /\bnotes$/i.test(title) ? title : `${title} — your notes`;
+  return `${title} — written for you`;
+}
+
+/**
+ * The titles the create route invents before it has read a word.
+ *
+ * They are honest placeholders, not something the student typed, so the notes
+ * are allowed to overrule them.
+ */
+const PLACEHOLDER_TITLES = new Set(["your notes", "your subject", "your file", "your source", "that page", "untitled"]);
+
+/**
+ * A line at the top of a paste that is a title rather than a sentence.
+ *
+ * A judge pasted 851 words of lecture notes headed "Binary Search Trees and
+ * Balancing" and got a subject called "Your notes" with the code YN26. Their
+ * own first line is right there, and it is their words either way.
+ */
+function titleFromNotes(text: string): string | null {
+  for (const raw of text.split("\n").slice(0, 6)) {
+    const line = raw.trim().replace(/^[#>*\d.)\-\s]+/, "").trim();
+    if (!line) continue;
+    if (line.length < 4 || line.length > 80) return null;
+    if (/[.!?;:,]$/.test(line)) return null;
+    const w = line.split(/\s+/);
+    if (w.length < 2 || w.length > 12) return null;
+    return line;
+  }
+  return null;
+}
+
+/**
+ * Pasted notes, cut at the headings the student wrote.
+ *
+ * Every passage of a paste used to be stamped "§Your notes · p.—", which
+ * locates nothing: it is the same string on all seven of them. Text with no
+ * pages still has structure, and the heading a passage sat under is the
+ * truest thing a citation can say about where it came from.
+ *
+ * Conservative on purpose. A heading has to start a block and be followed by
+ * a real paragraph, so a bulleted list — short lines, no full stops, exactly
+ * the shape of a heading — is not chopped into one passage per bullet. If
+ * that reading produces an implausible number of sections it is abandoned and
+ * the paste stays one page.
+ */
+const MAX_NOTE_SECTIONS = 24;
+
+export function notePages(text: string): IntakePage[] {
+  const lines = text.split("\n");
+  const looksLikeHeading = (i: number): boolean => {
+    const line = lines[i].trim();
+    if (line.length < 4 || line.length > 80) return false;
+    if (/[.!?;:,]$/.test(line)) return false;
+    if (line.split(/\s+/).length > 12) return false;
+    if (!/[A-Za-z]/.test(line)) return false;
+    if (i > 0 && lines[i - 1].trim() !== "") return false;
+    const next = lines.slice(i + 1).find((l) => l.trim() !== "");
+    return Boolean(next && next.trim().length > 120);
+  };
+
+  const pages: IntakePage[] = [];
+  let section: string | undefined;
+  let buf: string[] = [];
+  const flush = () => {
+    const body = buf.join("\n").trim();
+    if (body) pages.push(section ? { text: body, section } : { text: body });
+    buf = [];
+  };
+  for (let i = 0; i < lines.length; i++) {
+    if (looksLikeHeading(i)) {
+      flush();
+      section = lines[i].trim().replace(/^[#>*\d.)\-\s]+/, "").trim();
+      continue;
+    }
+    buf.push(lines[i]);
+  }
+  flush();
+  if (!pages.length || pages.length > MAX_NOTE_SECTIONS) return [{ text }];
+  return pages;
 }
 
 /**
@@ -160,7 +240,14 @@ export async function buildSubject(
 ): Promise<IntakeResult> {
   const subjectId = uid("subject");
   const sourceId = `src_${subjectId.slice(8)}`;
-  const title = input.title.trim().slice(0, 90) || "Your subject";
+  const given = input.title.trim().slice(0, 90);
+  // The route has to name the subject before anything has read it, so when
+  // all it had was a placeholder the notes get to answer for themselves.
+  const derived =
+    input.kind === "paste" && (!given || PLACEHOLDER_TITLES.has(given.toLowerCase()))
+      ? titleFromNotes(input.text)
+      : null;
+  const title = (derived ?? given).slice(0, 90) || "Your subject";
 
   // --- 1. Get the passages -------------------------------------------------
   let pages: IntakePage[];
@@ -195,7 +282,7 @@ export async function buildSubject(
     pages = input.pages;
     origin = "pdf";
   } else {
-    pages = [{ text: normalizeText(input.text) }];
+    pages = notePages(normalizeText(input.text));
     origin = "paste";
   }
 
@@ -213,7 +300,7 @@ export async function buildSubject(
   onProgress(docs && docs.length > 1 ? "Reading your sources…" : "Reading your notes…");
   const { sources, trimmed } = sourcesFrom(
     docs ?? [{
-      title: sourceTitleFor(input),
+      title: sourceTitleFor(input.kind, title),
       type: input.kind === "pdf" ? "pdf" : input.kind === "named" ? "written" : "notes",
       pages,
       fallbackSection: written ? "Written for you" : "Your notes",
@@ -263,7 +350,9 @@ export async function buildSubject(
 
   // --- 3. No model, or the model came back unusable: read it ourselves ------
   onProgress("Working through it line by line…");
-  const rawText = pages.map((p) => p.text).join("\n");
+  // The headings came out of the body when a paste was cut into sections;
+  // put them back, because the extractor reads a heading as a topic.
+  const rawText = pages.map((p) => (p.section ? `${p.section}\n${p.text}` : p.text)).join("\n");
   const extracted = extractSubjectBody(chunks, rawText);
   if (!extracted) {
     return {

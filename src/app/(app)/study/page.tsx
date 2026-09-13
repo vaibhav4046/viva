@@ -107,11 +107,25 @@ type SavedConvo = {
   result: Assessment | null;
 };
 
-const TRY_SAYING = [
-  "I don't understand why attention needs positional encoding.",
-  "Explain it without jargon.",
-  "Quiz me on it.",
-];
+/**
+ * Openers for the typed box.
+ *
+ * The first one used to be a fixed sentence about attention and positional
+ * encoding, which is the Transformers lab — so a student reading about the
+ * lymphatic system or binary search trees was invited to ask about a subject
+ * they had not opened. It names the concept VIVA is least sure they have,
+ * which is both true of this subject and the thing worth asking about; the
+ * other two work anywhere.
+ */
+function openersFor(concepts: ConceptLite[], mastery: Record<string, ConceptMastery>): string[] {
+  const id = weakestConceptId(concepts, mastery);
+  const name = concepts.find((c) => c.id === id)?.name;
+  return [
+    name ? `I don't understand ${name}.` : "I don't understand this yet.",
+    "Explain it without jargon.",
+    "Quiz me on it.",
+  ];
+}
 
 /** Lowest-scoring concept first, so the detail panel opens somewhere useful. */
 function weakestConceptId(concepts: ConceptLite[], mastery: Record<string, ConceptMastery>): string | null {
@@ -480,7 +494,7 @@ export default function StudyPage() {
             <span className="mono self-center text-xs" style={{ color: "var(--color-ash)" }}>
               Try saying
             </span>
-            {TRY_SAYING.map((phrase) => (
+            {openersFor(boot?.concepts ?? [], boot?.mastery ?? {}).map((phrase) => (
               <button
                 key={phrase}
                 type="button"

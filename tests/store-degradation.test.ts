@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { resetStoreDegradation, storeDegradation, withFallback } from "@/lib/store";
 import type { EventStore } from "@/lib/store/repo";
 
@@ -29,6 +32,21 @@ function flaky(failAfter: number) {
   };
   return { calls, store: withFallback(stub as unknown as EventStore, "postgres") };
 }
+
+/*
+ * The fallback these cases exercise is a real FileEventStore, so the latch
+ * tests were writing `u_latch.json` and `u_reset.json` into the project's own
+ * `.data/` and leaving them there. Same fix the route tests already use.
+ */
+let tmp: string;
+beforeAll(async () => {
+  tmp = await fs.mkdtemp(path.join(os.tmpdir(), "viva-degradation-"));
+  process.env.DATA_DIR = tmp;
+});
+afterAll(async () => {
+  delete process.env.DATA_DIR;
+  await fs.rm(tmp, { recursive: true, force: true });
+});
 
 afterEach(() => resetStoreDegradation());
 

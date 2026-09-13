@@ -1,8 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resolveSubject } from "@/lib/courses/subject";
 import { buildSubject } from "@/lib/intake/build";
 import { FileEventStore } from "@/lib/store/file";
 import type { RecordInput } from "@/lib/store/repo";
+
+let tmp: string;
+beforeAll(async () => {
+  tmp = await fs.mkdtemp(path.join(os.tmpdir(), "viva-idor-"));
+  process.env.DATA_DIR = tmp;
+});
+afterAll(async () => {
+  delete process.env.DATA_DIR;
+  await fs.rm(tmp, { recursive: true, force: true });
+});
 
 function input(over: Partial<RecordInput> = {}): RecordInput {
   return {
@@ -31,13 +44,21 @@ function input(over: Partial<RecordInput> = {}): RecordInput {
 }
 
 describe("cross-user isolation (IDOR)", () => {
+  /*
+   * B writes first. Until now B never did: `bEvents` was the empty list, so
+   * "B sees none of A's events" was `[].find(...)` — a sentence that cannot
+   * fail, and the same for the two assertions after the delete. An exclusion
+   * assertion over an empty collection is not evidence of isolation, it is
+   * evidence that nothing was there to look at.
+   */
   it("B sees none of A's events or uploaded chunks; deletes are isolated", async () => {
     const s = new FileEventStore();
     const tag = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
     const a = `u_idor_a_${tag}`;
     const b = `u_idor_b_${tag}`;
     try {
-      const marker = `secret-marker-${tag}`;
+      const marker = `marker-a-${tag}`;
+      const markerB = `marker-b-${tag}`;
       await s.recordLearning(
         a,
         input({ transcript: `A private note ${marker}.`, cleanedTranscript: `A private note ${marker}.` })
@@ -47,27 +68,44 @@ describe("cross-user isolation (IDOR)", () => {
         type: "notes",
         chunks: [{ text: `A private uploaded chunk ${marker} about positional order.`, section: "private" }],
       });
+      await s.recordLearning(
+        b,
+        input({ transcript: `B private note ${markerB}.`, cleanedTranscript: `B private note ${markerB}.` })
+      );
+      const addedB = await s.addSource(b, {
+        title: "B private upload",
+        type: "notes",
+        chunks: [{ text: `B private uploaded chunk ${markerB} about attention heads.`, section: "private" }],
+      });
 
-      // B's event list shows none of A's data (B has no history at all).
+      // B's event list holds B's own history and nothing of A's.
       const bEvents = await s.listEvents(b, 100);
+      expect(bEvents.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(markerB))).toBe(true);
       expect(bEvents.find((e) => e.userId === a)).toBeUndefined();
       expect(bEvents.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(marker))).toBe(false);
 
-      // B's chunk pool excludes A's upload; A's pool includes it.
+      // B's chunk pool holds B's own upload and excludes A's; A's is the mirror.
       const bChunks = await s.getCourseChunks(b);
+      expect(bChunks.some((c) => c.sourceId === addedB.sourceId)).toBe(true);
       expect(bChunks.some((c) => c.sourceId === added.sourceId)).toBe(false);
       expect(bChunks.some((c) => c.text.includes(marker))).toBe(false);
       const aChunks = await s.getCourseChunks(a);
       expect(aChunks.some((c) => c.sourceId === added.sourceId)).toBe(true);
+      expect(aChunks.some((c) => c.text.includes(markerB))).toBe(false);
 
-      // deleteUserData isolation: wiping A leaves B untouched, A comes back empty.
+      // deleteUserData isolation: wiping A empties A and leaves B's own data
+      // exactly where it was. B coming back empty here would be a wipe of
+      // everybody, which is what the old `toBe(0)` quietly asserted.
       await s.deleteUserData(a);
       const aAfter = await s.listEvents(a);
       expect(aAfter.length).toBe(0);
       expect(aAfter.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(marker))).toBe(false);
       const bAfter = await s.listEvents(b, 100);
-      expect(bAfter.length).toBe(0);
+      expect(bAfter.length).toBe(bEvents.length);
+      expect(bAfter.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(markerB))).toBe(true);
+      expect(bAfter.some((e) => `${e.transcript} ${e.cleanedTranscript}`.includes(marker))).toBe(false);
       const bChunksAfter = await s.getCourseChunks(b);
+      expect(bChunksAfter.some((c) => c.sourceId === addedB.sourceId)).toBe(true);
       expect(bChunksAfter.some((c) => c.text.includes(marker))).toBe(false);
     } finally {
       await s.deleteUserData(a).catch(() => {});

@@ -210,10 +210,13 @@ export type PcmResult = { ok: true; pcm: Buffer; sourceRate: number; sourceChann
  *
  * The declaration is not a hint: AssemblyAI reads the byte stream at the rate
  * it is told, so 48 kHz stereo posted as 16 kHz mono is consumed at one sixth
- * speed — a 9.5 s clip arrives as 57 s of nothing, billed six times over, with
- * a 200 and an empty transcript. Every entry point that is not the AudioWorklet
- * (a direct API caller, a browser with no worklet) can hand us exactly that, so
- * the conversion belongs here rather than in a caller.
+ * speed (three times the rate, twice the channels) — the 9.55 s reference clip
+ * arrives as roughly 57 s of nothing, billed six times over, with a 200 and an
+ * empty transcript. The 6x is arithmetic; the incident itself is recalled from
+ * 12 Sep, not a kept response — see docs/API-FEEDBACK.md §8, which says the
+ * same and labels it the same way. Every entry point that is not the
+ * AudioWorklet (a direct API caller, a browser with no worklet) can hand us
+ * exactly that, so the conversion belongs here rather than in a caller.
  *
  * The content type is re-checked rather than trusted to have been checked: this
  * is the last place before the bytes go on the wire under a declaration, and

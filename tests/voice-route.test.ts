@@ -127,9 +127,13 @@ describe("subject keyterms", () => {
 });
 
 describe("context condensing", () => {
-  it("strips speaker labels — a labelled prompt leaks into the transcript", () => {
-    // Probed live 2026-09-12: stt_prompt "Student: ..." produced a transcript
-    // that began "Student:", words the learner never said.
+  it("strips speaker labels — the recogniser is never sent words the learner did not say", () => {
+    // Seen once on 2026-09-12: stt_prompt "Student: ..." produced a transcript
+    // that began "Student:". The re-probe on 13 Sep did NOT reproduce it —
+    // `.viva/probe-stt-prompt-leak.mjs`, two clips x three prompts, six
+    // byte-identical transcripts, no leak — so treat that as an unreproduced
+    // observation. This test stays either way: stripping is right on its own
+    // terms, because the prompt is context, not speech.
     expect(condenseContext(["Student: I read about attention.", "VIVA: What stuck?"]))
       .toBe("I read about attention. What stuck?");
   });

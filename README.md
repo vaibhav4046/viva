@@ -35,7 +35,7 @@ Transcription runs on the hackathon's own beta endpoint, server-side:
 
 ```
 POST https://dictation.assemblyai.com/v1/transcribe/live
-Authorization: <key>          # raw, no Bearer
+Authorization: <key>          # raw or `Bearer <key>`; both accepted
 multipart/form-data           # `config` part FIRST, then `audio`
 audio: 16 kHz mono s16le PCM  # compressed formats are rejected with 415
 ```
@@ -70,30 +70,29 @@ mic → AudioWorklet (one capture) ─┬→ buffered clip → /api/voice/transc
                                   └→ wss://streaming.assemblyai.com/v3/ws   → live words
 ```
 
-One microphone feeds both. The browser opens the socket itself, because
-relaying every 64 ms frame through a server hop is the exact latency streaming
-exists to remove — it carries a short-lived token from `/api/voice/stream-token`
-and never the API key. Measured in a real browser against production on 13
-September, median of four runs: the first word paints **1.6 s** after the mic
-opens (that includes minting the token and the handshake), then the line updates
-about every **355 ms**, twenty-five times across the 9.5 s clip. A reviewer
-running their own version of the same measurement the same day got 1.8 s, so
-read the first number as 1.5-2.0 s. Settled text is solid, in-flight words
-are dim, and the buffered transcript is still the one that gets marked. If the
-socket never opens you lose the animation and nothing else.
+One microphone feeds both. The browser opens the socket itself — relaying every
+64 ms frame through a server hop is the latency streaming exists to remove —
+carrying a short-lived token from `/api/voice/stream-token`, never the API key.
+In a real browser against production on 13 September, median of four runs, the
+first word paints **1.6 s** after the mic opens; a reviewer got 1.8 s, so read
+1.5-2.0 s. At the socket the line takes **19 updates across the 9.55 s clip,
+median gap 438-680 ms** over nine runs (`scripts/api-probes/probe-stream-timing.mjs`), very
+uneven at 38 ms to 1.3 s. Settled text is solid, in-flight words dim, and the
+buffered transcript is still what gets marked; if the socket never opens you
+lose only the animation.
 
 Language is a picker, and **Automatic is the default on purpose**. Naming a
 single language pins the streaming model: `language_code=en` runs a model that
 holds every word unsettled until the end of the turn, so the transcript arrives
-in ~1.3 s lumps and the settle never happens word by word. Automatic runs the
-multilingual model, which finalises words as they land — on the same clip,
-**seventeen of its nineteen words settle before their turn closes, against none
-on `en`**, because only the last word of a turn has to wait. The picker is the
-override for anyone who wants their own language pinned: twenty entries, of
-which sixteen name a single language the socket serves. The socket accepts
-thirty-two codes in all, so sixteen of them cannot be reached from the UI, and
-the three entries it does not serve (Polish, Ukrainian, English + Hindi) fall
-back to Automatic rather than killing the session.
+in lumps about a second apart and the settle never happens word by word.
+Automatic runs the multilingual model, which finalises words as they land — on
+the same clip, **seventeen of its nineteen words settle before their turn
+closes, against none on `en`**, because only the last word of a turn has to
+wait. The picker is the override: twenty entries, sixteen naming a single
+language the socket serves. It accepts thirty-two codes in all, so sixteen are
+unreachable from the UI, and the three entries it does not serve (Polish,
+Ukrainian, English + Hindi) fall back to Automatic rather than killing the
+session.
 
 ## Reproduce the transcription yourself
 
@@ -117,18 +116,18 @@ values exactly as returned, nothing rounded:
 ```
 
 That pair is the whole argument for using the Dictation API rather than a plain
-transcript: `Um,` is gone and `I think` / `maybe` are still there. The
-confidence repeats exactly on this clip: twelve runs, same value, twelve ids.
+transcript: `Um,` is gone and `I think` / `maybe` are still there. Confidence
+repeats exactly here, ids never do: twelve runs of `scripts/api-probes/lat.mjs`, one value.
 
-The latency does not. Twelve runs of the command above from a UK machine on 13
-September: **median 1178 ms** end to end (1098-1833), of which **566 ms** median
-(560-591) is AssemblyAI's own `request_time_ms`. Two reviewers ran the same
-command against the same deployment the same day and got medians of 1246 ms and
-1437 ms. Three drafts of this README have quoted a single number here — 853 ms,
-then 1166 ms, then 1310 ms — and each stopped reproducing within a day, so take
-the spread rather than a fourth: **twenty-seven runs by three harnesses put it
-at 1.1-2.1 s end to end, medians 1178, 1246 and 1437 ms, about 0.6 s of it the
-provider.** Where you enter the network moves it more than anything the app does.
+The latency does not repeat. Two runs of twelve, same command and machine, same
+afternoon (`scripts/api-probes/lat.mjs`): end-to-end medians **1215** and **1300 ms**, of
+which `request_time_ms` was **605** and **558 ms**, slowest round trip 3288 ms.
+Twelve more posted straight at AssemblyAI (`scripts/api-probes/probe-dictation-contract.mjs`)
+put `request_time_ms` at 538-1700 ms, median 552 — eleven inside 538-583, one at
+1700. Four drafts here quoted a single number — 853, 1166, 1310, 1178 ms — each
+of which stopped reproducing within a day, so take the spread: **about 1.1-1.3 s
+end to end on a typical run with a long tail above it, roughly 0.6 s of it the
+provider.** Where you enter the network moves it more than the app does.
 
 ---
 

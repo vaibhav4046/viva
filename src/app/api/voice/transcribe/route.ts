@@ -12,6 +12,7 @@ import { assemblyAIBreaker } from "@/lib/circuit";
 import { resolveSubject } from "@/lib/courses/subject";
 import { getStore } from "@/lib/store";
 import { checkLimit, limitKey } from "@/lib/limits";
+import { clientIp } from "@/lib/http";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { Trace, rid, serverLog } from "@/lib/observe";
 
@@ -45,10 +46,6 @@ const FALLBACK_CODES = new Set([
   "TRANSCRIPTION_FAILED", // 5xx and transport failures
   "NO_DICTATION_URL",  // misconfigured deployment, but Sync may still be live
 ]);
-
-function clientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
 
 function fail(code: string, status: number, retryable: boolean, retryAfterSec?: number): Response {
   const headers: Record<string, string> = {};
@@ -155,10 +152,16 @@ export function parseKeytermHint(raw: string | null): string[] {
 /**
  * Condense recent turns into `stt_prompt`.
  *
- * Speaker labels leak: probed live 2026-09-12, a prompt beginning "Student:"
- * produced a transcript beginning "Student:" that the learner never said. So
- * labels are stripped and the context goes in as plain prose. Newest turns are
- * kept when the budget runs out — they bias recognition the most.
+ * Labels are stripped and the context goes in as plain prose. The reason is one
+ * observation on 2026-09-12: a prompt beginning "Student:" produced a
+ * transcript beginning "Student:" that the learner never said. It did not
+ * reproduce on 13 Sep — `.viva/probe-stt-prompt-leak.mjs` posted two clips
+ * against three prompts each (none, labelled, stripped) and got six
+ * byte-identical transcripts with no label in any of them. Treat the leak as
+ * unreproduced rather than established; the strip is kept regardless, because
+ * feeding the recogniser words the learner did not say is wrong on its own
+ * terms and costs nothing to avoid. Newest turns are kept when the budget runs
+ * out — they bias recognition the most.
  */
 export function condenseContext(turns: string[], limit = MAX_STT_PROMPT): string {
   const cleaned = turns

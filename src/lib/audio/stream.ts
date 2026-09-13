@@ -41,8 +41,15 @@
  *    true in one step at `end_of_turn` — there is no progressive settle to
  *    animate. On the multilingual model words finalise one at a time
  *    (words=3/final=2, then 4/final=3, …), which is the behaviour the UI wants.
- *    Measured partial cadence: ~1.3 s on universal-3-5-pro, ~250-400 ms on
- *    multilingual. Hence the default below.
+ *    Measured at the socket by `.viva/probe-stream-timing.mjs`, 9.55 s clip,
+ *    nine runs per model: 17 of its 19 words settle before their turn closes on
+ *    the multilingual model, 0 of 19 on universal-3-5-pro. Median gap between
+ *    updates 971-1342 ms on universal-3-5-pro against 438-680 ms on
+ *    multilingual — the gaps are very uneven (38-1290 ms inside one run), so
+ *    read that as "several partials per second against roughly one", not as a
+ *    band. An earlier version of this comment said ~250-400 ms for
+ *    multilingual, which is outside every median we can measure. Hence the
+ *    default below.
  *
  * 2. `language_code=multi` SILENTLY SWITCHES THE MODEL. Asking for
  *    `speech_model=universal-3-5-pro&language_code=multi` returns a Begin whose
@@ -52,15 +59,30 @@
  *    a model that `language_code` would override only invites the two to
  *    disagree.
  *
- * 3. A TERMINATED SESSION EMITS ONE LAST EMPTY FINAL TURN.
- *    `{ end_of_turn:true, transcript:"", words:[] }` arrives after Terminate.
- *    Committing it appends a blank turn and, if you read the last word without
- *    checking, throws. `applyTurn` drops it.
+ * 3. WHAT ARRIVES AFTER `Terminate` DEPENDS ON THE MODEL AND ON THE TIMING.
+ *    The empty final turn `{ end_of_turn:true, transcript:"", words:[] }` is
+ *    NOT universal — measured by `.viva/probe-stream-timing.mjs`, identically
+ *    across two runs:
+ *      universal-3-5-pro, terminated after the last turn closed → nothing;
+ *      universal-3-5-pro, terminated mid-turn                   → one populated final;
+ *      multilingual,      terminated after the last turn closed → one empty final;
+ *      multilingual,      terminated mid-turn                   → two more partials,
+ *                                                                 the populated final,
+ *                                                                 then the empty one.
+ *    This module runs multilingual by default, so it sees the empty frame on
+ *    the ordinary path. Committing it appends a blank turn and, if you read the
+ *    last word without checking, throws. `applyTurn` drops it — which is the
+ *    right guard for every cell above, not just ours. A `Termination` frame
+ *    arrives last in all four cases; that is what `close()` waits for.
  *
  * The account also allows only a small number of concurrent sessions
- * (`error_code 1008, "Too many concurrent sessions"`), and a closed socket
- * takes a few seconds to free its slot. One handle owns one socket, and
- * `close()` waits for Termination rather than yanking the connection.
+ * (`error_code 1008, "Too many concurrent sessions"`). Measured cold by
+ * `.viva/probe-streaming-shape.mjs`: ten simultaneous opens got five `Begin`
+ * and five 1008, and the first slot did not free for **27.7 s** after that
+ * burst closed — far longer than the "few seconds" this comment used to
+ * claim. 1008 is therefore terminal here, never retried. One handle owns one
+ * socket, and `close()` waits for Termination rather than yanking the
+ * connection.
  */
 
 import { liveMessage, liveTokenMessage, voiceMessage } from "./messages";

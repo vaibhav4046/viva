@@ -105,11 +105,15 @@ type PathFacts = { fellBackFrom: string | null; requestTimeMs: number | null };
  *
  * Naming a single language pins the streaming model: `language_code=en` runs
  * `universal-3-5-pro`, which holds every word unsettled until the end of the
- * turn, so the live transcript arrives in ~1.2 s lumps and its settle
+ * turn, so the live transcript arrives in ~1.3 s lumps and its settle
  * animation never fires per word. `multi` runs the multilingual model, which
- * finalises words one at a time about every 250-400 ms. A student who never
- * opens this menu should get the better of the two, and anyone who wants their
- * language pinned can still say so.
+ * finalises words one at a time, roughly every half second. On the 9.55 s
+ * reference clip, nine runs per model at the socket
+ * (`.viva/probe-stream-timing.mjs`): 17 of its 19 words settle before their
+ * turn closes on `multi`, 0 of 19 on `en`; median gap between updates 438-680
+ * ms against 971-1342 ms. A student who never opens this menu should get the
+ * better of the two, and anyone who wants their language pinned can still say
+ * so.
  */
 export const LANGUAGE_PRESETS: { value: string; label: string }[] = [
   { value: "multi", label: "Automatic" },

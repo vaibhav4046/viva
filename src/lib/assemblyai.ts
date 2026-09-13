@@ -35,8 +35,13 @@ export type TranscriptionRequest = {
   contentType: string;
   /** Recognition bias terms (concept names + aliases). Capped before send. */
   keyterms?: string[];
-  /** Conversation context, plain prose. Speaker labels leak into the
-   *  transcript (probed live), so callers must strip them. Capped at 6000. */
+  /** Conversation context, plain prose. Callers must strip speaker labels.
+   *  Seen once on 12 Sep putting "Student:" into a transcript; the re-probe on
+   *  13 Sep (`.viva/probe-stt-prompt-leak.mjs`, two clips x three prompts) did
+   *  NOT reproduce it — six byte-identical transcripts, no leak. So this is an
+   *  unreproduced observation, not a documented behaviour. The strip stays
+   *  either way: a prompt is a bad place to put words the learner never said.
+   *  Capped at 6000. */
   sttPrompt?: string;
   /** Cleanup instruction for the rewrite pass. Omit for verbatim-only. */
   llmInstruction?: string;
@@ -108,7 +113,12 @@ function apiKey(): string {
  *
  * 28 + 20 = 48 s worst case. The headroom is deliberate and large: a 120 s clip
  * is 3.84 MB of 16 kHz mono PCM posted from a datacentre, and measured
- * `request_time_ms` on a 9.5 s clip is 320-580 ms.
+ * `request_time_ms` on the 9.55 s reference clip is 538-1700 ms, median 552
+ * over twelve runs straight at the endpoint (`.viva/probe-dictation-contract.mjs`)
+ * — eleven of those inside 538-583 and one at 1700. Through the deployment it
+ * is 567-673, median 605 over twelve (`.viva/lat.mjs`). The outlier is why the
+ * headroom is not tuned down: it is fast, but it is not a stable property of
+ * the audio.
  */
 export const ROUTE_BUDGET_MS = 60_000;
 export const DICTATION_TIMEOUT_MS = 28_000;
@@ -243,17 +253,22 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     // asserting it is the whole fix for the mislabelling bug: the AudioWorklet
     // path already produces 16 kHz mono, but every other entry point (a direct
     // API caller, a browser with no worklet) hands us whatever the machine
-    // recorded, and a 9.5 s 48 kHz stereo clip posted as 16 kHz mono was
-    // consumed as 57 s of nothing — 200, empty transcript, six times the bill.
+    // recorded, and a 48 kHz stereo clip posted as 16 kHz mono is consumed at
+    // one sixth speed — the 9.55 s reference clip would arrive as roughly 57 s
+    // of nothing: 200, empty transcript, six times the bill. (Recalled from
+    // 12 Sep; the 6x is arithmetic. docs/API-FEEDBACK.md §8 labels it the same.)
     const norm = toPcm16kMono(req.audio, req.contentType);
     if (!norm.ok) throw new TranscriptionError(norm.code, norm.message, 415, false);
     const pcm = norm.pcm;
 
     // Verified contract: multipart `config` FIRST (application/json), then
-    // `audio` as raw PCM. Appending in this order is the wire contract the
-    // endpoint requires; the clip itself is buffered and posted whole on
-    // release, so nothing is streamed while recording (see the note on
-    // `transcribe` above).
+    // `audio` as raw PCM. Not a style preference — reversing the two parts is
+    // a 400, reproduced by `.viva/probe-dictation-contract.mjs`:
+    //   config first -> 200; audio first -> 400 "the `config` part must be sent
+    //   before the `audio` part on the streaming endpoint, because the upstream
+    //   call cannot be opened without it".
+    // The clip itself is buffered and posted whole on release, so nothing is
+    // streamed while recording (see the note on `transcribe` above).
     const config: Record<string, unknown> = {
       // Guaranteed by toPcm16kMono above, not assumed of the caller.
       sample_rate: TARGET_RATE,

@@ -39,6 +39,19 @@ export function resetStoreDegradation(): void {
 }
 
 /**
+ * Calls the latch is not allowed to answer for.
+ *
+ * Everything else degrades usefully: a read served from /tmp is a worse read,
+ * not a false one. A deletion is different — routing it to the ephemeral store
+ * unlinks a file, returns 200, and leaves every durable row in place, so the
+ * student who asked to be forgotten is told they were and is not. This module
+ * promises nobody is told a lie about durability, and that is the loudest one
+ * available. These go to the durable backend whatever the latch says, and a
+ * failure surfaces instead of being answered by the fallback.
+ */
+const DESTRUCTIVE = new Set(["deleteUserData"]);
+
+/**
  * Wrap a durable store so the first failed call latches this instance onto the
  * fallback and RETRIES there, rather than surfacing a 500. Reads and writes
  * both move, so a request never mixes two backends and sees torn state.
@@ -64,6 +77,15 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
       const onFallback = (fallback as unknown as Record<string, unknown>)[prop as string];
 
       return async (...args: unknown[]) => {
+        if (DESTRUCTIVE.has(String(prop))) {
+          // Clear the ephemeral copy first — while this instance is degraded
+          // that is where the data actually is — then go to the durable
+          // backend anyway and let a rejection reach the caller.
+          if (degradation.degraded && typeof onFallback === "function") {
+            await (onFallback as (...a: unknown[]) => unknown).apply(fallback, args);
+          }
+          return await (original as (...a: unknown[]) => unknown).apply(target, args);
+        }
         if (degradation.degraded && typeof onFallback === "function") {
           return (onFallback as (...a: unknown[]) => unknown).apply(fallback, args);
         }

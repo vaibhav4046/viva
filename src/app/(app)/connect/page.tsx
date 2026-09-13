@@ -127,8 +127,8 @@ export default function ConnectPage() {
           2 · Pair it with this account
         </h2>
         <p className="prose-measure text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-          The code below is good for ten minutes and works once. Paste it into your assistant and say: connect my VIVA
-          account with this code.
+          The code below works for the next ten minutes, and anyone who can see it in that time can use it. Treat it
+          like a password: paste it straight into your assistant and say connect my VIVA account with this code.
         </p>
 
         {pairing && alive ? (

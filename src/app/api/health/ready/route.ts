@@ -1,4 +1,4 @@
-import { dbStatus } from "@/lib/db/db";
+import { dbStatus, describeFailure } from "@/lib/db/db";
 import { storeDegradation, storeDurability } from "@/lib/store";
 import { providerStatus } from "@/lib/ai/provider";
 import { resolveTranscriptionMode } from "@/lib/assemblyai";
@@ -52,7 +52,12 @@ export async function GET() {
       provider,
       database,
       store: store.degraded
-        ? { mode: "ephemeral-fallback", from: store.from, reason: store.reason, since: store.since }
+        ? // The latch keeps the driver's own words so an operator reading the
+          // logs gets the whole error. They are not for this endpoint, which
+          // anyone can call: a pg failure message carries the database host
+          // and the role name, and an unhealthy system should not be the one
+          // that hands those out.
+          { mode: "ephemeral-fallback", from: store.from, reason: describeFailure(store.reason), since: store.since }
         : { mode: database.durable ? "durable" : "ephemeral" },
       ts: new Date().toISOString(),
     },

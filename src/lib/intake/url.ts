@@ -1,5 +1,5 @@
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { BlockList, isIP } from "node:net";
 import { extractReadable, type Readable } from "./html";
 
 /**
@@ -47,42 +47,63 @@ function fail(code: UrlFetchError): UrlFetchResult {
   return { ok: false, code, message: MESSAGES[code] };
 }
 
+/**
+ * Everything that is not a public unicast address, held as ranges rather than
+ * as spellings.
+ *
+ * The version this replaces matched on the text a person types, and the parser
+ * does not hand it that text. `new URL()` re-serialises `[::ffff:127.0.0.1]`
+ * to `[::ffff:7f00:1]`, which the old mapped-address regex could never match,
+ * and `bare.split(":")[0]` is the empty string for any address written with a
+ * leading `::`, so the unique-local, link-local and multicast tests underneath
+ * it were all comparing "". Loopback and 169.254.169.254 both read as public
+ * and were fetched, and the body came back to the student as subject text.
+ *
+ * BlockList decides on the parsed bytes and folds an IPv4-mapped v6 address
+ * onto the v4 rules itself, so every spelling of one address — dotted,
+ * decimal, octal, hex, mapped, IPv4-compatible, 6to4, NAT64 — gets the same
+ * answer. That is the difference between a guard and a filter: a filter can
+ * always be beaten by writing the address a different way.
+ */
+const RESERVED = new BlockList();
+for (const [range, prefix] of [
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["100.64.0.0", 10], // carrier NAT
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16], // link-local, incl. cloud metadata
+  ["172.16.0.0", 12],
+  ["192.0.0.0", 16], // protocol assignments and TEST-NET-1
+  ["192.168.0.0", 16],
+  ["198.18.0.0", 15], // benchmarking
+  ["198.51.0.0", 16], // TEST-NET-2
+  ["203.0.0.0", 16], // TEST-NET-3
+  ["224.0.0.0", 3], // multicast and reserved
+] as const) {
+  RESERVED.addSubnet(range, prefix, "ipv4");
+}
+for (const [range, prefix] of [
+  ["::", 96], // unspecified, loopback, and IPv4-compatible (::127.0.0.1)
+  // The next four are v6 shapes that carry a v4 destination inside them.
+  ["::ffff:0:0:0", 96], // IPv4-translated
+  ["64:ff9b::", 96], // NAT64, well-known prefix
+  ["64:ff9b:1::", 48], // NAT64, local-use prefixes
+  ["2002::", 16], // 6to4
+  ["fc00::", 7], // unique local
+  ["fe80::", 10], // link local
+  ["fec0::", 10], // site local: deprecated, still routed inside networks
+  ["ff00::", 8], // multicast
+] as const) {
+  RESERVED.addSubnet(range, prefix, "ipv6");
+}
+
 /** Anything that is not a public unicast address a student could have meant. */
 export function isPrivateAddress(ip: string): boolean {
-  const kind = isIP(ip);
-  if (kind === 4) return isPrivateV4(ip);
-  if (kind === 6) return isPrivateV6(ip.toLowerCase());
-  return true;
-}
-
-function isPrivateV4(ip: string): boolean {
-  const p = ip.split(".").map(Number);
-  if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true;
-  const [a, b] = p;
-  if (a === 0 || a === 10 || a === 127) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true; // carrier NAT
-  if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 192 && b === 0) return true; // 192.0.0/24 and 192.0.2/24
-  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
-  if (a === 198 && b === 51) return true; // TEST-NET-2
-  if (a === 203 && b === 0) return true; // TEST-NET-3
-  if (a >= 224) return true; // multicast and reserved
-  return false;
-}
-
-function isPrivateV6(ip: string): boolean {
   const bare = ip.replace(/^\[|\]$/g, "").split("%")[0];
-  if (bare === "::" || bare === "::1") return true;
-  // IPv4-mapped (::ffff:10.0.0.1) resolves to the v4 rules.
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(bare);
-  if (mapped) return isPrivateV4(mapped[1]);
-  const head = bare.split(":")[0];
-  if (/^f[cd]/.test(head)) return true; // unique local
-  if (/^fe[89ab]/.test(head)) return true; // link-local
-  if (/^ff/.test(head)) return true; // multicast
-  return false;
+  const kind = isIP(bare);
+  // Not an address at all, so there is nothing here that can vouch for it.
+  if (kind === 0) return true;
+  return RESERVED.check(bare, kind === 6 ? "ipv6" : "ipv4");
 }
 
 /**
@@ -95,8 +116,8 @@ function isPrivateV6(ip: string): boolean {
  * radius of that window to a single GET of a page we then only read as text.
  */
 async function hostIsPublic(hostname: string): Promise<boolean> {
-  const literal = isIP(hostname.replace(/^\[|\]$/g, ""));
-  if (literal) return !isPrivateAddress(hostname.replace(/^\[|\]$/g, ""));
+  const bare = hostname.replace(/^\[|\]$/g, "");
+  if (isIP(bare)) return !isPrivateAddress(bare);
   if (/^localhost$|\.localhost$|\.local$|\.internal$|\.home$/i.test(hostname)) return false;
   let addrs: { address: string }[];
   try {

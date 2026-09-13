@@ -115,15 +115,24 @@ export async function POST(req: NextRequest) {
     if (!files.length) return done(bad("NO_FILE", "Attach a file, or paste your notes instead."));
     if (files.reduce((n, f) => n + f.size, 0) > PDF_MAX_BYTES) return done(tooLarge());
 
-    const docs: IntakeDoc[] = [];
-    for (const file of files) {
-      const read = await docFromFile(file.name, Buffer.from(await file.arrayBuffer()));
-      // One unreadable file fails the request. Building a subject out of the
-      // other three and saying nothing about the one that did not open is how
-      // a student ends up revising from half their material without knowing.
-      if (!read.ok) return done(bad(read.error.code, read.error.message, read.error.status));
-      docs.push(read.doc);
-    }
+    // Read them at the same time, not one after another.
+    //
+    // Sequentially, four files could spend four PDF parse timeouts — 80 s by
+    // the caps — before the model call even starts, against a 60 s function
+    // limit; the platform then kills the request mid-stream and the student
+    // gets no sentence at all, because the code that writes the sentences is
+    // the code that was killed. Concurrently the worst case is one timeout.
+    const reads = await Promise.all(
+      files.map(async (file) => docFromFile(file.name, Buffer.from(await file.arrayBuffer())))
+    );
+    // One unreadable file fails the request. Building a subject out of the
+    // other three and saying nothing about the one that did not open is how
+    // a student ends up revising from half their material without knowing.
+    // The FIRST failure in the order they attached them, so the message names
+    // the file they would look at first.
+    const broken = reads.find((r) => !r.ok);
+    if (broken && !broken.ok) return done(bad(broken.error.code, broken.error.message, broken.error.status));
+    const docs: IntakeDoc[] = reads.flatMap((r) => (r.ok ? [r.doc] : []));
     const title = cleanTitle(form.get("title") || files[0].name, "Your file");
     input = docs.length === 1 && docs[0].type === "pdf"
       ? { kind: "pdf", title, pages: docs[0].pages }
@@ -142,12 +151,13 @@ export async function POST(req: NextRequest) {
         .filter(Boolean)
         .slice(0, MAX_DOCS);
       if (!urls.length) return done(bad("BAD_REQUEST", "Paste the address of the page you want to study."));
-      const docs: IntakeDoc[] = [];
-      for (const url of urls) {
-        const read = await docFromUrl(url);
-        if (!read.ok) return done(bad(read.error.code, read.error.message, read.error.status));
-        docs.push(read.doc);
-      }
+      // Same reason as the uploads above: four pages at a 12 s cap each is
+      // 48 s of fetching before the 45 s model budget starts. Together, in
+      // the order the student gave them.
+      const reads = await Promise.all(urls.map((url) => docFromUrl(url)));
+      const broken = reads.find((r) => !r.ok);
+      if (broken && !broken.ok) return done(bad(broken.error.code, broken.error.message, broken.error.status));
+      const docs: IntakeDoc[] = reads.flatMap((r) => (r.ok ? [r.doc] : []));
       input = {
         kind: "docs",
         // The page names itself unless the student named the subject. The

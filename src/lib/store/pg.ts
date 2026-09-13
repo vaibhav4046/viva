@@ -1,7 +1,8 @@
 import { dbQuery } from "@/lib/db/db";
-import { COURSES, DEFAULT_COURSE_ID } from "@/lib/courses";
+import { COURSES, DEFAULT_COURSE_ID, getCourse } from "@/lib/courses";
 import type { Course, Subject } from "@/lib/courses/types";
 import { blankMastery, reduceMastery } from "@/lib/mastery";
+import { scoreChunks } from "@/lib/retrieval";
 import { uid, type ConceptMastery, type LearningEvent, type SourceChunk } from "@/lib/types";
 import type { ConceptDef, EventStore, RecordInput, RecordOutcome } from "./repo";
 
@@ -64,6 +65,11 @@ function toMastery(r: Record<string, unknown>): ConceptMastery {
     confidence: Number(r.confidence ?? 0.3),
     reviewPriority: Number(r.review_priority ?? 0.5),
   };
+}
+
+/** Passages of a subject that ships with the app, which no database holds. */
+function compiledChunks(courseId: string): SourceChunk[] {
+  return getCourse(courseId).sources.flatMap((src) => src.chunks);
 }
 
 export class PgEventStore implements EventStore {
@@ -270,16 +276,33 @@ export class PgEventStore implements EventStore {
       `SELECT c.* FROM source_chunks c JOIN sources s ON s.id=c.source_id
        WHERE c.user_id=$1 AND s.course_id=$2 ORDER BY c.ordinal`, [userId, scopeId(courseId, userId, courseId)]
     );
-    return rows.map((r) => ({
-      id: stripScope(r.id as string), sourceId: stripScope(r.source_id as string), ordinal: r.ordinal as number,
-      text: r.text as string, locator: (r.locator ?? {}) as SourceChunk["locator"],
-    }));
+    if (rows.length) {
+      return rows.map((r) => ({
+        id: stripScope(r.id as string), sourceId: stripScope(r.source_id as string), ordinal: r.ordinal as number,
+        text: r.text as string, locator: (r.locator ?? {}) as SourceChunk["locator"],
+      }));
+    }
+    // The subjects VIVA ships live in code, not in this database, and nothing
+    // ever inserts them — so on Postgres every shipped subject had no passages
+    // at all and the tutor answered "that is not in this subject" to every
+    // claim, including the ones that always worked. The file store has always
+    // fallen back to the compiled registry here; this path simply never ran
+    // with a real database behind it. A learner's own subject is in the rows
+    // above and still wins.
+    return compiledChunks(courseId);
   }
 
   async getConcepts(userId: string, courseId: string = DEFAULT_COURSE_ID): Promise<ConceptDef[]> {
     const rows = await dbQuery<Record<string, unknown>>(
       "SELECT * FROM concepts WHERE user_id=$1 AND course_id=$2", [userId, scopeId(courseId, userId, courseId)]
     );
+    // Same reason as getCourseChunks: a shipped subject's concepts are compiled
+    // in, so without this the map is empty on Postgres.
+    if (!rows.length) {
+      return getCourse(courseId).concepts.map((c) => ({
+        id: c.id, name: c.name, description: c.description, aliases: c.aliases, related: c.related,
+      }));
+    }
     const edges = await dbQuery<Record<string, unknown>>(
       "SELECT source_concept_id, target_concept_id FROM concept_edges WHERE user_id=$1", [userId]
     );
@@ -315,7 +338,17 @@ export class PgEventStore implements EventStore {
        ORDER BY score DESC LIMIT $5`,
       [userId, query, scopeId(courseId, userId, courseId), scopedSource, limit]
     );
-    if (!rows.length) return [];
+    if (!rows.length) {
+      // Nothing of the learner's own matched, so fall back to the compiled
+      // subject and score it the way the file store does. Without this the
+      // headline feature — checking a claim against your source — returned
+      // nothing on every shipped subject the moment a database was attached.
+      const compiled = compiledChunks(courseId);
+      if (!compiled.length) return [];
+      const pool = opts.sourceId ? compiled.filter((c) => c.sourceId === opts.sourceId) : compiled;
+      const { courseId: _courseId, ...rest } = opts;
+      return scoreChunks(pool.length ? pool : compiled, query, { ...rest, sourceId: null });
+    }
     return rows.map((r) => ({
       chunk: {
         id: stripScope(r.id), sourceId: stripScope(r.source_id), ordinal: r.ordinal, text: r.text,

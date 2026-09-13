@@ -63,12 +63,23 @@ function locatorFor(page: IntakePage, fallbackSection: string): SourceChunk["loc
  * web page or chapter, the page label for a PDF, and the source title for
  * pasted text.
  */
-export function chunkPages(pages: IntakePage[], sourceId: string, fallbackSection: string): SourceChunk[] {
+export function chunkPages(
+  pages: IntakePage[],
+  sourceId: string,
+  fallbackSection: string,
+  /**
+   * How many passages to cut before stopping. The default is the ceiling a
+   * subject ships with; `sourcesFrom` asks for one more than it intends to
+   * keep, which is the only way to tell "this document fitted" from "this
+   * document was cut off here" — and the student is owed that difference.
+   */
+  limit: number = MAX_CHUNKS
+): SourceChunk[] {
   const chunks: SourceChunk[] = [];
   let ordinal = 1;
   for (const page of pages) {
     for (const text of windows(page.text)) {
-      if (chunks.length >= MAX_CHUNKS) return chunks;
+      if (chunks.length >= limit) return chunks;
       chunks.push({
         id: `${sourceId}_c${ordinal}`,
         sourceId,

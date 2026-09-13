@@ -23,17 +23,24 @@ import type { SourceChunk } from "@/lib/types";
  * Order, cheapest and most confident first. Every one of them is lexical and
  * model-free, so the verdict is the same every time:
  *
- *   0. is the learner denying a mistake rather than making one? then nothing
+ *   0. is the learner DENYING a mistake rather than making one? then nothing
  *      below may assert a contradiction — this is the guard that protects the
- *      student who understands the material;
+ *      student who understands the material. Denying is not the same as
+ *      drawing a contrast: "backprop and gradient descent are two different
+ *      steps" believes its own sentence, and gating it here cost recall for
+ *      nothing (`CONTRAST`);
  *   0b. does a passage already say the whole claim? then it is `supported` —
  *      the one status that may tell a learner they are right, because a line
  *      of their own source says the same thing in the same polarity;
  *   1. a trap the subject ships (the author wrote why it is wrong);
  *   2. conflation — "X and Y are the same" where the source separates them;
- *   3. the source rules it out in its own words ("…, not X", "instead of X");
+ *   2b. the same with one term — "the heads all learn the same thing" where
+ *      the source says they specialise;
+ *   3. the source rules it out in its own words ("…, not X", "instead of X",
+ *      "has no X");
  *   4. term substitution — the source puts a different named thing in that slot;
- *   5. relation mismatch — X is <done> to Y, the source says Z;
+ *   5. relation mismatch — X is <done> to Y, the source says Z, and a wrong
+ *      operation counts as well as a wrong destination;
  *   6. nothing in the passages goes near it, so VIVA says so rather than guessing.
  *
  * Anything else comes back `consistent`, which means "not caught" and NEVER
@@ -76,6 +83,18 @@ export type ClaimCheck = {
  */
 const NEGATED =
   /\b(not|never|no|isn['’]?t|aren['’]?t|can\s?not|cannot|can['’]t|won['’]?t|will\s+not|does\s?n['’]?t|do\s?n['’]?t|did\s?n['’]?t|wrong|false|myth|misconception|differs?|different(?:ly)?|distinct|separate(?:ly)?|unlike|rather\s+than|instead\s+of|as\s+opposed\s+to)\b/i;
+
+/**
+ * Contrast only — the other half of `NEGATED`. A student writing "backprop and
+ * gradient descent are two different steps" is drawing a distinction inside a
+ * sentence they believe, not denying it, and gating the passage checks on this
+ * half cost recall for nothing: measured on the twenty-sentence corpus in
+ * `tests/fixtures/claim-corpus.ts`, the wide gate blocked ONE of the ten wrong
+ * sentences (a real "not") and nine of the ten correct contrast sentences. So
+ * the gate below reads `DENIAL`, and contrast reaches the passage checks —
+ * where the checks that could fire on it carry their own contrast guard.
+ */
+const CONTRAST = /\b(differs?|different(?:ly)?|distinct|separate(?:ly)?|unlike|rather\s+than|instead\s+of|as\s+opposed\s+to|whereas)\b/i;
 
 /**
  * Denial only — the half of `NEGATED` that flips a sentence's truth rather
@@ -145,16 +164,15 @@ type Term = { text: string; toks: string[] };
 function keyTerms(course: Course): Term[] {
   const seen = new Set<string>();
   const out: Term[] = [];
-  for (const c of course.concepts) {
-    for (const raw of [c.name, ...c.aliases]) {
-      const text = raw.trim().toLowerCase();
-      const toks = stemTokens(text);
-      const key = toks.join(" ");
-      if (!key || key.length < 3 || seen.has(key)) continue;
-      seen.add(key);
-      out.push({ text, toks });
-    }
-  }
+  const add = (raw: string): void => {
+    const text = raw.trim().toLowerCase();
+    const toks = stemTokens(text);
+    const key = toks.join(" ");
+    if (!key || key.length < 3 || seen.has(key)) return;
+    seen.add(key);
+    out.push({ text, toks });
+  };
+  for (const c of course.concepts) for (const raw of [c.name, ...c.aliases]) add(raw);
   // Longest first so "value iteration" wins over "value".
   return out.sort((a, b) => b.toks.length - a.toks.length || b.text.length - a.text.length);
 }
@@ -312,15 +330,59 @@ const RELATION = /\b([a-z][\w' -]{2,60}?)\s+(?:is|are|gets?|get)\s+([a-z]+(?:ed|
 
 type Relation = { head: string; verb: string; prep: string; object: string };
 
+/**
+ * Operations grouped by what they do, so a wrong one is comparable.
+ *
+ * Strategy 5 used to compare verbs by string, which meant it could only catch
+ * the right operation in the wrong place ("positional encoding is ADDED TO the
+ * attention weights") and never the wrong operation ("positional encodings are
+ * MULTIPLIED WITH the attention scores"), because a different verb produced no
+ * comparison at all rather than a mismatch.
+ *
+ * Only verbs in this table are comparable: an unlisted verb still needs an
+ * exact string match, so two unrelated true sentences about one subject cannot
+ * become a contradiction just because they use different words. Across all
+ * thirteen shipped subjects exactly one source relation is classified, which
+ * is the honest size of this lever.
+ */
+const VERB_CLASS: Record<string, string> = {
+  added: "sum", summed: "sum", concatenated: "sum", appended: "sum",
+  multiplied: "scale", scaled: "scale", divided: "scale",
+  replaced: "swap", substituted: "swap",
+  removed: "drop", deleted: "drop", discarded: "drop",
+};
+
+/** Same operation family, or unclassified and therefore only itself. */
+function sameOperation(a: string, b: string): boolean {
+  if (a === b) return true;
+  const ca = VERB_CLASS[a];
+  const cb = VERB_CLASS[b];
+  return ca !== undefined && ca === cb;
+}
+
+/** Both named, and named as different things to do. */
+function clashingOperation(a: string, b: string): boolean {
+  const ca = VERB_CLASS[a];
+  const cb = VERB_CLASS[b];
+  return ca !== undefined && cb !== undefined && ca !== cb;
+}
+
 export function readRelation(text: string): Relation | null {
   const m = RELATION.exec(text.replace(/\([^)]*\)/g, " "));
   if (!m) return null;
   return { head: m[1].trim(), verb: m[2].toLowerCase(), prep: m[3].toLowerCase(), object: trimClause(m[4]) };
 }
 
-/** Cut a complement at the first clause boundary and cap it at six words. */
+/**
+ * Cut a complement at the first clause boundary and cap it at six words.
+ *
+ * "instead of" and "rather than" are boundaries too: without them the reply
+ * to "…multiplied with the attention scores instead of the token embeddings"
+ * ended "not multiplied with the attention scores instead of the", which is a
+ * sentence VIVA cannot finish.
+ */
 function trimClause(s: string): string {
-  const cut = s.split(/\s+(?:so\s+that|so|which|because|and|while|whereas|when)\s+/i)[0];
+  const cut = s.split(/\s+(?:so\s+that|so|which|because|and|while|whereas|when|instead\s+of|rather\s+than)\s+/i)[0];
   return cut.replace(/[,;].*$/, "").trim().split(/\s+/).slice(0, 6).join(" ").replace(/[.\s]+$/, "");
 }
 
@@ -337,17 +399,72 @@ function probeFor(course: Course, conceptId: string | null): ExamQuestion | null
 
 const CONSISTENT: ClaimCheck = { status: "consistent", lead: null, quote: null, chunkId: null, question: null, openQuestion: null };
 
-/** "A and B are the same thing" / "A is just B" — an equation of two things. */
+/**
+ * "A and B are the same thing" / "A is just B" — an equation of two things.
+ *
+ * `HEDGE` is the reason "the query and the value are ALWAYS identical vectors"
+ * was invisible: one adverb between the verb and the equator, and the whole
+ * conflation check stopped applying to a sentence built out of nothing else.
+ */
+const HEDGE = "(?:always\\s+|really\\s+|basically\\s+|essentially\\s+|effectively\\s+|just\\s+|simply\\s+|all\\s+|both\\s+|pretty\\s+much\\s+)?";
 const EQUATES: RegExp[] = [
-  /([\w'’ -]{3,44}?)\s+and\s+([\w'’ -]{3,44}?)\s+are\s+(?:the\s+same|identical|equivalent|interchangeable)\b/i,
-  /([\w'’ -]{3,44}?)\s+is\s+(?:the\s+same\s+(?:thing\s+)?as|identical\s+to|just|simply|another\s+(?:word|name)\s+for)\s+([\w'’ -]{3,44})/i,
+  new RegExp(`([\\w'’ -]{3,44}?)\\s+and\\s+([\\w'’ -]{3,44}?)\\s+are\\s+${HEDGE}(?:the\\s+same|identical|equivalent|interchangeable)\\b`, "i"),
+  new RegExp(`([\\w'’ -]{3,44}?)\\s+is\\s+${HEDGE}(?:the\\s+same\\s+(?:thing\\s+)?as|identical\\s+to|just|simply|another\\s+(?:word|name)\\s+for)\\s+([\\w'’ -]{3,44})`, "i"),
 ];
+
+/**
+ * The claim says instances of ONE thing do not differ — "the heads all learn
+ * the same thing", "multi-head attention just runs the same attention twice".
+ *
+ * `EQUATES` needs two named things to conflate and these sentences name one,
+ * so they fell through every check and came back "I could not check that" on
+ * material the source contradicts twice (p.15, p.16). The finding is the same
+ * finding conflation makes, with the claim on both sides of it.
+ */
+const UNIFORM = /\b(?:the\s+same|identical|interchangeable)\b/i;
+
+/** Saying the copies are pointless is the whole mistake, on its own. */
+const REDUNDANT = /\b(?:redundant|duplicates?|copies|clones?|no\s+different)\b/i;
+
+/**
+ * What separates the mistake from a description. "Multi-head attention runs
+ * the same computation h times in parallel" is a fair paraphrase of p.15 and
+ * says `the same`; "multi-head attention JUST runs the same attention twice"
+ * is the misconception. The reductive word is the difference, so uniformity
+ * needs one before it may contradict anybody.
+ */
+const REDUCTIVE = /\b(?:just|only|merely|simply|all|nothing\s+but|no\s+more\s+than)\b/i;
+
+/**
+ * Both halves in ONE clause, not merely somewhere in the same paragraph.
+ *
+ * A concept description that opens "ALL substances must be electrically
+ * neutral" and closes, two sentences later, "…give IDENTICAL numbers of
+ * positive and negative charges" is a true sentence flattening nothing, and
+ * a paragraph-wide test contradicted it.
+ */
+function flattensSomething(claim: string): boolean {
+  return clausesOf(claim).some((c) => REDUNDANT.test(c) || (UNIFORM.test(c) && REDUCTIVE.test(c)));
+}
 
 /** The source saying two things are not one thing. */
 const DISTINCT = /\b(different|differs|differ|separate|distinct|two|three|four|both|whereas|instead|rather\s+than|confus\w+|not\s+the\s+same)\b/i;
 
-/** The source ruling an alternative out in its own words. */
-const RULES_OUT = /(?:,\s*not\s+|\binstead\s+of\s+|\brather\s+than\s+)([^.;:]{2,60})/gi;
+/**
+ * The source ruling an alternative out in its own words, in favour of the
+ * thing it just said. The comma is excluded from the capture so the ruled-out
+ * side stops at its own clause instead of swallowing the rest of the sentence.
+ */
+const RULES_OUT = /(?:,\s*not\s+|\binstead\s+of\s+|\brather\s+than\s+)([^.;:,]{2,60})/gi;
+
+/**
+ * The source denying something outright — "a standard Transformer HAS NO
+ * recurrence". There is no affirmed alternative in this shape, only the
+ * denial, so it is read separately: treating the words in front of it as the
+ * affirmed side made the subject of the sentence ("Transformer") count as
+ * agreement and cancelled the finding on "Transformers use recurrence".
+ */
+const DENIES = /\b(?:has|have|had|uses|use|contains?|includes?)\s+no\s+([^.;:,]{2,60})/gi;
 
 export function checkClaim(input: {
   claim: string;
@@ -416,9 +533,11 @@ export function checkClaim(input: {
   }
 
   // Denying something is not asserting it. The passage-shaped checks below
-  // have no authored correction to compare against, so a claim carrying any
-  // denial is left for the honest "I could not check that" reply.
-  const asserting = !NEGATED.test(claim);
+  // have no authored correction to compare against, so a claim carrying a
+  // denial is left for the honest "I could not check that" reply. Contrast is
+  // not denial and no longer gates here — see `CONTRAST`.
+  const asserting = !DENIAL.test(claim);
+  const contrasting = CONTRAST.test(claim);
 
   if (asserting) {
 
@@ -436,9 +555,33 @@ export function checkClaim(input: {
       if (hit) return caught(`Not quite — ${where(hit.chunk)} treats ${a.text} and ${b.text} as different things.`, hit);
     }
 
+    // 2b. The same move with one term: the claim flattens a thing the source
+    //     says varies. Skipped when the claim itself draws a contrast, which
+    //     is the sentence of a student who has the distinction and is stating
+    //     it ("backprop and gradient descent are two different steps") — the
+    //     one case where firing here would be worse than any miss.
+    if (!contrasting && flattensSomething(claim)) {
+      for (const q of mentionsIn(claimToks, terms)) {
+        // Any sentence of the retrieved passages, best-scoring first, rather
+        // than only the closest three. The line that answers "the heads are
+        // all the same" is "different heads specialise", which shares almost
+        // no words with it and scored zero — the sentence that refutes you is
+        // not the sentence that repeats you.
+        const hit = lines.find((l) => DISTINCT.test(l.line) && mentionsIn(l.toks, terms).some((p) => related(p.key, q.key)));
+        if (hit) return caught(`Not quite — ${where(hit.chunk)} treats them as different.`, hit);
+      }
+    }
+
+    // 3 and 4 keep the wider gate. Both carry guards written against specific
+    // past false positives, and letting contrast through them was measurably
+    // worse: two OpenStax asides ("Confused about these different types of
+    // demand?") started being contradicted, against nothing gained. Contrast
+    // reaches 2, 2b and 5, where it earns its keep and costs nothing.
+    const shaped = !contrasting;
+
     // 3. The source rules the claim out in its own words: "…, not X",
     //    "instead of X", "rather than X". The author already did the work.
-    for (const l of near) {
+    for (const l of shaped ? near : []) {
       const ruled = ruledOut(l);
       if (ruled.out.size === 0) continue;
       const claimSet = new Set(claimToks);
@@ -461,7 +604,7 @@ export function checkClaim(input: {
     // 4. Term substitution: same frame, a different thing in the slot. The
     //    source says the score is scaled by the square root of the KEY
     //    DIMENSION; the claim says the number of HEADS.
-    for (const l of near) {
+    for (const l of shaped ? near : []) {
       const inLine = mentionsIn(l.toks, terms);
       const lineKeys = new Set(inLine.map((m) => m.key));
       const inClaim = mentionsIn(claimToks, terms);
@@ -488,9 +631,21 @@ export function checkClaim(input: {
       for (const chunk of chunks) {
         for (const line of sentencesOf(chunk.text)) {
           const src = readRelation(line);
-          if (!src || src.verb !== said.verb || src.prep !== said.prep) continue;
-          // Same subject being talked about, different destination.
+          if (!src) continue;
+          // Same subject being talked about, or the two sentences are not
+          // about the same thing at all.
           if (disjoint(src.head, said.head)) continue;
+          const clash = clashingOperation(src.verb, said.verb);
+          if (clash) {
+            return caught(
+              `Not quite — ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.verb} ${said.prep} ${said.object}.`,
+              { chunk, line }
+            );
+          }
+          // Same operation, somewhere else. The preposition stays a gate here:
+          // with the verb matching it is all that separates "added to" from
+          // "added after", and the object comparison assumes the same frame.
+          if (!sameOperation(src.verb, said.verb) || src.prep !== said.prep) continue;
           if (!disjoint(src.object, said.object)) continue;
           return caught(
             `Not quite — ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.object}.`,
@@ -551,6 +706,12 @@ function ruledOut(l: Line): { out: Set<string>; affirmed: Set<string> } {
     for (const w of stemTokens(m[1]).slice(0, 4)) out.add(w);
     for (const w of stemTokens(l.line.slice(0, m.index)).slice(-4)) affirmed.add(w);
     m = RULES_OUT.exec(l.line);
+  }
+  DENIES.lastIndex = 0;
+  let d = DENIES.exec(l.line);
+  while (d) {
+    for (const w of stemTokens(d[1]).slice(0, 4)) out.add(w);
+    d = DENIES.exec(l.line);
   }
   return { out, affirmed };
 }

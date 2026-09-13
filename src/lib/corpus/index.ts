@@ -1,4 +1,5 @@
 import type { Course, SourceLicence } from "@/lib/courses/types";
+import { conceptHeading } from "@/lib/intake/model";
 import library from "./library.json";
 
 /**
@@ -16,7 +17,23 @@ import library from "./library.json";
  * Nothing here is hand-edited: change the script, re-run it, commit the JSON.
  */
 
-export const CORPUS: Course[] = library.subjects as unknown as Course[];
+/**
+ * Concept names arrive as headings, whenever the subject was generated.
+ *
+ * The seeder applies `conceptHeading` on the way in, but this file is filled
+ * over many runs — one subject a day when the provider's budget allows — so it
+ * holds entries written before that rule existed, and it will hold entries
+ * written by whatever model has budget next. Two of the shipped subjects came
+ * back with "cell" and "resolution" as concept names, which the app renders as
+ * the heading of a card. Reapplying the same rule here costs nothing when the
+ * name is already a heading and means the library cannot ship half-capitalised
+ * again, whatever wrote it. It changes presentation only: the word is still the
+ * one the model took from the book.
+ */
+export const CORPUS: Course[] = (library.subjects as unknown as Course[]).map((course) => ({
+  ...course,
+  concepts: course.concepts.map((c) => ({ ...c, name: conceptHeading(c.name) })),
+}));
 
 export const CORPUS_GENERATED_AT: string = library.generatedAt;
 

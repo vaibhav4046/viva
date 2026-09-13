@@ -108,18 +108,19 @@ type BuiltSources = {
 };
 
 function sourcesFrom(docs: IntakeDoc[], baseId: string, single: boolean): BuiltSources {
-  const all = docs.map((doc, i) => ({
-    doc,
-    id: single ? baseId : `${baseId}_s${i + 1}`,
-    chunks: chunkPages(doc.pages, single ? baseId : `${baseId}_s${i + 1}`, doc.fallbackSection ?? doc.title),
-  }));
+  // One more than could ever be kept, so a document that ran off the end is
+  // distinguishable from one that happened to end there.
+  const all = docs.map((doc, i) => {
+    const id = single ? baseId : `${baseId}_s${i + 1}`;
+    return { doc, id, chunks: chunkPages(doc.pages, id, doc.fallbackSection ?? doc.title, MAX_CHUNKS + 1) };
+  });
 
   const share = Math.max(1, Math.floor(MAX_CHUNKS / Math.max(1, all.length)));
   const allowance = all.map((d) => Math.min(d.chunks.length, share));
   let spare = MAX_CHUNKS - allowance.reduce((n, x) => n + x, 0);
   for (const [i, d] of all.entries()) {
     if (spare <= 0) break;
-    const want = Math.min(spare, d.chunks.length - allowance[i]);
+    const want = Math.min(spare, Math.min(d.chunks.length, MAX_CHUNKS) - allowance[i]);
     allowance[i] += want;
     spare -= want;
   }

@@ -6,6 +6,7 @@ import { FileEventStore } from "@/lib/store/file";
 import { PATH_MINUTES, selectDailyPath, unresolvedMisconception, type PlannerInput } from "@/lib/planner";
 import { blankMastery } from "@/lib/mastery";
 import type { LearningEvent } from "@/lib/types";
+import { getCourse } from "@/lib/courses";
 
 /**
  * The 10-minute Daily Path.
@@ -168,7 +169,12 @@ describe("selectDailyPath", () => {
     });
 
     const step = plan.find((s) => s.conceptId === "bio_cell");
-    expect(step?.conceptName).toBe("cell");
+    // The library's own name for it, not the id. It used to be asserted as the
+    // literal "cell", which is what that subject shipped before concept names
+    // were normalised into headings — the point of the check is that a plan
+    // never shows a student a raw id, so it now asks the library.
+    expect(step?.conceptName).toBe(getCourse("course_os_bio").concepts.find((c) => c.id === "bio_cell")?.name);
+    expect(step?.conceptName).not.toBe("bio_cell");
     expect(step?.courseId).toBe("course_os_bio");
   });
 

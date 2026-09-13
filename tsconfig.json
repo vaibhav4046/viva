@@ -38,7 +38,13 @@
     ".next-v4/types/**/*.ts",
     ".next-v4/dev/types/**/*.ts",
     ".next-orb3/types/**/*.ts",
-    ".next-orb3/dev/types/**/*.ts"
+    ".next-orb3/dev/types/**/*.ts",
+    ".next-corp2/types/**/*.ts",
+    ".next-corp2/dev/types/**/*.ts",
+    ".next-claim/types/**/*.ts",
+    ".next-claim/dev/types/**/*.ts",
+    ".next-pg/types/**/*.ts",
+    ".next-pg/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

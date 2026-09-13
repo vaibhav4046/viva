@@ -1,0 +1,5 @@
+status supported
+lead   That matches 7.1 Ionic Bonding —
+quote  As all substances must be electrically neutral, the total number of positive charges on the cations of an ionic compound must equal the total number of negative charges on its anions.
+chunk  src_os_bonding_c5
+terms  Ion Formation | Ionic Compounds | Ionic Bonds | Ionic Solid Properties | Binary Ionic Compounds | Charge Balance | Lattice Structure | Electronegativity

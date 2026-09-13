@@ -421,10 +421,18 @@ async function buildOne(entry, index) {
       passages: modelPassages(chunks, attempt),
     });
     if (!plan) return null;
-    const candidate = tidy(normalizePlan(plan), entry.key);
+    const normalized = normalizePlan(plan);
+    const candidate = tidy(normalized, entry.key);
     if (candidate.concepts.length < 6 || candidate.examQuestions.length < 5) {
       thin = `${candidate.concepts.length} complete concepts and ${candidate.examQuestions.length} questions`;
-      console.log(`    attempt ${attempt}: only ${thin} — asking again`);
+      // Where the loss happened, not just that there was one: a map can arrive
+      // with ten concepts and be reduced to two by `tidy` because the model
+      // explained two of them, and that reads identically in the log to a
+      // model that only named two.
+      console.log(
+        `    attempt ${attempt}: only ${thin} — the model wrote ${normalized.concepts.length} concepts,` +
+        ` ${Object.keys(normalized.explainers).length} explained and ${normalized.examQuestions.length} questions — asking again`
+      );
       return null;
     }
     return candidate;
@@ -527,7 +535,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * they are a small model that wrote one explainer instead of six — and making
  * those wait a minute each turned a thirty-subject run into an afternoon.
  */
-const RETRY_WAIT_MS = 25_000;
+const RETRY_WAIT_MS = 35_000;
+
+/** Same arithmetic, between subjects rather than between attempts. */
+const SUBJECT_GAP_MS = 35_000;
 
 async function withRetries(key, work, attempts = 3) {
   for (let i = 1; i <= attempts; i += 1) {
@@ -616,7 +627,14 @@ async function main() {
   for (const [i, entry] of entries.entries()) {
     // One subject per provider minute. Slower than it needs to be on a bigger
     // key, and the alternative is eleven refusals in eleven seconds.
-    if (i > 0 && !dry) await sleep(20_000);
+    //
+    // 20 s was not enough and the symptom looked like a bad model. Measured on
+    // this provider: the per-minute ceiling is 8,000 tokens and one seeding
+    // call costs about 4,300, so two calls inside a minute is a refusal —
+    // which arrives as "the model did not return a usable map", gets retried,
+    // and refuses again. Fetching the chapter takes some of the gap, so the
+    // wait only has to cover the rest of the window.
+    if (i > 0 && !dry) await sleep(SUBJECT_GAP_MS);
     console.log(`\n${entry.key} — ${entry.subject}`);
     try {
       const result = await buildOne(entry, index);
@@ -661,12 +679,34 @@ async function main() {
   if (skipped.length) console.log(`skipped:\n  ${skipped.join("\n  ")}`);
 }
 
+/**
+ * One `model` at the top of the file was a claim about subjects it did not
+ * build.
+ *
+ * The library is filled in over several runs against whatever credential still
+ * has budget, and every run rewrote that field with its own model name — so a
+ * run that added two subjects relabelled the other twenty-two. Each subject now
+ * carries `builtByModel`; a subject written before that field existed inherits
+ * the name the file recorded at the time, which is the evidence there is, and
+ * the header lists the distinct set rather than asserting one.
+ */
 function write(subjects) {
-  const sorted = subjects.slice().sort((a, b) => a.id.localeCompare(b.id));
+  let inherited = null;
+  try {
+    const previous = JSON.parse(readFileSync(OUT, "utf-8"));
+    inherited = previous.model ?? (Array.isArray(previous.models) && previous.models.length === 1 ? previous.models[0] : null);
+  } catch {
+    inherited = null;
+  }
+  const sorted = subjects
+    .slice()
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((s) => (s.builtByModel || !inherited ? s : { ...s, builtByModel: inherited }));
+  const models = [...new Set(sorted.map((s) => s.builtByModel).filter(Boolean))].sort();
   mkdirSync(path.dirname(OUT), { recursive: true });
   writeFileSync(
     OUT,
-    `${JSON.stringify({ generatedAt: new Date().toISOString(), source: "scripts/seed-corpus.mjs", model, subjects: sorted }, null, 1)}\n`,
+    `${JSON.stringify({ generatedAt: new Date().toISOString(), source: "scripts/seed-corpus.mjs", models, subjects: sorted }, null, 1)}\n`,
     "utf-8"
   );
 }

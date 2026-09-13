@@ -9,7 +9,7 @@ import { resolveSubject } from "@/lib/courses/subject";
 import { chunkPages, CHUNK_CHARS } from "@/lib/intake/chunk";
 import { extractSubjectBody } from "@/lib/intake/extract";
 import { buildSubject } from "@/lib/intake/build";
-import { SubjectPlanSchema, WrittenPassagesSchema } from "@/lib/intake/model";
+import { conceptHeading, normalizePlan, SubjectPlanSchema, WrittenPassagesSchema } from "@/lib/intake/model";
 import { FileEventStore } from "@/lib/store/file";
 import { bandKeyFor } from "@/lib/mastery";
 
@@ -291,5 +291,77 @@ describe("a subject keeps the name the student gave it", () => {
     expect(cleanTitle("../../etc/passwd.pdf", "x")).toBe("passwd");
     expect(cleanTitle("Week 4\tnotes\nline two", "x")).toBe("Week 4 notes line two");
     expect(cleanTitle("   ", "Your notes")).toBe("Your notes");
+  });
+});
+
+describe("a concept name is a heading a student reads", () => {
+  it("raises a bare lowercase noun and leaves anything already capitalised alone", () => {
+    expect(conceptHeading("cell")).toBe("Cell");
+    expect(conceptHeading("dot plot")).toBe("Dot plot");
+    // A capital anywhere means the model chose the casing on purpose.
+    expect(conceptHeading("pH scale")).toBe("pH scale");
+    expect(conceptHeading("mRNA")).toBe("mRNA");
+    expect(conceptHeading("Newton's first law")).toBe("Newton's first law");
+  });
+
+  it("normalizePlan applies it, so both the library and a student's own subject get it", () => {
+    const plan = SubjectPlanSchema.parse({
+      ...plannedSubject(),
+      concepts: plannedSubject().concepts.map((c) => ({ ...c, name: c.name.toLowerCase() })),
+    });
+    const body = normalizePlan(plan);
+    for (const concept of body.concepts) {
+      expect(/\p{Lu}/u.test(concept.name), `"${concept.name}" reads as a bare noun`).toBe(true);
+    }
+  });
+});
+
+describe("several documents in one subject", () => {
+  /** Long enough on its own to want more than the whole passage budget. */
+  const HUGE = `${LECTURE}
+`.repeat(40);
+
+  it("gives every uploaded document a share of the budget instead of the first one all of it", async () => {
+    // Measured before this: four uploads of one 300-page PDF put 120 passages
+    // in the first file and none in the other three, and the subject was then
+    // announced as ready. The student would have been revising a quarter of
+    // their material without being told.
+    setReasoningProvider(new StubProvider(() => plannedSubject()));
+    const lines: string[] = [];
+    const out = await buildSubject(
+      {
+        kind: "docs",
+        title: "Four uploads",
+        origin: "file",
+        docs: [1, 2, 3, 4].map((n) => ({ title: `file${n}.txt`, type: "text", pages: [{ text: HUGE }] })),
+      },
+      "u_docs_share",
+      (line) => lines.push(line)
+    );
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.subject.sources).toHaveLength(4);
+    for (const source of out.subject.sources) {
+      expect(source.chunks.length, `${source.title} got nothing`).toBeGreaterThan(0);
+    }
+    expect(out.subject.sources.reduce((n, s) => n + s.chunks.length, 0)).toBeLessThanOrEqual(120);
+    // and it says out loud that it could not take all of it.
+    expect(lines.join(" ")).toMatch(/more in .* than VIVA studies in one subject/);
+  });
+
+  it("says so when one long source had to be cut short", async () => {
+    setReasoningProvider(new StubProvider(() => plannedSubject()));
+    const lines: string[] = [];
+    const out = await buildSubject({ kind: "paste", title: "A book", text: HUGE }, "u_docs_one", (line) => lines.push(line));
+    expect(out.ok).toBe(true);
+    expect(lines.join(" ")).toMatch(/more than VIVA studies in one subject/);
+  });
+
+  it("stays quiet when everything fitted", async () => {
+    setReasoningProvider(new StubProvider(() => plannedSubject()));
+    const lines: string[] = [];
+    const out = await buildSubject({ kind: "paste", title: "A lecture", text: LECTURE }, "u_docs_fit", (line) => lines.push(line));
+    expect(out.ok).toBe(true);
+    expect(lines.join(" ")).not.toMatch(/than VIVA studies in one subject/);
   });
 });

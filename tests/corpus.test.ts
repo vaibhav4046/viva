@@ -69,6 +69,23 @@ describe("preloaded library", () => {
     }
   });
 
+  it("concept names read as headings, not as bare lowercase nouns", () => {
+    // The map is written by a model, and the app renders the name as the
+    // heading of a card. One shipped subject had "cell" and "resolution" as
+    // headings while the next had "Homeostasis" — the same generator, two
+    // different-looking libraries. `conceptHeading` settles it before the
+    // subject is written.
+    for (const course of CORPUS) {
+      for (const concept of course.concepts) {
+        expect(concept.name.length, `${course.id}: an empty concept name`).toBeGreaterThan(1);
+        expect(
+          /\p{Lu}/u.test(concept.name),
+          `${course.id}: "${concept.name}" has no capital anywhere and reads as a bare noun`
+        ).toBe(true);
+      }
+    }
+  });
+
   it("concept ids are unique across everything VIVA ships", () => {
     // ownerCourse() and findSubjectOwning() answer "which subject owns this
     // concept" by scanning every course and taking the first hit. Two subjects

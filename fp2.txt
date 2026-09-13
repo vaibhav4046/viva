@@ -1,6 +1,0 @@
-subjects 26  true sentences 3910
-contradicted BEFORE 27  (0.69%)
-contradicted AFTER  26  (0.66%)
-NEW regressions 0
-no longer flagged 1
-  - course_os_phys: Newton’s first law says a body will keep its motion unless a net external force acts.

@@ -197,11 +197,33 @@ function mergeEvents(server: MirroredEvent[], mirror: MirroredEvent[]): Mirrored
  * `exposureCount` is the comparator because the fold increments it exactly once
  * per event (src/lib/mastery.ts:39), so a bigger count means strictly more of
  * the session is in that record. `lastSeenAt` only breaks a tie.
+ *
+ * That is true WITHIN one lineage and false across two, which is the shape this
+ * deployment actually has: every instance keeps its own /tmp, so a cold one
+ * answers with a row it folded from scratch. Reproduced on a local file-backed
+ * server — one turn earns a got-it (exposure 1, got 1, mastery 0.56); the next
+ * turn lands on an instance whose store is empty, which folds that one turn
+ * alone and answers exposure 1, got 0, miss 1, mastery 0.44. Equal counts, a
+ * later `lastSeenAt`, and the tie goes to the server: the got-it is gone, and
+ * gone for good, because the merge is what the browser then writes down. That
+ * is a judge watching five of six concepts fall back to "Not yet" mid-session.
+ *
+ * So the floor is not the mirror's own count but the number of events the
+ * browser is holding for that concept, which is the thing it can actually
+ * prove. A server row has to have folded at least that many before it may
+ * replace one. `mine` is the mirror's event log; passing none keeps the old
+ * behaviour, which is right for a caller that has no log to appeal to.
  */
-function mergeMastery(
+export function mergeMastery(
   server: Record<string, ConceptMastery>,
-  mirror: Record<string, ConceptMastery>
+  mirror: Record<string, ConceptMastery>,
+  mine: { primaryConceptId?: string | null }[] = []
 ): Record<string, ConceptMastery> {
+  const held = new Map<string, number>();
+  for (const e of mine) {
+    if (!e.primaryConceptId) continue;
+    held.set(e.primaryConceptId, (held.get(e.primaryConceptId) ?? 0) + 1);
+  }
   const out: Record<string, ConceptMastery> = { ...mirror };
   for (const [id, s] of Object.entries(server ?? {})) {
     const m = out[id];
@@ -209,9 +231,8 @@ function mergeMastery(
       out[id] = s;
       continue;
     }
-    const fresher =
-      s.exposureCount > m.exposureCount ||
-      (s.exposureCount === m.exposureCount && s.lastSeenAt >= m.lastSeenAt);
+    const floor = Math.max(m.exposureCount, held.get(id) ?? 0);
+    const fresher = s.exposureCount > floor || (s.exposureCount === floor && s.lastSeenAt >= m.lastSeenAt);
     if (fresher) out[id] = s;
   }
   return out;
@@ -280,7 +301,7 @@ export function mergeLearner<C extends ConceptLite>(
   subjectId?: string | null
 ): LearnerPayload<C> {
   const mirror = readRecord();
-  const mastery = mergeMastery(server.mastery ?? {}, mirror.mastery);
+  const mastery = mergeMastery(server.mastery ?? {}, mirror.mastery, mirror.events);
   const events = mergeEvents(Array.isArray(server.events) ? server.events : [], mirror.events);
   const mine = subjectId ? mirror.subjects[subjectId] : undefined;
   // The mirrored subject's own `ConceptDef` carries every field either page
@@ -326,7 +347,7 @@ export function rememberEvent(event: LearningEvent, clientEventId: string): void
 /** Fold a mastery map returned by a mutating route into the mirror. */
 export function rememberMastery(mastery: Record<string, ConceptMastery>): void {
   const mirror = readRecord();
-  writeRecord({ ...mirror, mastery: mergeMastery(mastery, mirror.mastery) });
+  writeRecord({ ...mirror, mastery: mergeMastery(mastery, mirror.mastery, mirror.events) });
 }
 
 /* ------------------------------ subjects -------------------------------- */

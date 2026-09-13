@@ -67,6 +67,18 @@ export type ClaimCheck = {
   question: string | null;
   /** The bank question this turn opens, so the next turn can grade it. */
   openQuestion: ExamQuestion | null;
+  /**
+   * `supported`, and the claim is the passage's own sentence read back rather
+   * than the learner's. See `recites`. Never true for any other status.
+   */
+  recited: boolean;
+  /**
+   * `supported`, and this is the concept the line that verified it NAMES —
+   * which is the only concept a got-it earned here may be written against.
+   * Null on every other status: nothing checked anything, so nothing may
+   * override the concept the words were routed to.
+   */
+  conceptId: string | null;
 };
 
 /**
@@ -504,7 +516,61 @@ function saysInOrder(claimToks: string[], lineToks: string[], inLine: Set<string
   return true;
 }
 
-type Support = { chunk: SourceChunk; line: string; score: number };
+type Support = {
+  chunk: SourceChunk;
+  line: string;
+  score: number;
+  /** Concept ids the supporting line names, in the order it names them. */
+  concepts: string[];
+  recited: boolean;
+};
+
+/**
+ * The claim is not the learner's sentence. It is the line, copied.
+ *
+ * A student judge pasted two passages off the screen word for word and the map
+ * wrote two SUCCESSFUL RECALLS. The reply was right — "That matches p.7" is
+ * true and worth saying — but a tally of what somebody knows may not count a
+ * sentence they read out of the box beside it. `supportedBy` recognises the
+ * source's own sentence by design, so it cannot be the thing that decides.
+ *
+ * What separates the two is unbroken-ness. `saysInOrder` already requires the
+ * claim to be a SUBSEQUENCE of one line, so the only room a learner has to put
+ * anything of their own in is the gaps: a word dropped, a clause skipped, a
+ * term the subject spells another way. Copying leaves no gaps. Measured over
+ * every passage sentence the library ships — 3,421 sentences across 26
+ * subjects, of which 2,844 come back `supported` when typed back verbatim —
+ * 2,841 of those 2,844 are one unbroken run of their line, and NOTHING sits
+ * between 0.83 and 1.0. The two sentences a judge-facing corpus has in the
+ * learner's own words score 0.82 and 0.75. So the bar goes in the gap.
+ *
+ * ponytail: lexical, like everything else in this file, and a paste with one
+ * word deleted clears it. The honest direction: a false negative costs a
+ * recall point the learner has to earn again by answering a question, a false
+ * positive is the thing that made this build unusable.
+ */
+const RECITED_RUN = 0.9;
+
+/** Longest run of `a` that appears unbroken in `b`. */
+function longestRun(a: string[], b: string[]): number {
+  let best = 0;
+  const row: number[] = new Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i += 1) {
+    let prev = 0;
+    for (let j = 1; j <= b.length; j += 1) {
+      const carry = row[j];
+      row[j] = a[i - 1] === b[j - 1] ? prev + 1 : 0;
+      if (row[j] > best) best = row[j];
+      prev = carry;
+    }
+  }
+  return best;
+}
+
+function recites(claimToks: string[], lineToks: string[]): boolean {
+  if (claimToks.length === 0) return false;
+  return longestRun(claimToks, lineToks) / claimToks.length >= RECITED_RUN;
+}
 
 /** The last word of a term — "ordering invariant" is a kind of invariant. */
 function head(key: string): string {
@@ -527,7 +593,7 @@ function head(key: string): string {
  *
  * Only forms the SUBJECT declares are credited. Nothing here invents a synonym.
  */
-type Names = { keys: Set<string>; concepts: Set<string>; words: Set<string> };
+type Names = { keys: Set<string>; concepts: Set<string>; words: Set<string>; order: string[] };
 
 function namesOf(lineToks: string[], terms: Term[]): Names {
   const mentions = mentionsIn(lineToks, terms);
@@ -535,7 +601,10 @@ function namesOf(lineToks: string[], terms: Term[]): Names {
   const concepts = new Set(mentions.map((m) => m.concept));
   const words = new Set<string>();
   for (const t of terms) if (concepts.has(t.concept)) for (const w of t.toks) words.add(w);
-  return { keys, concepts, words };
+  // With repeats and in reading order: a line that says "key" three times is
+  // more about keys than the one word "attention" in it makes it about
+  // attention, and that is how the credited concept is picked.
+  return { keys, concepts, words, order: mentions.map((m) => m.concept) };
 }
 
 /** The one line of the passage that says this sentence back. */
@@ -580,7 +649,7 @@ function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): S
       // just agreed the line names that thing, under one of its own names or
       // by its head noun ("the invariant" for "the ordering invariant").
       if (!saysInOrder(partToks, lineToks, inLine, spellings(says, named))) continue;
-      best = { chunk, line, score };
+      best = { chunk, line, score, concepts: says.order, recited: recites(partToks, lineToks) };
     }
   }
   return best;
@@ -621,12 +690,44 @@ function supportedBy(claim: string, chunks: SourceChunk[], terms: Term[]): Suppo
   // counts. Not "most of it": a true paragraph with one invented sentence in
   // it must not come back as a match.
   let best: Support | null = null;
+  // ONE copied line is enough to sink the credit for the whole thing. A
+  // student who quotes a line and then adds a sentence of their own has still
+  // put the passage on the screen into the box, and the map cannot tell which
+  // half it is crediting.
+  let recited = false;
   for (const part of parts) {
     const hit = supportsSentence(part, chunks, loose);
     if (!hit) return null;
+    recited = recited || hit.recited;
     if (!best || hit.score > best.score) best = hit;
   }
-  return best;
+  return best ? { ...best, recited } : null;
+}
+
+/**
+ * The concept a confirmation may be written against: one the verifying line
+ * actually names.
+ *
+ * The words alone are not good enough, and that is measured. `findConcepts`
+ * ranks by longest matched alias, so on the shipped Transformers subject the
+ * alias "attention" (nine characters, in nearly every passage) beats "query",
+ * "key" and "value" on a passage about queries, keys and values — and two
+ * pastes off the screen landed as two successful recalls of Self-attention,
+ * with three quotes underneath it that were about three other things.
+ *
+ * The line names what it names, so the concept is whichever of them it names
+ * MOST — a line saying "query" and "key" four times between them is about
+ * queries and keys, whatever one occurrence of "attention" in it suggests. The
+ * routed concept only breaks a tie, and never reaches a concept the line is
+ * silent about.
+ */
+function creditedConcept(order: string[], routed: string | null): string | null {
+  if (order.length === 0) return null;
+  const count = new Map<string, number>();
+  for (const id of order) count.set(id, (count.get(id) ?? 0) + 1);
+  const most = Math.max(...count.values());
+  const top = order.filter((id) => count.get(id) === most);
+  return routed && top.includes(routed) ? routed : top[0];
 }
 
 /* ------------------------------------------------------------------ *
@@ -765,7 +866,16 @@ function probeFor(course: Course, conceptId: string | null): ExamQuestion | null
   return course.examQuestions.find((q) => q.conceptId === conceptId) ?? null;
 }
 
-const CONSISTENT: ClaimCheck = { status: "consistent", lead: null, quote: null, chunkId: null, question: null, openQuestion: null };
+const CONSISTENT: ClaimCheck = {
+  status: "consistent",
+  lead: null,
+  quote: null,
+  chunkId: null,
+  question: null,
+  openQuestion: null,
+  recited: false,
+  conceptId: null,
+};
 
 /**
  * "A and B are the same thing" / "A is just B" — an equation of two things.
@@ -863,12 +973,23 @@ export function checkClaim(input: {
   const support = supportedBy(claim, chunks, terms);
 
   if (support) {
-    return ask({
-      status: "supported",
-      lead: matchesLead(support.chunk),
-      quote: support.line,
-      chunkId: support.chunk.id,
-    });
+    // The concept follows the line that did the checking, and the question
+    // follows the concept: a confirmation of a sentence about queries and keys
+    // must not be answered with the bank question for self-attention.
+    const on = creditedConcept(support.concepts, conceptId);
+    const next = on && on !== conceptId ? probeFor(course, on) ?? probe : probe;
+    return {
+      ...ask({
+        status: "supported",
+        lead: matchesLead(support.chunk),
+        quote: support.line,
+        chunkId: support.chunk.id,
+      }),
+      question: next?.question ?? null,
+      openQuestion: next ?? null,
+      recited: support.recited,
+      conceptId: on,
+    };
   }
 
   {

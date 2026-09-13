@@ -70,8 +70,24 @@ export function reduceMastery(
         };
         reason = event.intent === "teachback" ? "correct teachback" : "correct recall";
       } else if (event.assessment === "partial") {
-        m = { ...m, successfulRecallCount: m.successfulRecallCount, mastery: m.mastery + 0.02 };
-        reason = "partially correct — one piece missing";
+        // "Partly there" used to add 0.02 and log nothing, so an answer with
+        // two definitions exactly reversed — diagnosed, out loud, in the same
+        // reply — moved the map UP and left MISSED on 0. A counter that does
+        // not move for the most examinable mistake there is means nothing.
+        //
+        // Which of the two "partly there"s it was arrives as the direction the
+        // grader reported: "down" when it named the mistaken belief the answer
+        // rests on, nothing when the answer is simply short of the full one.
+        // Half an answer is still half an answer and keeps its nudge; half an
+        // answer built on something backwards is a miss, and the map has to
+        // say so or MISSED is a counter that never moves.
+        if (event.masterySignal === "down") {
+          m = { ...m, failedRecallCount: m.failedRecallCount + 1, mastery: m.mastery - 0.06 };
+          reason = "part of that was the wrong way round";
+        } else {
+          m = { ...m, mastery: m.mastery + 0.02 };
+          reason = "partially correct — one piece missing";
+        }
       } else if (event.assessment === "incorrect") {
         m = {
           ...m,

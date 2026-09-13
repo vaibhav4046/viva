@@ -227,7 +227,22 @@ export async function POST(req: NextRequest) {
           conceptName: other, unchecked: true,
         });
         const refutation = aside.reply.wrong?.trim() ?? "";
-        const refuted = refutation.length > 0 && aside.reply.citations.length > 0;
+        /*
+         * A model correction may not outrank a line of the source. `asideCheck`
+         * has just run on this sentence's own retrieval, and when it comes back
+         * `supported` it has FOUND the line that states it — so there is
+         * nothing here to refute, whatever the model made of a sentence it was
+         * shown next to somebody else's question.
+         *
+         * Measured on a local server: with a question open on Queries, keys,
+         * values, a verbatim paste of the multi-head passage — a sentence the
+         * check confirms against p.16 — came back "You didn't explain the
+         * distinct roles of queries, keys and values", which is a complaint
+         * about the QUESTION's topic dressed as a correction of the sentence,
+         * and it debited the map for it.
+         */
+        const refuted =
+          refutation.length > 0 && aside.reply.citations.length > 0 && asideCheck.status !== "supported";
         text = [
           other ? `That one is about ${other}, not the question on the table${asked ? ` — that is still ${asked}` : ""}.` : "That one is not an answer to the question on the table.",
           refuted ? refutation : "I have kept it as a note rather than marking it against a question it is not answering.",
@@ -277,6 +292,16 @@ export async function POST(req: NextRequest) {
     citations = chunks.filter((c) => citedIds.includes(c.id)).slice(0, 2).map((c) => ({ chunkId: c.id, quote: c.text.slice(0, 160) }));
     assessment = graded.verdict;
     misconception = graded.possibleMisconception;
+    /*
+     * "Partly there" over an answer that named a mistaken belief is a miss.
+     * The judge answered with the two algorithms exactly reversed, was told so
+     * to their face — "You reversed the roles of the two algorithms" — and
+     * watched mastery go 0.45 → 0.47 with MISSED still on 0. The verdict alone
+     * cannot separate that from "you have half of it": the diagnosis can, and
+     * `masterySignal` is the channel the reducer and the replay already carry,
+     * so it costs no new field on the event.
+     */
+    masterySignal = graded.verdict === "partial" && graded.possibleMisconception ? "down" : null;
     source = graded.gradedBy === "model" ? "model" : "heuristic";
     // Reported for every model call, not just the tutor ones: a graded answer
     // came back `{"source":"model","latencyMs":null}`, which reads as a model
@@ -340,16 +365,32 @@ export async function POST(req: NextRequest) {
       const cited = claimCheck.chunkId ? chunks.filter((c) => c.id === claimCheck?.chunkId) : chunks.slice(0, 1);
       citations = cited.map((c) => ({ chunkId: c.id, quote: c.text.slice(0, 160) }));
       citedIds = citations.map((c) => c.chunkId);
-      masterySignal = "up";
-      // The learner's tally is a record of what was checked, so it may only
-      // move when something did the checking. This branch is that case and the
-      // only one on this route: a line of their own source says the same thing
-      // in the same polarity, and it is quoted underneath. That is the standing
-      // an exam answer has, so it is recorded the same way — `assessment` is
-      // what the reducer and the store already read as "this was graded", and
-      // spending it here keeps the got-it out of reach of a model's opinion,
-      // which can only ever emit "down" or "flat" below.
-      assessment = "correct";
+      /*
+       * The learner's tally is a record of what was checked, so it may only
+       * move when something did the checking — and it may only move on the
+       * concept the thing that checked it was about. Both halves were wrong
+       * for one build, and a student judge found both in twenty minutes:
+       *
+       *   - a passage pasted off the screen word for word satisfies "a line of
+       *     the source says this" trivially, and was logged as a successful
+       *     recall. Reading is not recall. `recited` is the shape of a copy
+       *     (see `claim.ts`), and a copy earns exposure and nothing else;
+       *   - the concept came from the words, where the alias "attention" beat
+       *     "query"/"key"/"value" on a passage about queries, keys and values.
+       *     A got-it now lands on the concept the VERIFYING LINE names, so a
+       *     credit cannot reach a concept the source never connected it to.
+       *
+       * What survives is the case the mechanism exists for: the learner's own
+       * sentence, checked against a line that is quoted underneath it. That
+       * has the standing an exam answer has and is recorded the same way, via
+       * `assessment` — which keeps the got-it out of reach of a model's
+       * opinion, since the model can only ever emit "down" or "flat" below.
+       */
+      if (claimCheck.conceptId && claimCheck.conceptId !== plan.primaryConceptId) {
+        plan = { ...plan, conceptIds: [claimCheck.conceptId], primaryConceptId: claimCheck.conceptId };
+      }
+      masterySignal = claimCheck.recited ? "flat" : "up";
+      assessment = claimCheck.recited ? null : "correct";
       opensQuestion = claimCheck.openQuestion;
       source = "heuristic";
     } else if (claimCheck.status === "unsupported") {

@@ -30,10 +30,58 @@ import library from "./library.json";
  * again, whatever wrote it. It changes presentation only: the word is still the
  * one the model took from the book.
  */
-export const CORPUS: Course[] = (library.subjects as unknown as Course[]).map((course) => ({
-  ...course,
-  concepts: course.concepts.map((c) => ({ ...c, name: conceptHeading(c.name) })),
-}));
+/**
+ * An answer key may not demand a word the passages never use.
+ *
+ * Audited across the shipped library: 26 of 153 questions required a keyword
+ * absent from their own source. A student reading BIO4 answers "magnification
+ * makes it bigger" and loses a point because the key wants "enlarges"; CHEM1
+ * wants "synthesis" and ALG3 wants "no repeats", neither of which appears in
+ * the material the student was given. That is the product marking someone down
+ * for not guessing a synonym, on material it chose.
+ *
+ * Unsupported keywords are dropped as long as one supported keyword survives.
+ * The first cut of this kept the whole key whenever fewer than two survived,
+ * on the theory that a one-word key is a keyword hunt — but that left PSY8
+ * demanding "motor" and STAT201 demanding "third", neither of which the
+ * student's passages contain. A short key is a weaker grader; an impossible
+ * key is an unfair one, and unfair is worse. Only a key with nothing supported
+ * at all is left alone, because a key of nothing cannot grade. This changes
+ * what is *demanded*, never what is asked, and it cannot invent a keyword.
+ *
+ * The right long-term fix is in the generator, but the library is filled one
+ * subject at a time as provider budget allows, so a load-time rule is what
+ * stops the next batch shipping the same defect.
+ */
+const MIN_KEYWORDS = 1;
+
+function groundedKeywords(required: string[], body: string): string[] {
+  if (!required.length) return required;
+  const supported = required.filter((k) =>
+    k
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, " ")
+      .split(/\s+/)
+      .some((w) => w.length > 2 && body.includes(w))
+  );
+  return supported.length >= MIN_KEYWORDS ? supported : required;
+}
+
+export const CORPUS: Course[] = (library.subjects as unknown as Course[]).map((course) => {
+  const body = course.sources
+    .flatMap((s) => s.chunks)
+    .map((c) => c.text)
+    .join(" ")
+    .toLowerCase();
+  return {
+    ...course,
+    concepts: course.concepts.map((c) => ({ ...c, name: conceptHeading(c.name) })),
+    examQuestions: (course.examQuestions ?? []).map((q) => ({
+      ...q,
+      requiredKeywords: groundedKeywords(q.requiredKeywords ?? [], body),
+    })),
+  };
+});
 
 export const CORPUS_GENERATED_AT: string = library.generatedAt;
 

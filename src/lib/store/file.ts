@@ -126,13 +126,47 @@ function reviewReason(m: ConceptMastery): string {
   return parts.length > 0 ? parts.join(" and ") : "Due for review";
 }
 
+/**
+ * A stored doc that exists and did not parse.
+ *
+ * Thrown rather than swallowed, because the two failures the old bare catch
+ * treated alike are opposites: no file yet is a new learner, and a file that
+ * will not parse is a learner's whole history one write away from gone. The
+ * read refuses; only a writer holding the lock is allowed to repair.
+ */
+export class CorruptUserDocError extends Error {
+  constructor(readonly userId: string, readonly file: string) {
+    super(`stored doc for ${userId} did not parse: ${file}`);
+    this.name = "CorruptUserDocError";
+  }
+}
+
 export class FileEventStore implements EventStore {
   readonly backend = "file" as const;
 
+  /**
+   * Read-only. A read that writes is a bug twice over: it races the locked
+   * writers (every caller below that is not inside `withLock` reaches here),
+   * and it used to answer a torn doc by overwriting it with a blank seed.
+   *
+   * A missing file still yields the seeded doc, so a new learner is unchanged
+   * — the difference is that the seed is only persisted when a real write
+   * persists it, under the lock.
+   */
   private async load(userId: string): Promise<UserDoc> {
+    const file = userPath(userId);
+    let raw: string;
     try {
-      const raw = await fs.readFile(userPath(userId), "utf-8");
+      raw = await fs.readFile(file, "utf-8");
+    } catch (e) {
+      // Only "no file yet" means a new learner. EACCES, EISDIR and friends are
+      // faults, and reporting them as an empty history is the same lie.
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+      return seedDoc(userId);
+    }
+    try {
       const doc = JSON.parse(raw) as UserDoc;
+      if (!doc || typeof doc !== "object") throw new Error("not an object");
       if (!Array.isArray(doc.tutor)) doc.tutor = [];
       if (!Array.isArray(doc.uploads)) doc.uploads = [];
       if (!Array.isArray(doc.productEvents)) doc.productEvents = [];
@@ -143,9 +177,28 @@ export class FileEventStore implements EventStore {
       for (const u of doc.uploads) if (!u.courseId) u.courseId = DEFAULT_COURSE_ID;
       return doc;
     } catch {
-      const doc = seedDoc(userId);
-      await this.save(doc);
-      return doc;
+      throw new CorruptUserDocError(userId, file);
+    }
+  }
+
+  /**
+   * Load for a caller that already holds the lock, where repair is legal.
+   *
+   * A torn doc is moved aside, never overwritten: the bytes stay on disk for
+   * recovery and the learner carries on with a fresh doc. Refusing forever
+   * instead would mean every request for that learner fails until someone
+   * edits the filesystem by hand, which in the fallback store — the one that
+   * only runs when Postgres is already down — is the worse of the two.
+   */
+  private async loadForUpdate(userId: string): Promise<UserDoc> {
+    try {
+      return await this.load(userId);
+    } catch (e) {
+      if (!(e instanceof CorruptUserDocError)) throw e;
+      const file = userPath(userId);
+      await renameWithRetry(file, `${file}.corrupt-${Date.now()}`);
+      console.error(`[store] ${file} did not parse — moved aside, starting a fresh doc for ${userId}`);
+      return seedDoc(userId);
     }
   }
 
@@ -184,7 +237,7 @@ export class FileEventStore implements EventStore {
 
   async seedCourse(userId: string, courseId: string): Promise<void> {
     await withLock(userId, async () => {
-      const doc = await this.load(userId);
+      const doc = await this.loadForUpdate(userId);
       if (doc.seeds[courseId]) return;
       doc.seeds[courseId] = true;
       await this.save(doc);
@@ -193,7 +246,7 @@ export class FileEventStore implements EventStore {
 
   async recordLearning(userId: string, input: RecordInput): Promise<RecordOutcome> {
     return withLock(userId, async () => {
-      const doc = await this.load(userId);
+      const doc = await this.loadForUpdate(userId);
       const dupe = doc.events.find((e) => (e as unknown as { idempotencyKey?: string }).idempotencyKey === input.idempotencyKey);
       if (dupe) {
         return { event: dupe, mastery: doc.mastery, delta: null, reason: "duplicate suppressed", duplicate: true };
@@ -248,7 +301,7 @@ export class FileEventStore implements EventStore {
 
   async saveSubject(userId: string, subject: Subject): Promise<void> {
     await withLock(userId, async () => {
-      const doc = await this.load(userId);
+      const doc = await this.loadForUpdate(userId);
       doc.subjects[subject.id] = subject;
       doc.seeds[subject.id] = true;
       // No mastery rows: a concept the learner has not touched is "Not yet",
@@ -286,7 +339,7 @@ export class FileEventStore implements EventStore {
 
   async addSource(userId: string, input: { title: string; type: string; chunks: { text: string; section: string; page?: number }[]; courseId?: string }) {
     return withLock(userId, async () => {
-      const doc = await this.load(userId);
+      const doc = await this.loadForUpdate(userId);
       const courseId = input.courseId ?? DEFAULT_COURSE_ID;
       const sourceId = `src_up_${Date.now().toString(36)}`;
       const chunks = input.chunks.map((c, i) => ({
@@ -320,7 +373,7 @@ export class FileEventStore implements EventStore {
 
   async saveTutorMessage(userId: string, _sessionId: string, role: "user" | "assistant", content: string, evidenceIds: string[]): Promise<void> {
     await withLock(userId, async () => {
-      const doc = await this.load(userId);
+      const doc = await this.loadForUpdate(userId);
       doc.tutor.push({ role, content: content.slice(0, 4000), evidenceIds, at: new Date().toISOString() });
       await this.save(doc);
     });
@@ -328,7 +381,7 @@ export class FileEventStore implements EventStore {
 
   async recordProductEvent(userId: string, name: string, fields: Record<string, number | string | boolean> = {}): Promise<void> {
     await withLock(userId, async () => {
-      const doc = await this.load(userId);
+      const doc = await this.loadForUpdate(userId);
       doc.productEvents.push({ name, fields, at: new Date().toISOString() });
       if (doc.productEvents.length > 1000) doc.productEvents = doc.productEvents.slice(-1000);
       await this.save(doc);

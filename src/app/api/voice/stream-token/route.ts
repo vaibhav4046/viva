@@ -1,7 +1,7 @@
 import { checkLimit, limitKey } from "@/lib/limits";
 import { voiceMessage } from "@/lib/audio/messages";
 import { resolveIdentity } from "@/lib/auth/identity";
-import { withIdentityCookie } from "@/lib/http";
+import { clientIp, withIdentityCookie } from "@/lib/http";
 import { rid, serverLog } from "@/lib/observe";
 
 /**
@@ -42,10 +42,6 @@ export function clampExpiry(raw: string | null): number {
   const n = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(n)) return DEFAULT_EXPIRY_SEC;
   return Math.min(MAX_EXPIRY_SEC, Math.max(MIN_EXPIRY_SEC, n));
-}
-
-function clientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 }
 
 function fail(code: string, status: number, retryable: boolean, retryAfterSec?: number): Response {

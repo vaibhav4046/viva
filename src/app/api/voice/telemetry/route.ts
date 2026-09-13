@@ -1,4 +1,5 @@
 import { checkLimit, limitKey } from "@/lib/limits";
+import { clientIp } from "@/lib/http";
 import { rid, serverLog } from "@/lib/observe";
 
 /**
@@ -28,10 +29,6 @@ const MODES = new Set(["dictation", "sync", "async"]);
 const CODES = new Set([
   "AUTH_FAILED", "RATE_LIMITED", "PROVIDER_BUSY", "PROVIDER_TIMEOUT", "TRANSCRIPTION_FAILED", "NO_DICTATION_URL",
 ]);
-
-function clientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
 
 export async function POST(req: Request): Promise<Response> {
   const rl = checkLimit(limitKey(["voice-telemetry", clientIp(req)]), "transcribe");

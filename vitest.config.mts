@@ -45,6 +45,38 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     /*
+     * The ceiling is a deadline on a machine whose speed we do not control, so
+     * it is set from the worst stretch measured, not from the work.
+     *
+     * The suite went red about four runs in nine, always a 5000 ms timeout,
+     * never an assertion, and a different subset each time — study-loop,
+     * store, marking-honesty. None of them is slow. Measured 2026-09-13, the
+     * same three tests, same box (12 CPUs):
+     *
+     *   condition                                     worst test in the three
+     *   each file run on its own                                    109-129 ms
+     *   the three files run together                                109-194 ms
+     *   whole suite, --fileParallelism=false                         95-124 ms
+     *   whole suite, parallel, idle box                            168-1844 ms
+     *   whole suite, parallel, 12 busy processes alongside        1363-3510 ms
+     *
+     * So it is ~100 ms of work stretched up to 35x by running 52 files across
+     * eleven forks on twelve cores. Not a deadlock: sequential is instant, and
+     * the cost scales smoothly with load rather than parking at a fixed point.
+     * Running sequentially would fix it and cost 48 s a run against 11 s.
+     *
+     * Raising the ceiling instead, and raising it here rather than on the
+     * three files that happened to fail: the same loaded run put sync at
+     * 3929 ms and tutor-brain at 3002 ms, neither of which was ever reported.
+     * The three names were a sample, not the population. 30 s is 8x the worst
+     * stretch seen and still fails a genuine hang — one costs 30 s in a suite
+     * that finishes in 11.
+     *
+     * Files that are honestly slow keep saying so themselves: claim-recall's
+     * recall sweep carries its own 120_000, and it means it.
+     */
+    testTimeout: 30_000,
+    /*
      * The live suite spends real AssemblyAI credits and depends on someone
      * else's uptime, so it is not part of the gate every commit runs — but it
      * must run when asked. `npm run test:assemblyai-live` sets VIVA_LIVE=1.

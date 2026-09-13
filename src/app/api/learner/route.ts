@@ -4,6 +4,7 @@ import { subjectMissing } from "@/lib/courses/subject";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
 import { learnerSnapshot } from "@/lib/sync";
+import { err } from "@/lib/types";
 
 /**
  * GET /api/learner?subject=… — scoped mastery, recent notes, and this
@@ -23,7 +24,25 @@ export async function GET(req: NextRequest) {
   const done = (res: Response) => withIdentityCookie(res, setCookie);
   const store = getStore();
   if (req.nextUrl.searchParams.get("reset") === "1") {
-    await store.deleteUserData(identity.userId);
+    try {
+      await store.deleteUserData(identity.userId);
+    } catch {
+      // A student asked to be forgotten and was not. Loud is right — the
+      // silent version told them yes and kept the rows — but a bare 500 is
+      // loud at the wrong person: every other route here answers with a coded
+      // body and a sentence, so this one does too. The sentence does not
+      // promise how much survived, because the delete is not atomic (see
+      // DESTRUCTIVE in src/lib/store/index.ts, which clears the ephemeral copy
+      // before the durable one); it promises only that the answer is no.
+      return done(
+        err(
+          "RESET_FAILED",
+          "VIVA could not erase your subjects, your map and your notes just now. Not all of it is gone — try again in a moment.",
+          true,
+          503
+        )
+      );
+    }
   }
   const courseParam = req.nextUrl.searchParams.get("subject") ?? req.nextUrl.searchParams.get("courseId");
   try {

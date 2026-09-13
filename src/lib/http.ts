@@ -1,5 +1,3 @@
-import { NextRequest } from "next/server";
-
 /** Attach the demo-identity cookie when freshly minted. */
 export function withIdentityCookie(res: Response, setCookie?: string): Response {
   if (setCookie) res.headers.append("Set-Cookie", setCookie);
@@ -22,10 +20,15 @@ export function withIdentityCookie(res: Response, setCookie?: string): Response 
  * path this repo ships, and there nothing sets it, so honouring it
  * unconditionally would only move the spoof to a header with a nicer name.
  *
+ * Takes a plain `Request` because the routes that spend the AssemblyAI balance
+ * are plain-`Request` handlers, and a helper the money paths cannot call is a
+ * helper that gets copied badly. `NextRequest` is a `Request`, so every other
+ * caller is unaffected.
+ *
  * ponytail: one trusted hop assumed off Vercel. Behind proxies of your own,
  * take the Nth from the right for that depth.
  */
-export function clientIp(req: NextRequest): string {
+export function clientIp(req: Request): string {
   const platform = process.env.VERCEL ? req.headers.get("x-vercel-forwarded-for") : null;
   const chain = platform ?? req.headers.get("x-forwarded-for") ?? "";
   return chain.split(",").pop()?.trim() || "unknown";

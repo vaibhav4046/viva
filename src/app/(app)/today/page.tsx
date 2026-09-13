@@ -170,9 +170,18 @@ export default function TodayPage() {
             <h2 id="path-heading" className="heading text-xl">
               Your 10-minute path
             </h2>
-            {view ? (
-              // The server clock is not the student's clock. "built 18:56 UTC"
-              // on a Liverpool morning is a log line, not a sentence.
+            {/*
+              * Only once there is a path. It used to render whenever the
+              * snapshot had landed, so a student with no history read "Your
+              * 10-minute path" with "0 min · updated just now" beside it — a
+              * zero-minute ten-minute path claiming to have been refreshed
+              * when it had never been composed. Same condition as the meter
+              * below, which already knew this.
+              *
+              * The server clock is not the student's clock. "built 18:56 UTC"
+              * on a Liverpool morning is a log line, not a sentence.
+              */}
+            {view && view.path.length > 0 ? (
               <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
                 {view.minutes} min · updated just now
               </span>
@@ -211,19 +220,47 @@ export default function TodayPage() {
               )}
             </div>
           ) : view.path.length === 0 ? (
-            <div
-              className="mt-4 rounded-xl border border-dashed px-5 py-6"
-              style={{ borderColor: "var(--color-hairline)" }}
-            >
-              <p className="text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                Nothing yet. Say something in Study and tomorrow&apos;s ten minutes will be waiting here.
-              </p>
-              {/* One shape for "Start talking" everywhere: the paper pill the
-                  landing hero uses. Lime belongs to the mic. */}
-              <Link href="/study" className="btn-primary mt-4">
-                <Mic size={16} aria-hidden />
-                Start talking
-              </Link>
+            /*
+             * A cold account sees only this: everything below the path is
+             * gated on `hasHistory`. It used to be one 1533 px dashed box with
+             * a single line and a button in its top-left corner, and 51% of
+             * the screen below it was bare ground.
+             *
+             * So the box is sized to its content, and the width it gave up
+             * goes to the one honest thing there is to say on an empty Today —
+             * what this page turns into. Every row names a section that really
+             * appears once there is history; nothing here is a placeholder for
+             * data that does not exist.
+             */
+            <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] md:items-start">
+              <div className="surface-card p-6">
+                <p className="eyebrow">Nothing planned yet</p>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                  Say something in Study and tomorrow&apos;s ten minutes will be waiting here.
+                </p>
+                {/* One shape for "Start talking" everywhere: the paper pill the
+                    landing hero uses. Lime belongs to the mic. */}
+                <Link href="/study" className="btn-primary mt-5">
+                  <Mic size={16} aria-hidden />
+                  Start talking
+                </Link>
+              </div>
+              <div className="rounded-xl border border-dashed p-6" style={{ borderColor: "var(--color-hairline)" }}>
+                <p className="eyebrow">What lands here</p>
+                <dl className="mt-3 space-y-3 text-sm leading-relaxed">
+                  {[
+                    ["Your 10-minute path", "What you got wrong first, then what is weakest, then one thing to prove."],
+                    ["Due for review", "The concepts VIVA wants to hear again, soonest first."],
+                    ["What keeps tripping you up", "The one you have got wrong more than once."],
+                    ["Recently improved", "The answer that moved, and the day it moved."],
+                  ].map(([term, line]) => (
+                    <div key={term}>
+                      <dt className="heading text-base">{term}</dt>
+                      <dd style={{ color: "var(--color-mist)" }}>{line}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             </div>
           ) : (
             <ol className="mt-4 space-y-3">
@@ -295,10 +332,12 @@ export default function TodayPage() {
                         {view.recurring}
                       </p>
                       {view.mixedUp ? (
+                        /* Paper, not periwinkle. Periwinkle is the "Getting
+                           there" band; this is a link. */
                         <Link
                           href={`/map?concept=${encodeURIComponent(view.mixedUp.conceptId)}`}
                           className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                          style={{ color: "var(--color-band-getting)" }}
+                          style={{ color: "var(--color-paper)" }}
                         >
                           See it on your map →
                         </Link>
@@ -316,7 +355,7 @@ export default function TodayPage() {
                       <Link
                         href={`/map?concept=${encodeURIComponent(view.mixedUp.conceptId)}`}
                         className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                        style={{ color: "var(--color-band-getting)" }}
+                        style={{ color: "var(--color-paper)" }}
                       >
                         See it on your map →
                       </Link>

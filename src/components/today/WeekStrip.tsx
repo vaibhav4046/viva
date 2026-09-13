@@ -64,7 +64,8 @@ export function WeekStrip({ days }: { days: WeekDay[] }) {
                 <span className="mono w-20 shrink-0 text-[11px] uppercase tracking-widest" style={{ color: "var(--color-ash)" }}>
                   {day.label}
                 </span>
-                <span className="heading tnum shrink-0 text-2xl" style={{ color: "var(--color-band-getting)" }}>
+                {/* A count, not a band. Periwinkle means "Getting there". */}
+                <span className="heading tnum shrink-0 text-2xl" style={{ color: "var(--color-paper)" }}>
                   {day.count}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--color-mist)" }}>

@@ -200,15 +200,18 @@ export function SourceReader({
                   ]
                     .filter(Boolean)
                     .join(" · ");
+                  /* Quoted passages are lifted a surface and ruled down the
+                     left edge, not tinted lime. Lime is also the "Solid" band,
+                     and this card is frequently the evidence for a Shaky
+                     verdict sitting a few hundred pixels from the legend that
+                     says lime means Solid. See the rule at the top of
+                     globals.css. */
                   return (
                     <article
                       key={c.id}
                       id={`chunk-${c.id}`}
-                      className="rounded-lg border p-3 text-sm leading-relaxed"
-                      style={{
-                        borderColor: hot ? "var(--color-cognition)" : "var(--color-hairline)",
-                        background: hot ? "rgba(184,255,90,0.06)" : "transparent",
-                      }}
+                      className={`rounded-lg border p-3 text-sm leading-relaxed${hot ? " passage-quoted" : ""}`}
+                      style={hot ? undefined : { borderColor: "var(--color-hairline)", background: "transparent" }}
                     >
                       <p style={{ color: "var(--color-mist)" }}>{c.text}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -227,7 +230,7 @@ export function SourceReader({
                         ) : (
                           <span />
                         )}
-                        <span id={`cite-${c.id}`} className={hot ? "chip chip-hot" : "chip"}>
+                        <span id={`cite-${c.id}`} className={hot ? "chip chip-quoted" : "chip"}>
                           {hot ? <span className="font-semibold">Quoted · </span> : null}
                           Passage {number}
                         </span>

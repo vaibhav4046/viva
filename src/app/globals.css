@@ -30,7 +30,38 @@
 
   /* Mastery bands. Each is ≥ 4.5:1 on obsidian and on graphite, and each is
    * always paired with its word ("Solid", "Shaky") so colour is never the
-   * only signal. See tests/design-tokens.test.ts. */
+   * only signal. See tests/design-tokens.test.ts.
+   *
+   * WHAT EACH COLOUR IS ALLOWED TO MEAN
+   *
+   * --color-band-solid is the same hex as --color-cognition, so the system
+   * cannot tell you when the two have collided — it has to be a rule instead.
+   * The rule is about the KIND of thing a colour is attached to, because that
+   * is where the confusion actually was:
+   *
+   *   A band colour states how well the student knows something, and never
+   *   appears without its word.
+   *
+   *   Lime is the voice loop and the chrome around it: the mic, the button
+   *   that carries you to the next answer, the progress meter, the focus
+   *   ring. Nobody reads a filled pill or a 6 px bar as a claim about what
+   *   they know. Entering a flow is the paper pill instead — the landing
+   *   hero, /today's "Start talking", /exam's "Start the quiz", the 404.
+   *   Lime is how you answer; paper is how you begin.
+   *
+   *   NEITHER may mark a piece of content. That is the line, and it is the
+   *   one that was crossed: a lime-outlined passage sitting a few hundred
+   *   pixels from a legend reading "● Solid" told a student their quoted
+   *   evidence was Solid, on a turn the same screen had just marked Shaky.
+   *   The same went for the student's own words, whose eyebrow wore the
+   *   "Getting there" periwinkle. Content that is singled out is marked by
+   *   surface and rule, never by hue — see .passage-quoted below — and a
+   *   label that is not a verdict takes the ash every other eyebrow uses.
+   *
+   * The one carve-out is failure: --color-band-mixed doubles as the error
+   * colour in ErrorBanner and DeviceNote. Coral-as-error is read before it is
+   * learned, and an error banner never shares a viewport with the legend in a
+   * way that invites the reading "your mastery is Mixed up". Deliberate. */
   --color-band-solid: #b8ff5a;    /* Solid */
   --color-band-getting: #8fa2ff;  /* Getting there */
   --color-band-shaky: #fbbf24;    /* Shaky */
@@ -114,7 +145,20 @@ body {
   max-width: 100%;
 }
 .chip-link:hover { border-color: var(--color-cognition); color: var(--color-paper); }
-.chip-hot { border-color: var(--color-cognition); color: var(--color-cognition); background: rgb(184 255 90 / 0.07); }
+.chip-quoted { border-color: var(--color-paper); color: var(--color-paper); }
+
+/*
+ * The passage the tutor quoted. Lifted a surface, and marked down its left
+ * edge the way a book marks a pulled quote — the treatment adds no colour, so
+ * it cannot contradict the band legend beside it, and it survives on a screen
+ * where hue does not read at all.
+ */
+.passage-quoted {
+  border-color: var(--color-slate);
+  border-left-width: 2px;
+  border-left-color: var(--color-paper);
+  background: var(--color-panel);
+}
 
 /* ------------------------------ buttons ------------------------------ */
 
@@ -192,7 +236,7 @@ select:disabled { cursor: not-allowed; opacity: 0.6; }
  */
 [id^="chunk-"] { scroll-margin-top: 3rem; }
 @keyframes viva-jumped {
-  from { border-color: var(--color-cognition); background: rgb(184 255 90 / 0.16); }
+  from { border-color: var(--color-paper); background: rgb(242 240 234 / 0.10); }
   to   { border-color: var(--color-hairline); background: transparent; }
 }
 [id^="chunk-"]:target { animation: viva-jumped 1600ms var(--ease-out-soft) 1; }

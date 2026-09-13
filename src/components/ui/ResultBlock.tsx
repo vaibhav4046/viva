@@ -18,7 +18,9 @@ import type { ReactNode } from "react";
  * thing that is not the verdict gives up the word.
  */
 const TONE: Record<string, { color: string; label: string }> = {
-  correct: { color: "var(--color-cognition)", label: "CORRECT" },
+  // The band token, not the accent, though the two are the same hex today:
+  // this is a statement about the answer, not a control. See globals.css.
+  correct: { color: "var(--color-band-solid)", label: "CORRECT" },
   missing: { color: "var(--color-band-getting)", label: "MISSING" },
   misconception: { color: "var(--color-band-mixed)", label: "CLEAR THIS FIRST" },
   next: { color: "var(--color-paper)", label: "NEXT" },

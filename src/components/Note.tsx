@@ -13,24 +13,35 @@ import type { LearningEvent } from "@/lib/types";
  * vocabulary — a student never has to learn our nouns to read their own
  * study history.
  */
-const KIND: Record<string, { color: string; label: string }> = {
-  confusion: { color: "var(--color-band-mixed)", label: "Confused" },
-  remember: { color: "var(--color-band-solid)", label: "Worth keeping" },
-  exam_marker: { color: "var(--color-band-solid)", label: "For the exam" },
-  claim: { color: "var(--color-band-getting)", label: "You said" },
-  teachback: { color: "var(--color-band-getting)", label: "Taught it back" },
-  quiz_request: { color: "var(--color-band-getting)", label: "Asked for a quiz" },
-  explain: { color: "var(--color-paper)", label: "Asked for plain English" },
-  question: { color: "var(--color-paper)", label: "Question" },
-  compare: { color: "var(--color-band-getting)", label: "Compared" },
-  review_request: { color: "var(--color-band-solid)", label: "Asked to review" },
-  connection: { color: "var(--color-band-getting)", label: "Linked two ideas" },
-  correction: { color: "var(--color-paper)", label: "Corrected yourself" },
+/*
+ * These labels used to carry a colour each, drawn from the mastery bands:
+ * "You said" in periwinkle, "Confused" in coral, "For the exam" in lime. What
+ * a student did is a different axis from how well they know it, so the card
+ * was printing the band palette over a fact that has no band — and the same
+ * screen shows the legend that teaches periwinkle as "Getting there".
+ *
+ * The word was always doing the work. Now it does it alone, in the ash every
+ * other eyebrow in the product uses, which leaves exactly one colour on this
+ * card: the band in the footer, which is the only thing here that is a verdict.
+ */
+const KIND_LABEL: Record<string, string> = {
+  confusion: "Confused",
+  remember: "Worth keeping",
+  exam_marker: "For the exam",
+  claim: "You said",
+  teachback: "Taught it back",
+  quiz_request: "Asked for a quiz",
+  explain: "Asked for plain English",
+  question: "Question",
+  compare: "Compared",
+  review_request: "Asked to review",
+  connection: "Linked two ideas",
+  correction: "Corrected yourself",
   // `hint` is a real intent (src/lib/types.ts) and had no entry here, so asking
   // for a nudge fell through to "Note" — the one label that says nothing about
   // what the student did.
-  hint: { color: "var(--color-band-getting)", label: "Asked for a hint" },
-  note: { color: "var(--color-ash)", label: "Note" },
+  hint: "Asked for a hint",
+  note: "Note",
 };
 
 export function Note({
@@ -59,7 +70,7 @@ export function Note({
   band?: BandKey | null;
 }) {
   const reduced = useReducedMotion();
-  const kind = KIND[event.intent] ?? KIND.note;
+  const kindLabel = KIND_LABEL[event.intent] ?? KIND_LABEL.note;
   const spoken = event.origin === "voice";
   /*
    * "Quiz me." and "Come back to this tomorrow." are instructions to the app,
@@ -86,8 +97,8 @@ export function Note({
       className="surface-card flex h-full w-full flex-col p-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="mono text-xs font-semibold tracking-widest uppercase" style={{ color: kind.color }}>
-          {kind.label}
+        <span className="mono text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--color-ash)" }}>
+          {kindLabel}
         </span>
         <span className="chip" title={spoken ? "Captured by voice" : "Typed"}>
           {spoken ? <Mic size={12} aria-hidden /> : <Keyboard size={12} aria-hidden />}

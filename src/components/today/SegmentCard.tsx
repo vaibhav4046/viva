@@ -14,7 +14,9 @@ import type { PathSegment } from "./types";
 const KIND: Record<PathSegment["kind"], { label: string; color: string }> = {
   misconception: { label: "CLEAR THIS FIRST", color: "var(--color-band-mixed)" },
   weak_concept: { label: "WEAK CONCEPT", color: "var(--color-band-getting)" },
-  recall: { label: "RECALL", color: "var(--color-cognition)" },
+  // Paper, not lime: lime belongs to the mic. The two labels above are band
+  // colours because they genuinely are mastery statements.
+  recall: { label: "RECALL", color: "var(--color-paper)" },
   teachback: { label: "TEACHBACK", color: "var(--color-band-getting)" },
   summary: { label: "SUMMARY", color: "var(--color-ash)" },
 };

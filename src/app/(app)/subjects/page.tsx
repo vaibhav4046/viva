@@ -315,7 +315,7 @@ export default function SubjectsPage() {
         <button
           type="button"
           onClick={() => open(s.id)}
-          className="flex w-full flex-col items-start gap-2 text-left"
+          className="flex w-full grow flex-col items-start gap-2 text-left"
         >
           <span className="eyebrow">{s.subject}</span>
           {/* Two lines reserved whether the name fills them or not, so the
@@ -341,9 +341,21 @@ export default function SubjectsPage() {
           </span>
         </button>
         {/* Every card ends the same way: a rule, then one sentence about whose
-            words these are. A card with nothing to credit used to end with the
-            rule and nothing after it, which in an equal-height row left a hand-
-            written lab with 190 px of empty card where a credit would have been. */}
+            words these are — and the card pushes it down to its own foot
+            rather than directly under the title.
+
+            The row is `items-stretch`, so a card whose credit is one line is
+            as tall as the card next to it that carries an attribution, a
+            licence and a link. Under `items-start` those two were 183 px and
+            323 px side by side and the row left a 140 px notch of bare ground
+            under the short ones. Equal height was rejected once because it
+            left empty card below the credit; anchoring the credit to the foot
+            is what that attempt was missing — the slack now falls between the
+            title and the rule, where a card is supposed to breathe.
+
+            The slack is taken by `grow` on the button above, not by `mt-auto`
+            here: with no slack to take — one column at 390 — `auto` resolves
+            to 0, and the rule ended up hard against the counts row. */}
         {credit || licences.length ? (
           <div className="hairline mt-4 border-t pt-3">
             {credit ? (
@@ -390,7 +402,7 @@ export default function SubjectsPage() {
           <p className="mt-1 max-w-prose text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
             The map, the questions and the passages are already built. Pick one and start talking.
           </p>
-          <ul id="shipped-list" className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <ul id="shipped-list" className="mt-4 grid grid-cols-[minmax(0,1fr)] items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map(card)}
           </ul>
           {shipped.length > SHELF_PREVIEW ? (
@@ -420,7 +432,7 @@ export default function SubjectsPage() {
             ) : null}
           </div>
           {own.length > 0 ? (
-            <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 sm:grid-cols-2">{own.map(card)}</ul>
+            <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] items-stretch gap-4 sm:grid-cols-2">{own.map(card)}</ul>
           ) : (
             <p className="mt-1 max-w-prose text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
               Nothing of your own yet. Build one below and it lands here.

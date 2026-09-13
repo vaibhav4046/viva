@@ -289,31 +289,42 @@ export default function ExamPage() {
                   <h2 className="heading text-xl">Answer under exam conditions</h2>
                   <ul className="mt-4 space-y-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
                     <li className="flex gap-3">
-                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-cognition)" }}>01</span>
+                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-ash)" }}>01</span>
                       Questions from this subject, weakest concept first.
                     </li>
                     <li className="flex gap-3">
-                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-cognition)" }}>02</span>
+                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-ash)" }}>02</span>
                       Every verdict quotes the passage it was scored against.
                     </li>
                     <li className="flex gap-3">
-                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-cognition)" }}>03</span>
+                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-ash)" }}>03</span>
                       Scored on what you covered, not on how you worded it.
                     </li>
                   </ul>
+                  {/*
+                    * One door, and it is the one with the label on it.
+                    *
+                    * This screen used to carry a whole mic — waveform, language
+                    * picker, typed box — above a ghost "Start the quiz" pill 325
+                    * px below it. The filled lime button was therefore the
+                    * loudest thing on a page that has not asked a question yet,
+                    * and it was also a lie: its onSubmit threw the transcript
+                    * away and called start(). A student held to talk, spoke,
+                    * waited for the words to come back and watched them
+                    * disappear into a question they had not been asked.
+                    *
+                    * The mic belongs to the question, so it now arrives with
+                    * one. Paper pill rather than lime, because lime belongs to
+                    * the mic — the same rule /today and the landing hero keep.
+                    */}
                   <div className="mt-6">
-                    <MicButton
-                      subjectId={courseId ?? DEFAULT_COURSE_ID}
-                      onSubmit={() => void start()}
-                      busy={busy === "start"}
-                    />
+                    <button onClick={start} disabled={busy === "start"} className="btn-primary">
+                      {busy === "start" ? "Preparing question…" : "Start the quiz"}
+                    </button>
                   </div>
                   <p className="mono mt-3 text-xs" style={{ color: "var(--color-ash)" }}>
-                    Say when you are ready and the first question opens straight into listening.
+                    The mic comes up with the question. Typing works just as well.
                   </p>
-                  <button onClick={start} disabled={busy === "start"} className="btn-ghost mt-3 !py-2 text-sm">
-                    {busy === "start" ? "Preparing question…" : "Start the quiz"}
-                  </button>
                   {busy === "start" ? <div className="mt-4"><LoadingBlock label="Selecting your weakest concept…" lines={2} /></div> : null}
                 </section>
                 <div className="space-y-4">
@@ -368,19 +379,15 @@ export default function ExamPage() {
                   VIVA picks your weakest concept and listens while you teach it back.
                   Coverage is scored against your source, not against your wording.
                 </p>
+                {/* Same defect as the quiz panel above, same fix. */}
                 <div className="mt-6">
-                  <MicButton
-                    subjectId={courseId ?? DEFAULT_COURSE_ID}
-                    onSubmit={() => void startTeach()}
-                    busy={busy === "teach"}
-                  />
+                  <button onClick={startTeach} disabled={busy === "teach"} className="btn-primary">
+                    {busy === "teach" ? "Preparing prompt…" : "Teach VIVA"}
+                  </button>
                 </div>
                 <p className="mono mt-3 text-xs" style={{ color: "var(--color-ash)" }}>
-                  Say when you are ready and VIVA picks the concept it wants to hear about.
+                  The mic comes up with the concept. Typing works just as well.
                 </p>
-                <button onClick={startTeach} disabled={busy === "teach"} className="btn-ghost mt-3 !py-2 text-sm">
-                  {busy === "teach" ? "Preparing prompt…" : "Teach VIVA"}
-                </button>
                 {busy === "teach" ? <div className="mt-4"><LoadingBlock label="Choosing the concept you know least well…" lines={2} /></div> : null}
               </section>
               <div>{mastery ? <Graph mastery={mastery} concepts={graphConcepts} /> : masteryLoading ? <LoadingBlock label="Opening your map…" lines={5} /> : null}</div>
@@ -417,7 +424,7 @@ export default function ExamPage() {
                     <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>{teachFb.feedback}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {teachFb.correctPoints.map((p) => (
-                        <span key={p} className="chip" style={{ color: "var(--color-cognition)", borderColor: "var(--color-cognition)" }}>
+                        <span key={p} className="chip" style={{ color: "var(--color-band-solid)", borderColor: "var(--color-band-solid)" }}>
                           <span aria-hidden>✓</span> {p}
                         </span>
                       ))}
@@ -456,9 +463,12 @@ export default function ExamPage() {
 }
 
 function VoiceStateChip({ state, scoring }: { state: VoiceState; scoring: boolean }) {
+  // Periwinkle is the "Getting there" band and nothing else. Transcribing and
+  // scoring are machine states, so they take the chip's own ash; only
+  // "listening" keeps lime, because lime belongs to the mic.
   if (scoring) {
     return (
-      <span className="chip" style={{ color: "var(--color-band-getting)" }}>
+      <span className="chip">
         <span aria-hidden>◐</span> scoring
       </span>
     );
@@ -472,7 +482,7 @@ function VoiceStateChip({ state, scoring }: { state: VoiceState; scoring: boolea
   }
   if (state === "working") {
     return (
-      <span className="chip" style={{ color: "var(--color-band-getting)" }}>
+      <span className="chip">
         <span aria-hidden>◐</span> transcribing
       </span>
     );

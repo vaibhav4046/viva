@@ -134,6 +134,25 @@ export function isWavType(contentType: string): boolean {
   return WAV_TYPES.has(contentType.split(";")[0].trim().toLowerCase());
 }
 
+/**
+ * True when every sample in the clip is the same value — digital silence, or a
+ * dead input parked at a DC offset. Speech varies by definition, so this cannot
+ * catch a real utterance however quiet it is: the reference clip attenuated a
+ * thousandfold has a peak of 17/32768 and still transcribes correctly at 0.98,
+ * which is why the test is variation and not amplitude.
+ *
+ * Early-exits on the first differing sample, so real audio costs two reads.
+ */
+function isFlat(buf: Buffer, dataOff: number, dataLen: number): boolean {
+  const end = dataOff + dataLen - 1;
+  if (end - dataOff < 2) return true;
+  const first = buf.readInt16LE(dataOff);
+  for (let at = dataOff + 2; at < end; at += 2) {
+    if (buf.readInt16LE(at) !== first) return false;
+  }
+  return true;
+}
+
 /** Server: validate WAV bytes BEFORE spending AssemblyAI credits. */
 export function validateWavInput(buf: Buffer, contentType: string): WavInfo {
   if (buf.length === 0) return { ok: false, code: "EMPTY_AUDIO", message: "No audio received. Hold the mic and speak." };
@@ -154,6 +173,16 @@ export function validateWavInput(buf: Buffer, contentType: string): WavInfo {
   const durationMs = Math.round(((dataLen / (fmt.bits / 8)) / fmt.channels / fmt.sampleRate) * 1000);
   if (durationMs < MIN_MS) return { ok: false, code: "AUDIO_TOO_SHORT", message: "Clip is under 80 ms." };
   if (durationMs > MAX_MS) return { ok: false, code: "AUDIO_TOO_LONG", message: "Keep dictation clips under 2 minutes." };
+  // A clip with no signal in it never goes upstream. Panel-D S-D-02: three
+  // holds with no speech came back as three invented Hindi sentences, each
+  // filed as a note with a page number under "Exactly what you said". What a
+  // recogniser returns for silence is its business and it is not stable — the
+  // same endpoint answered empty on all fifteen silent clips posted at it on
+  // 2026-09-13 — so the honest place to end a dead microphone is here, where
+  // the answer is the same every time and costs nothing.
+  if (isFlat(buf, parsed.dataOff, dataLen)) {
+    return { ok: false, code: "NO_AUDIO", message: "The clip carries no signal at all." };
+  }
   return { ok: true, sampleRate: fmt.sampleRate, channels: fmt.channels, durationMs };
 }
 

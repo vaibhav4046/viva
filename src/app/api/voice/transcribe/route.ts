@@ -131,6 +131,63 @@ const MAX_KEYTERM_CHARS = 60;
 export const MIN_CLEANUP_RATIO = 0.6;
 export const MIN_CLEANUP_CHARS = 80;
 
+/**
+ * How sure the provider has to be before VIVA will call the words "exactly
+ * what you said".
+ *
+ * The label is a promise, and a note outlives every other thing on the screen,
+ * so the number behind it cannot be a preference. Measured 2026-09-13 against
+ * the live Dictation endpoint, sixteen readings, two ways:
+ *
+ * Posted straight at this route (the three recorded fixtures clean, then with
+ * white noise at 25% of clip peak, then at 100%, then attenuated):
+ *
+ *   clip                       confidence   transcript
+ *   spoken       clean            0.9894    correct
+ *   spoken       noise 25%        0.9473    correct
+ *   spoken       noise 100%       0.5551    INVENTED, and nothing flagged it
+ *   confusion    clean            0.9873    correct
+ *   confusion    noise 25%        0.9688    correct
+ *   claim        clean            0.9977    correct
+ *   claim        noise 25%        0.9914    correct
+ *   spoken       attenuated x1000 0.9809    correct
+ *   spoken       attenuated x100  0.9881    correct
+ *
+ * Held through the real capture path — Chromium's fake device into
+ * getUserMedia, the AudioWorklet, the browser-built WAV — which is the number
+ * a learner actually gets, and it is lower, because a hold that starts a
+ * syllable late scores that syllable badly:
+ *
+ *   spoken       6.5 s hold       0.9061    correct (first word clipped, 0.37)
+ *   spoken       6.5 s hold       0.9546    correct
+ *   spoken       5 s hold         0.9892    correct
+ *   spoken       4 s hold         0.9506    correct
+ *   spoken       8 s hold         0.9895    correct
+ *   confusion    9.5 s hold       0.9896    correct
+ *   confusion    5 s hold         0.9466    correct
+ *
+ * Correct transcripts bottom out at 0.9061. Invented ones: 0.5551 here, and
+ * 0.62, 0.73 and 0.85 in the panel-D report for three silent holds. Nothing
+ * landed between 0.85 and 0.9061, and this sits inside that gap with about
+ * three points of room on each side.
+ *
+ * The word list underneath says why the mean is enough: the 0.5551
+ * confabulation had nine of sixteen words under 0.6 and a median of 0.593,
+ * while the 0.9061 correct one had a single clipped word at 0.37 and every
+ * other word above 0.98. A per-word rule would separate them further, but
+ * panel-D's report carries no word lists, so there is nothing to check such a
+ * rule against for the failures that actually got reported.
+ *
+ * The asymmetry is why the floor is high rather than cautious: a refused clip
+ * costs the learner one retry and says so, while an accepted confabulation is
+ * a permanent note with a citation on it and a mastery record behind it.
+ *
+ * A provider that reports no confidence at all is not caught by this. Sync can
+ * answer without one, and a number we never received is not evidence of a bad
+ * transcript.
+ */
+export const MIN_TRANSCRIPT_CONFIDENCE = 0.88;
+
 /** True when `clean` is a plausible tidy-up of `verbatim` rather than a collapse. */
 export function isCleanup(verbatim: string, clean: string): boolean {
   if (verbatim.length < MIN_CLEANUP_CHARS) return true;
@@ -293,8 +350,21 @@ export async function POST(req: Request): Promise<Response> {
     // success it became a review box the learner could not send and could not
     // clear, promising to send on its own forever. It is a coded failure, so
     // the mic says one true sentence and goes back to idle.
-    if (!verbatim.trim()) {
-      serverLog("voice.no_speech", trace.id, { audioMs: result.audioDurationMs, mode: result.mode });
+    //
+    // …and so is a transcript the provider is not sure about. Empty was never
+    // the only way this comes back: panel-D held the mic in silence three
+    // times and got three invented Hindi sentences at 62%, 73% and 85%, each
+    // one filed as a note under a concept with a page number and the label
+    // "Exactly what you said". Below the floor VIVA does not know what was
+    // said, and the honest sentence for that is the one it already has.
+    const unsure = result.confidence !== null && result.confidence < MIN_TRANSCRIPT_CONFIDENCE;
+    if (!verbatim.trim() || unsure) {
+      serverLog("voice.no_speech", trace.id, {
+        audioMs: result.audioDurationMs,
+        mode: result.mode,
+        reason: unsure ? "low_confidence" : "empty",
+        confidence: result.confidence,
+      });
       return fail("NO_SPEECH", 422, false);
     }
 

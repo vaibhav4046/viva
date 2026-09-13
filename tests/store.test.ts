@@ -84,7 +84,9 @@ describe("file store (§23 idempotency, §68 concurrency, §15 isolation)", () =
 
 describe("audio validation (§8, no credits before validation)", () => {
   it("accepts encoder-produced WAV with correct duration", () => {
-    const wav = pcm16ToWav(new Float32Array(16000).fill(0.05), 16000); // 1s
+    // 1 s of tone. A constant sample value is a dead input, not audio, and the
+    // validator refuses it (tests/voice-silence-guard.test.ts).
+    const wav = pcm16ToWav(Float32Array.from({ length: 16000 }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 180 * i) / 16000)), 16000);
     const r = validateWavInput(Buffer.from(wav), "audio/wav");
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.durationMs).toBe(1000);

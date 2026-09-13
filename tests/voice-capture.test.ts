@@ -19,7 +19,11 @@ import { CLEANUP_DROPPED } from "@/lib/audio/messages";
 
 describe("int16ToWav", () => {
   it("writes a header the server validator accepts", () => {
-    const frames = [new Int16Array(8000), new Int16Array(8000)]; // 1 s at 16 kHz
+    // 1 s at 16 kHz, carrying a tone: an all-zero clip is a dead microphone and
+    // the validator refuses it now (tests/voice-silence-guard.test.ts).
+    const tone = (n: number, off: number) =>
+      Int16Array.from({ length: n }, (_, i) => Math.round(Math.sin((2 * Math.PI * 180 * (i + off)) / 16000) * 0x4000));
+    const frames = [tone(8000, 0), tone(8000, 8000)];
     const buf = Buffer.from(int16ToWav(frames));
     const info = validateWavInput(buf, "audio/wav");
     expect(info.ok).toBe(true);

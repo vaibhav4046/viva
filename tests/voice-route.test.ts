@@ -31,6 +31,9 @@ afterEach(() => {
   assemblyAIBreaker.success();
 });
 
+/** A real 16 kHz mono WAV. The samples carry a tone rather than zeros: a clip
+ *  with no variation in it is a dead microphone and `validateWavInput` now
+ *  refuses it before AssemblyAI is called (see tests/voice-silence-guard). */
 function wav(samples: number): Buffer {
   const header = Buffer.alloc(44);
   header.write("RIFF", 0, "ascii");
@@ -46,7 +49,11 @@ function wav(samples: number): Buffer {
   header.writeUInt16LE(16, 34);
   header.write("data", 36, "ascii");
   header.writeUInt32LE(samples * 2, 40);
-  return Buffer.concat([header, Buffer.alloc(samples * 2)]);
+  const data = Buffer.alloc(samples * 2);
+  for (let i = 0; i < samples; i++) {
+    data.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 180 * i) / 16000) * 0x4000), i * 2);
+  }
+  return Buffer.concat([header, data]);
 }
 
 /** 1 s of 16 kHz audio: comfortably over the 80 ms floor. */

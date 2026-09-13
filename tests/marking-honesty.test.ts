@@ -267,6 +267,7 @@ describe("keyword soup is never correct", () => {
       hint: q.hint,
       answer: soup,
       chunks: allChunks(TRANSFORMERS).slice(0, 3),
+      check: assessAnswer(q.id, soup, { courseId: TRANSFORMERS.id }).check,
       baseline: { ...assessAnswer(q.id, soup, { courseId: TRANSFORMERS.id }) },
     });
     expect(graded.verdict).toBe("partial");
@@ -315,6 +316,7 @@ describe("credit is a quote of what the learner said", () => {
       hint: q.hint,
       answer,
       chunks: allChunks(TRANSFORMERS).slice(0, 3),
+      check: assessAnswer(q.id, answer, { courseId: TRANSFORMERS.id }).check,
       baseline: { ...assessAnswer(q.id, answer, { courseId: TRANSFORMERS.id }) },
     });
     expect(graded.correctPoints).not.toContain("you noted attention and permutation");

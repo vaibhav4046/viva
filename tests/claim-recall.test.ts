@@ -40,6 +40,24 @@ import {
  * answered with "I could not check that"; a false positive tells a student
  * they are wrong when they are right. Raise recall only against the held-out
  * set, never against the fitted one.
+ *
+ * 13 Sep, second pass, after a student judge got the "I could not check that"
+ * line for nine claims out of ten. That round moved only the SUPPORT check —
+ * the one exit that may tell a learner they are right — and moved nothing in
+ * the contradiction strategies:
+ *
+ *   two-line verbatim quote of the open passage   missed → confirmed
+ *   wrong caught                                  5/10 → 5/10 (unchanged)
+ *   right contradicted                            0/22 → 0/22
+ *   HELD-OUT true sentences contradicted          0/14 → 0/14
+ *   every true sentence VIVA ships (3910)         26 → 26 contradicted
+ *   every FALSE sentence the library ships (65)   0 → 0 confirmed
+ *
+ * The last row is the new negative set and the one that decided every
+ * threshold in `supportedBy`: the library's own trap statements, sixty-five
+ * sentences twenty-six subject authors wrote down as mistakes. Two widenings
+ * that would have reached further were measured and rejected against it, and
+ * both are recorded below the recall block.
  */
 
 const CAUGHT = new Set([
@@ -209,6 +227,98 @@ describe("precision across every subject VIVA ships", () => {
     // rest of the suite competing for the box, so this gets its own budget
     // rather than dying at the 5 s default and reading as a precision failure.
   }, 120_000);
+});
+
+/**
+ * The three shapes a student judge typed into the main box on 13 Sep, of which
+ * nine claims in ten came back "I could not check that against your source"
+ * while the passage that settled them was on screen. What each one measured,
+ * and why it now does what it does:
+ *
+ *   a. a near-verbatim quote of two consecutive lines of the open passage.
+ *      Was `consistent`. The support check scored the whole two-sentence claim
+ *      against ONE passage line and got 0.75 against a bar of 0.80 — neither
+ *      half of what the student said could ever cover the whole of it. Each
+ *      sentence now finds its own line and all of them must.
+ *   b. the same passage in the student's own words ("shuffle" for "permute",
+ *      and the source's "without position information" dropped). Still a miss,
+ *      and deliberately: it covers 0.89 of its best line's words but only 0.33
+ *      of its adjacent pairs, and that line carries a denial the claim does
+ *      not. Relaxing both to reach it was measured — it endorses two labelled
+ *      -false sentences the library ships, including "A light-year is a unit
+ *      of time, not distance". A miss says "I could not check that"; that
+ *      would say "correct" to a student who is wrong.
+ *   c. flatly false, and refuted by the passage beside it. Still a miss. Every
+ *      strategy here is lexical and this sentence shares its whole vocabulary
+ *      with the lines that disprove it; nothing in the shape separates them.
+ *      The upgrade is a model pass over the same passages, not another regex.
+ */
+describe("the shapes a student actually typed", () => {
+  const QUOTE =
+    "Each token is projected into three vectors: a query, a key and a value. " +
+    "The attention score between token i and token j is the dot product of query i and key j, " +
+    "scaled by the square root of the key dimension.";
+
+  it("confirms a claim quoted out of two consecutive passage lines", () => {
+    const check = runClaim(TRANSFORMERS, QUOTE);
+    expect(check.status).toBe("supported");
+    // The confirmation shows the line it rests on or it is just a compliment.
+    expect(check.quote).toBeTruthy();
+    expect(check.chunkId).toBeTruthy();
+  });
+
+  it("will not confirm a paragraph on the strength of one true sentence in it", () => {
+    const check = runClaim(TRANSFORMERS, `${QUOTE} Positional encoding is applied after the softmax.`);
+    expect(check.status).not.toBe("supported");
+  });
+
+  it("still says so honestly on the two it cannot read", () => {
+    for (const text of [
+      "self attention is permutation equivariant so if i shuffle the tokens the outputs shuffle the same way",
+      "multi head attention means you run the whole transformer eight times and average the eight outputs at the end",
+    ]) {
+      const check = runClaim(TRANSFORMERS, text);
+      expect(check.status).not.toBe("supported");
+      expect(check.status).not.toBe("contradicted");
+    }
+  });
+});
+
+/**
+ * The other direction of the same promise, and the set that did not exist
+ * before: every sentence the library ships that its own author labelled WRONG.
+ * Sixty-five of them across twenty-six subjects, none of which VIVA may agree
+ * with. Widening the support check is the change that could break this, and it
+ * has already tried twice — dropping the word floor from six to five endorses
+ * "Ionic compounds are made of covalent bonds", and dropping the pair floor
+ * endorses "A light-year is a unit of time, not distance", which shares five
+ * of its six words with a line that says the opposite.
+ */
+describe("never agrees with a sentence the subject calls a mistake", () => {
+  it("supports none of the traps the library ships", () => {
+    const seen = new Set<string>();
+    const endorsed: string[] = [];
+    let checked = 0;
+    for (const course of [...Object.values(COURSES), ...CORPUS] as Course[]) {
+      if (seen.has(course.id)) continue;
+      seen.add(course.id);
+      const chunks = everyChunk(course);
+      for (const trap of course.traps) {
+        checked += 1;
+        const picked = scoreChunks(chunks, trap.statement, { limit: 3 }).map((r) => r.chunk);
+        if (checkClaim({ claim: trap.statement, chunks: picked, course, conceptId: null }).status === "supported") {
+          endorsed.push(`${course.id}: ${trap.statement}`);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(50);
+    expect(endorsed, endorsed.join(" | ")).toEqual([]);
+  }, 60_000);
+
+  it("supports none of the ten wrong sentences either", () => {
+    const endorsed = [...WRONG, ...CONTRAST_WRONG].filter((w) => runClaim(TRANSFORMERS, w.text).status === "supported");
+    expect(endorsed.map((w) => w.id)).toEqual([]);
+  });
 });
 
 describe("held out: sentences the checker was not written against", () => {

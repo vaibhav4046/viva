@@ -274,6 +274,9 @@ export const TUTOR_SYSTEM = [
   "misconception = the mistaken belief in one line, or null. masterySignal = up if they showed they know it, down if they got it wrong, flat if you could not tell.",
   "Rules: at most 90 words across right, wrong and question; confirm only what a given passage actually shows, and if none of them settles it say you could not check it rather than implying the source agrees;",
   "ask exactly one question that makes the learner do the thinking (never answer it yourself); speak TO the learner as \"you\", never about them as \"they\"; plain English, no course codes, no praise words like \"great job\";",
+  // A student who has just said something true and reads "You didn't mention"
+  // has been told they are wrong. The gap is the same gap either way round.
+  "when they got part of it right, say that part first and the gap after it; never open wrong with \"You didn't mention\", \"You omitted\" or \"You failed to\" — name the next piece to add instead;",
   "if the passages do not support a correction, set wrong to null and ask a question that would reveal the gap. Never invent citations: every chunkId must be one of the ids given.",
 ].join(" ");
 
@@ -346,6 +349,11 @@ export async function tutorReply(opts: {
  * field is the model echoing the learner's own words back as VIVA's line —
  * measured, and on a false claim about the learner's own module that is the
  * app teaching them the wrong thing in its own voice.
+ *
+ * Letting the model nominate the supporting line and having the server check
+ * the nomination was built and measured and does not hold. The seven shapes it
+ * confirmed, and why no threshold separates them from the paraphrases it was
+ * built for, are recorded in `claim.ts` above `matchesLead`.
  */
 export function groundReply(
   reply: TutorReply,
@@ -355,8 +363,28 @@ export function groundReply(
   const known = new Set(chunks.map((c) => c.id));
   const citations = reply.citations.filter((c) => known.has(c.chunkId));
   const right = opts.mayAffirm ? reply.right : null;
-  if (citations.length > 0 || !reply.wrong) return { ...reply, right, citations };
-  return { ...reply, right, citations, wrong: NO_SOURCE_LINE, misconception: null };
+  const wrong = askForTheRest(reply.wrong);
+  if (citations.length > 0 || !wrong) return { ...reply, right, wrong, citations };
+  return { ...reply, right, wrong: NO_SOURCE_LINE, citations, misconception: null };
+}
+
+/**
+ * "You didn't mention X" reads as a mark against a student who has just said
+ * something true — two of the four true claims a judge typed came back led by
+ * exactly that shape. The gap is the same gap; asking for it is not an
+ * accusation. `TUTOR_SYSTEM` tells the model not to write it and this is what
+ * happens when it writes it anyway.
+ */
+const OMISSION =
+  /^\s*you\s+(?:did\s?n['’]?t\s+(?:mention|say|note|state|include)|do\s?n['’]?t\s+mention|did\s+not\s+(?:mention|say|state)|omitted|left\s+out|missed|failed\s+to\s+(?:mention|say|state)|forgot\s+to\s+mention)\s+(?:that\s+|to\s+say\s+that\s+)?/i;
+
+function askForTheRest(wrong: string | null): string | null {
+  if (!wrong) return wrong;
+  const rest = wrong.replace(OMISSION, "").trim();
+  // Nothing left once the accusation is removed: the sentence was the
+  // accusation, so there is no gap to name and the line is not worth saying.
+  if (rest === wrong.trim()) return wrong;
+  return rest.length > 4 ? `Still to add: ${rest}` : null;
 }
 
 /** At most three parts, 90 words. Drops the praise line first when over. */

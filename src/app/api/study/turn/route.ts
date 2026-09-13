@@ -226,6 +226,9 @@ export async function POST(req: NextRequest) {
       hint: q.hint,
       answer: raw,
       chunks,
+      // The deterministic read of the passages travels with the answer: a
+      // model may not call something correct that the source contradicts.
+      check: baseline.check,
       baseline: {
         verdict: baseline.verdict,
         correctPoints: baseline.correctPoints,

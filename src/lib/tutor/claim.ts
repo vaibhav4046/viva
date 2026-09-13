@@ -293,21 +293,263 @@ function rankLines(chunks: SourceChunk[], claim: string): Line[] {
  *
  *   - eight tenths of the claim's own words are in ONE line of the passage,
  *     and every term the subject names in the claim is in that line;
+ *   - the words are in the source's ARRANGEMENT, not merely its vocabulary.
+ *     "A light-year is a unit of time, not distance" reuses five of the six
+ *     words of a line reading "the light-year is a unit of distance … you
+ *     would not arrive", so a bag of words endorsed the exact inversion of
+ *     what the source says. Half the claim's adjacent pairs have to survive;
  *   - same polarity. "Positional encodings are NOT added to the token
  *     embeddings" shares every word with the line that says they are, and
  *     without this it would have come back "That matches p.11";
  *   - a whole sentence, not three nouns. "order attention permutation" is
  *     inside a passage line word for word and understands nothing.
+ *
+ * And every sentence of the claim, not the claim as one lump. A student who
+ * quotes two consecutive lines of their own passage — the shape a judge hit
+ * on the very first try — had each half of what they said matched against a
+ * single line, so neither half could ever cover eight tenths of the whole.
+ * The measured score for exactly that sentence was 0.75 against a bar of 0.80
+ * while the passage it came out of was open beside it. Each part now finds its
+ * own line and all of them must; a part too short to judge (a trailing "Not
+ * really.") sinks the whole claim rather than riding along on the rest.
  */
 const SUPPORT_MIN_WORDS = 6;
 
-function supportedBy(claim: string, lines: Line[], terms: Term[]): Line | null {
-  const top = lines[0];
-  if (!top || top.score < 0.8) return null;
-  if (contentTokens(claim).size < SUPPORT_MIN_WORDS) return null;
-  if (DENIAL.test(claim) !== DENIAL.test(top.line)) return null;
-  const inLine = new Set(mentionsIn(top.toks, terms).map((m) => m.key));
-  return mentionsIn(stemTokens(claim), terms).every((m) => inLine.has(m.key)) ? top : null;
+/** How much of the claim's own vocabulary the line repeats. */
+const SUPPORT_MIN_COVER = 0.8;
+
+/**
+ * How many of the claim's adjacent word pairs the line repeats. Lower than the
+ * word bar on purpose: a source line is allowed a parenthetical the student
+ * left out ("Positional encodings (fixed sinusoidal patterns…) are added to…"),
+ * which breaks the pairs either side of it without changing the sentence.
+ */
+const SUPPORT_MIN_PAIRS = 0.5;
+
+/**
+ * Tokens with the hyphen read as a space, for the support check only.
+ *
+ * `tokens` keeps it, so "self-attention" is one word that never matches a
+ * student typing "self attention" — and the passages here are written with the
+ * hyphens in. Splitting it everywhere was measured and rejected: it made
+ * strategy 4 read "query-key-value" as the three terms it names and contradict
+ * "Multi-head attention runs several heads in parallel", which is true and is
+ * in the precision floor. Support asserts nothing the quoted line does not
+ * say, so it can afford the looser reading that the shape-matching strategies
+ * cannot.
+ */
+function looseTokens(s: string): string[] {
+  return stemTokens(s.replace(/-/g, " "));
+}
+
+/** The same terms, read the same loose way, so the guard still bites. */
+function looseTerms(terms: Term[]): Term[] {
+  return terms
+    .map((t) => ({ text: t.text, toks: looseTokens(t.text) }))
+    .sort((a, b) => b.toks.length - a.toks.length || b.text.length - a.text.length);
+}
+
+/** Adjacent word pairs — the cheapest test that a bag of words is a sentence. */
+function pairs(toks: string[]): Set<string> {
+  const out = new Set<string>();
+  for (let i = 1; i < toks.length; i += 1) out.add(`${toks[i - 1]} ${toks[i]}`);
+  return out;
+}
+
+function covered(want: Set<string>, have: Set<string>): number {
+  if (want.size === 0) return 0;
+  let hits = 0;
+  want.forEach((w) => { if (have.has(w)) hits += 1; });
+  return hits / want.size;
+}
+
+/** Sentences of a claim, including the short ones `sentencesOf` drops. */
+function claimParts(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Z(])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * Numbers, with the word that follows them. `tokens` drops anything under
+ * three characters, so "70 mL" contributes nothing at all while "70 litres"
+ * contributes one word — and one word is exactly what a 0.8 coverage bar can
+ * afford to lose. Measured on a local server before this rule existed:
+ * "each of the major pumping chambers ejects about 70 litres of blood per
+ * contraction" came back *"That matches 19.1 Heart Anatomy"* over a line
+ * reading 70 mL. A quantity is one word away from a different fact, so the
+ * unit gets a rule of its own rather than a share of a ratio.
+ */
+const QUANTITY = /(\d[\d.,]*)\s*([a-zA-Zµμ%°]{1,20})?/g;
+
+function quantities(s: string): { n: string; unit: string }[] {
+  const out: { n: string; unit: string }[] = [];
+  QUANTITY.lastIndex = 0;
+  let m = QUANTITY.exec(s);
+  while (m) {
+    out.push({ n: m[1].replace(/[.,]$/, ""), unit: (m[2] ?? "").toLowerCase() });
+    m = QUANTITY.exec(s);
+  }
+  return out;
+}
+
+/**
+ * Every quantity the claim states has to be in the line, number and unit
+ * both. Not a ratio and not a stem match: "millilitres" and "mL" are the same
+ * measure and this rule still refuses them, which costs a confirmation VIVA
+ * would have been right to give. A refusal says "I could not check that"; the
+ * other way round tells a student their source agrees that a heart chamber
+ * holds 70 litres.
+ *
+ * The number half was missing at first and an adversarial pass found what
+ * that cost, on the shipped library and with no model involved: "each of the
+ * major pumping chambers ejects approximately 700 mL blood per contraction"
+ * came back *"That matches 19.1 Heart Anatomy"* over the line reading 70 mL,
+ * and "stroke volume will normally be in the range of 700 mL" over the line
+ * reading 70-80 mL. `tokens` drops "70" for being two characters long, so the
+ * only thing separating the two sentences was one three-character token
+ * against a bar that can afford to lose one in five.
+ *
+ * One direction only: what the CLAIM asserts must be in the line. A line
+ * carrying numbers the claim never mentions is just a fuller sentence.
+ */
+function quantitiesAgree(claim: string, line: string): boolean {
+  const words = new Set(line.toLowerCase().replace(/[^a-z0-9µμ%°\s]/g, " ").split(/\s+/));
+  const said = quantities(line);
+  const units = new Set(said.map((q) => q.unit).filter(Boolean));
+  const numbers = new Set(said.map((q) => q.n));
+  return quantities(claim).every((q) => numbers.has(q.n) && (!q.unit || units.has(q.unit) || words.has(q.unit)));
+}
+
+/**
+ * Words that flip a sentence without denying anything, so `DENIAL` cannot see
+ * them. Measured on the shipped library, again with no model involved:
+ * "Friction is a force that RARELY opposes the motion past each other of
+ * objects that are touching" came back *"That matches 4.3 …"* over the line
+ * defining friction as a force that opposes it, and so did the same sentence
+ * with "fails to oppose". One hedge is one token, and one token is what a 0.8
+ * coverage bar is built to forgive.
+ *
+ * Kept to the hedges that reverse a statement outright. "little", "few" and
+ * "except" reverse some sentences and merely qualify others, and every word
+ * on this list costs a real confirmation somewhere.
+ */
+const HEDGED = /\b(rarely|seldom|hardly|scarcely|barely|almost\s+never|fails?\s+to|failed\s+to|unable\s+to)\b/i;
+
+/** Negative in either of the two ways a sentence can be. */
+function negative(s: string): boolean {
+  return DENIAL.test(s) || HEDGED.test(s);
+}
+
+type Support = { chunk: SourceChunk; line: string; score: number };
+
+/** The one line of the passage that says this sentence back. */
+function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): Support | null {
+  const partToks = looseTokens(part);
+  const want = new Set(partToks);
+  if (want.size < SUPPORT_MIN_WORDS) return null;
+  const wantPairs = pairs(partToks);
+  const denied = negative(part);
+  // Every term the subject names in this sentence, which the line has to name
+  // too — either the same term, or every word of it as a term of its own.
+  //
+  // Both halves are load-bearing. Demanding the identical term was too strict:
+  // the source writes "a query (what this token is looking for), a key …, and
+  // a value …", so the concept "queries, keys, values" never sits together in
+  // it, and the line that said the claim word for word was thrown away.
+  // Accepting bare words was too loose: "Value iteration alternates policy
+  // evaluation and policy improvement" is wrong, and both words of "value
+  // iteration" turn up in the line saying POLICY iteration does that — "value"
+  // because it is also a queries/keys/values alias, sitting in "compute values
+  // for the current policy". That line names "policy iteration" and "value";
+  // it never names "iteration", so the claim's term is not in it.
+  const named = mentionsIn(partToks, terms).map((m) => m.key);
+  let best: Support | null = null;
+  for (const chunk of chunks) {
+    for (const line of sentencesOf(chunk.text)) {
+      const lineToks = looseTokens(line);
+      const inLine = new Set(lineToks);
+      const score = covered(want, inLine);
+      if (score < SUPPORT_MIN_COVER || (best && score <= best.score)) continue;
+      if (covered(wantPairs, pairs(lineToks)) < SUPPORT_MIN_PAIRS) continue;
+      if (denied !== negative(line)) continue;
+      if (!quantitiesAgree(part, line)) continue;
+      const inLineTerms = new Set(mentionsIn(lineToks, terms).map((m) => m.key));
+      if (!named.every((k) => inLineTerms.has(k) || k.split(" ").every((w) => inLineTerms.has(w)))) continue;
+      best = { chunk, line, score };
+    }
+  }
+  return best;
+}
+
+function supportedBy(claim: string, chunks: SourceChunk[], terms: Term[]): Support | null {
+  const loose = looseTerms(terms);
+  // One dense line can say the whole thing at once — that was the only shape
+  // this check ever recognised, and it stays first because it is the cheapest.
+  const whole = supportsSentence(claim, chunks, loose);
+  if (whole) return whole;
+  const parts = claimParts(claim);
+  if (parts.length < 2) return null;
+  // Otherwise every sentence of the claim finds its own line, or none of it
+  // counts. Not "most of it": a true paragraph with one invented sentence in
+  // it must not come back as a match.
+  let best: Support | null = null;
+  for (const part of parts) {
+    const hit = supportsSentence(part, chunks, loose);
+    if (!hit) return null;
+    if (!best || hit.score > best.score) best = hit;
+  }
+  return best;
+}
+
+/* ------------------------------------------------------------------ *
+ * Why the model does not get to do this half.
+ *
+ * The obvious next move is to let the model NOMINATE the line it says states
+ * the learner's sentence and have the server check the nomination — the same
+ * split the product uses for citations. It was built and measured, and the
+ * checks a server can actually run on a nominated line are: the quote is in
+ * that passage word for word, the id is one that was retrieved, the line and
+ * the claim name a concept in common, polarity agrees, quantities agree. None
+ * of those is entailment, and an adversarial pass over the shipped library
+ * walked through all of them:
+ *
+ *   "Demand is the total quantity of a good that PRODUCERS are willing to
+ *   SELL at each price" was confirmed by the line "We defined demand as the
+ *   amount of some product a CONSUMER is willing and able to PURCHASE at each
+ *   price" — the definition it inverts, in the retrieved set, quoted verbatim.
+ *   "In a relation, the domain is the set of the SECOND components" was
+ *   confirmed by the line saying the domain is the FIRST components and the
+ *   range the second. Seven shapes in all, including a rhetorical question in
+ *   the notes used as evidence, and a claim whose first sentence was true and
+ *   second sentence invented.
+ *
+ * Tightening the gate until those fail means requiring most of the claim's own
+ * words in the line, which is `supportsSentence` again — and at those bars the
+ * paraphrases the whole idea existed to catch ("positional encodings are added
+ * to the token embeddings so the model can tell which token came first" covers
+ * 0.55 of its line) fail too. There is no bar between the two.
+ *
+ * So a paraphrase gets "I could not check that against your source", which is
+ * true, and the confirmation stays with the lexical check below, which can
+ * show the line it rests on. Anything better needs a check that reads meaning
+ * — a model asked to judge entailment is the model agreeing with itself, so it
+ * is not that either.
+ * ------------------------------------------------------------------ */
+
+/**
+ * The two sentences VIVA says when a line of the learner's own source says
+ * their sentence back. One spelling for both paths — the lexical check and the
+ * model nomination — because a student must not be able to tell which one
+ * answered them.
+ */
+export function matchesLead(chunk: SourceChunk): string {
+  return `That matches ${where(chunk)} —`;
+}
+
+export function passageSays(line: string): string {
+  return `The passage says: “${line.slice(0, 220)}”`;
 }
 
 /** The passage line closest to a reference sentence. */
@@ -492,12 +734,12 @@ export function checkClaim(input: {
   //    source. This guard, and the polarity checks below it, are what protect
   //    the student who is right; skipping them is how "mutually exclusive
   //    events cannot be independent" got answered with "Not quite —".
-  const support = supportedBy(claim, lines, terms);
+  const support = supportedBy(claim, chunks, terms);
 
   if (support) {
     return ask({
       status: "supported",
-      lead: `That matches ${where(support.chunk)} —`,
+      lead: matchesLead(support.chunk),
       quote: support.line,
       chunkId: support.chunk.id,
     });
@@ -788,7 +1030,7 @@ export function composeInterruptReply(check: ClaimCheck, openQuestion: string): 
   const lead = (check.lead ?? "").replace(/^Not quite\s*—\s*/, "");
   return [
     lead ? `Before that — ${lead}` : "Before that —",
-    check.quote ? `The passage says: “${check.quote.slice(0, 220)}”` : null,
+    check.quote ? passageSays(check.quote) : null,
     `The question still stands: ${openQuestion}`,
   ]
     .filter(Boolean)
@@ -798,7 +1040,7 @@ export function composeInterruptReply(check: ClaimCheck, openQuestion: string): 
 export function composeClaimReply(check: ClaimCheck, conceptName: string | null): string {
   const parts: string[] = [];
   if (check.lead) parts.push(check.lead);
-  if (check.quote) parts.push(`The passage says: “${check.quote.slice(0, 220)}”`);
+  if (check.quote) parts.push(passageSays(check.quote));
   if (check.question) parts.push(check.question);
   else if (check.status === "contradicted") parts.push(FALLBACK_PROBE);
   else if (check.status === "supported") parts.push("Say the next step of it and I will check that line too.");

@@ -177,6 +177,18 @@ describe("provider outage", () => {
   });
 });
 
+/**
+ * The floor keeps a keyword-complete answer off "incorrect". It used to lift
+ * one all the way to "correct", and `fullAnswer` below is why that could not
+ * stand: it is the marking key with "all matter here" bolted on the end, and
+ * both tests in this block asserted VIVA must call it right. A student judge
+ * then found the same hole with a sentence they invented ("an attention weight
+ * is the number of tokens in the batch divided by the weight of the
+ * document"), was told **Correct**, and had GOT IT 1 written onto their map.
+ *
+ * So the expectations move with the fix: never "incorrect", never "correct"
+ * either. Nothing read that sentence and agreed with it.
+ */
 describe("keyword floor", () => {
   const q = COURSE.examQuestions[0];
   const fullAnswer = q.requiredKeywords.join(" and ") + " all matter here.";
@@ -199,14 +211,15 @@ describe("keyword floor", () => {
       hint: q.hint,
       answer: fullAnswer,
       chunks: CHUNKS,
+      check: assessAnswer(q.id, fullAnswer, { courseId: COURSE.id }).check,
       baseline: { ...assessAnswer(q.id, fullAnswer, { courseId: COURSE.id }) },
     });
     expect(graded.gradedBy).toBe("model");
-    expect(graded.verdict).toBe("correct");
-    expect(graded.missingPoints).toEqual([]);
+    // Off "incorrect" — and no further. Coverage has not read anything.
+    expect(graded.verdict).toBe("partial");
   });
 
-  it("coverage grades it alone when the model is unavailable", async () => {
+  it("coverage grades it alone when the model is unavailable, and stops at partial", async () => {
     setReasoningProvider(new DeadProvider());
     const graded = await gradeAnswer({
       subject: COURSE.title,
@@ -215,10 +228,12 @@ describe("keyword floor", () => {
       hint: q.hint,
       answer: fullAnswer,
       chunks: CHUNKS,
+      check: assessAnswer(q.id, fullAnswer, { courseId: COURSE.id }).check,
       baseline: { ...assessAnswer(q.id, fullAnswer, { courseId: COURSE.id }) },
     });
     expect(graded.gradedBy).toBe("keywords");
-    expect(graded.verdict).toBe("correct");
+    expect(graded.verdict).toBe("partial");
+    expect(graded.feedback).toMatch(/could not check that against your source/i);
   });
 
   it("a partial answer can still be graded down by the model", async () => {
@@ -239,6 +254,7 @@ describe("keyword floor", () => {
       hint: q.hint,
       answer: "Attention compares tokens.",
       chunks: CHUNKS,
+      check: assessAnswer(q.id, "Attention compares tokens.", { courseId: COURSE.id }).check,
       baseline: { ...assessAnswer(q.id, "Attention compares tokens.", { courseId: COURSE.id }) },
     });
     expect(graded.verdict).toBe("partial");

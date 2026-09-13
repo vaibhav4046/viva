@@ -1,7 +1,8 @@
 import { getCourse, DEFAULT_COURSE_ID } from "../courses";
 import type { Course } from "../courses/types";
-import { scoreChunks, verifyEvidence } from "../retrieval";
+import { scoreChunks, tokens, verifyEvidence } from "../retrieval";
 import type { SourceChunk } from "../types";
+import { checkClaim, passageSays, type ClaimCheck } from "./claim";
 
 export type Assessment = {
   verdict: "correct" | "partial" | "incorrect";
@@ -17,6 +18,12 @@ export type Assessment = {
    * clears a question they cannot answer.
    */
   fullAnswerCovers: string[];
+  /**
+   * What the subject's own passages said about the sentence. The verdict above
+   * is downstream of this, and `gradeAnswer` reads it so the model branch is
+   * held to the same line.
+   */
+  check: ClaimCheck;
 };
 
 const NEG_WORDS = new Set(["not", "no", "never", "cannot", "without", "lacks", "lack", "missing", "fails", "fail", "neither", "nor"]);
@@ -157,15 +164,108 @@ const VERBS = new Set(
 export const UNCHECKED_LEAD =
   "I could not check that against your source, so I will not tell you it is right.";
 
+/**
+ * The second half of an honest "not checked": where to go next. Paired with
+ * `UNCHECKED_LEAD` on a quiz answer that named every marking word and that
+ * nothing in the source confirmed.
+ */
+export const READ_IT_BACK =
+  "Read the passage beside this and say it again in your own words — if it matches a line, I will mark it.";
+
 /** "That is the word. Now say it as a sentence." */
 export const SAY_IT_AS_A_SENTENCE =
   "Those are the words. Now say it as a sentence and I will check that against the passage.";
 
 /**
+ * Singular-ish, and the hyphen read as a space, so "self-attention" matches a
+ * student typing "self attention" and "weights" matches "weight".
+ *
+ * `claim.ts` has the same two lines and does not export them. Copied rather
+ * than exported because that file is being changed on another branch as this
+ * is written; fold them together once both have landed.
+ */
+function loose(text: string): string[] {
+  return tokens(text.replace(/-/g, " ")).map((w) => {
+    if (w.length > 4 && w.endsWith("ies")) return `${w.slice(0, -3)}y`;
+    if (w.endsWith("ss")) return w;
+    return w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w;
+  });
+}
+
+/**
+ * How much of what the learner said is drawn from the passages in front of
+ * them: the share of their own content words that appear in the retrieved
+ * text. Function words and anything under four letters are already gone.
+ *
+ * This is a REFUTATION, not a confirmation. A sentence assembled out of the
+ * source's own vocabulary can still be false — "an attention weight is the
+ * same vector as the query and the key" scores 1.00 — which is why it only
+ * ever removes `correct` and never grants it on its own. What it does catch is
+ * the sentence that imports its content from nowhere: the two the judge
+ * invented score 0.43 and 0.33 ("batch", "document", "divided", "important"),
+ * against 0.89 to 1.00 for real answers to the same subject's questions.
+ */
+export function groundedFraction(answer: string, chunks: SourceChunk[]): number {
+  const said = new Set(loose(answer));
+  if (said.size === 0) return 0;
+  const pool = new Set(chunks.flatMap((c) => loose(c.text)));
+  let hits = 0;
+  said.forEach((w) => { if (pool.has(w)) hits += 1; });
+  return hits / said.size;
+}
+
+/**
+ * Where "said it in the source's terms" starts.
+ *
+ * Measured on the shipped Transformers subject: real answers to its seven exam
+ * questions land 0.82-1.00, the two sentences the judge made up land 0.43 and
+ * 0.33, and "order and attention and permutation all matter here" — the
+ * marking key with a verb bolted on — lands 0.60. The bar sits in that gap.
+ * Everything below it is answered honestly rather than wrongly, so the cost of
+ * setting it a little high is one more sentence from the learner.
+ */
+const GROUNDED_ENOUGH = 0.7;
+
+/**
+ * The passage speaking, in one line, so a verdict can show its working.
+ * `checkClaim` writes the lead; the quote is the sentence that decided it.
+ */
+function saidBySource(check: ClaimCheck): string {
+  return [check.lead, check.quote ? passageSays(check.quote) : null]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
  * HARNESS D (exam/teachback branch) — claim assessment against retrieved
- * evidence. Keyword-coverage rubric, deterministic. No invented citations:
- * evidenceIds always resolve to real chunk ids. The question bank and the
- * chunk pool both come from the requested course (default: Transformers).
+ * evidence. Deterministic and model-free. No invented citations: evidenceIds
+ * always resolve to real chunk ids. The question bank and the chunk pool both
+ * come from the requested course (default: Transformers).
+ *
+ * Keyword coverage says how much of the marking key the learner named. It does
+ * NOT say whether they are right, and the gap between those two is the whole
+ * of S-A-01: "an attention weight is the number of tokens in the batch divided
+ * by the weight of the document" contains both required points of `ex_sa_1`
+ * ("weight", "token") inside a grammatical sentence, cleared the two-thirds
+ * bar, and came back **Correct — that covers the distinction the source
+ * draws**, with GOT IT 1 written onto the map. The sentence was invented. The
+ * question has two required words and one of them is in the question itself.
+ *
+ * So `correct` here now needs three things, not one: the marking points named,
+ * nothing in the passages contradicting the sentence, and the sentence written
+ * out of the passages' own vocabulary (`groundedFraction`) — or, better, a
+ * line of the source that says the same thing in the same polarity
+ * (`checkClaim` → `supported`, the one status in this codebase allowed to tell
+ * somebody they are right, and it arrives with the sentence that decided it).
+ * Coverage backed by none of that is `partial` and says so.
+ *
+ * ponytail: every check here is lexical, so a false sentence built entirely
+ * out of the source's own words — "an attention weight is the same vector as
+ * the query and the key" — can still clear this bar when no model is
+ * reachable. That is the residual, it is named in the tests, and the exit is a
+ * model pass over the same passages, which `gradeAnswer` already runs whenever
+ * a provider answers. A miss costs the learner one more honest sentence; the
+ * false positive costs them the concept, because they will not revise it.
  */
 export function assessAnswer(
   questionId: string,
@@ -184,6 +284,11 @@ export function assessAnswer(
   const chunks: SourceChunk[] = retrieved.map((r) => r.chunk);
   const verdict = verifyEvidence(answerTranscript, chunks);
   const low = answerTranscript.toLowerCase();
+  // What the source itself says about the sentence, on the same checks the
+  // typed-claim path runs. This is the only thing here that may write
+  // "correct", and the only thing that may quote a line while writing
+  // "incorrect".
+  const check = checkClaim({ claim: answerTranscript, chunks, course, conceptId: q.conceptId });
 
   // Classic "importance" misconception only applies where the rubric expects
   // order: answering "importance" when the source demands "order".
@@ -204,6 +309,7 @@ export function assessAnswer(
         "The missing piece is sequence order: without positional information the model cannot tell first from last. Try that distinction again.",
       evidenceIds: chunks.map((c) => c.id),
       fullAnswerCovers: q.requiredKeywords,
+      check,
     };
   }
 
@@ -221,9 +327,29 @@ export function assessAnswer(
       feedback: SAY_IT_AS_A_SENTENCE,
       evidenceIds: chunks.map((c) => c.id),
       fullAnswerCovers: q.requiredKeywords,
+      check,
     };
   }
-  if (ratio >= 0.66) {
+  // The source says otherwise, and it says which line. Wrong however many of
+  // the marking words the sentence happens to contain.
+  if (check.status === "contradicted") {
+    return {
+      verdict: "incorrect",
+      correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
+      missingPoints: [],
+      possibleMisconception: check.lead,
+      feedback: `${saidBySource(check)} ${q.hint}`.trim(),
+      evidenceIds: check.chunkId ? [check.chunkId] : chunks.map((c) => c.id),
+      fullAnswerCovers: q.requiredKeywords,
+      check,
+    };
+  }
+  // Named the marking points, said them in the source's own terms, and the
+  // source did not object. That is as close to "states what the passage
+  // states" as a lexical check gets, and it is the only shape that may write
+  // CORRECT without a model having read the answer.
+  const grounded = groundedFraction(answerTranscript, chunks) >= GROUNDED_ENOUGH;
+  if (ratio >= 0.66 && (check.status === "supported" || grounded)) {
     return {
       verdict: "correct",
       // The learner's own words, never the marking key: printing "Mentioned:
@@ -231,9 +357,26 @@ export function assessAnswer(
       correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
       missingPoints: [],
       possibleMisconception: null,
-      feedback: "Correct — that covers the distinction the source draws.",
-      evidenceIds: verdict.support.length > 0 ? verdict.support : chunks.map((c) => c.id),
+      // When a line of their own source says it, quote that line: a verdict
+      // that can show its sentence is the one the learner can check.
+      feedback: check.status === "supported" ? saidBySource(check) : "Correct — that covers the distinction the source draws.",
+      evidenceIds: check.chunkId ? [check.chunkId] : verdict.support.length > 0 ? verdict.support : chunks.map((c) => c.id),
       fullAnswerCovers: q.requiredKeywords,
+      check,
+    };
+  }
+  // Every marking word is present and nothing in the source confirms what the
+  // sentence does with them. Not correct: nothing checked it.
+  if (ratio >= 0.66) {
+    return {
+      verdict: "partial",
+      correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
+      missingPoints: [],
+      possibleMisconception: null,
+      feedback: `${UNCHECKED_LEAD} ${READ_IT_BACK}`,
+      evidenceIds: chunks.map((c) => c.id),
+      fullAnswerCovers: q.requiredKeywords,
+      check,
     };
   }
   if (ratio > 0) {
@@ -247,6 +390,7 @@ export function assessAnswer(
       feedback: `Partly there. ${q.hint}`,
       evidenceIds: chunks.map((c) => c.id),
       fullAnswerCovers: q.requiredKeywords,
+      check,
     };
   }
   return {
@@ -257,6 +401,7 @@ export function assessAnswer(
     feedback: `Not quite — and that is worth knowing now rather than on Friday. ${q.hint}`,
     evidenceIds: chunks.map((c) => c.id),
     fullAnswerCovers: q.requiredKeywords,
+    check,
   };
 }
 

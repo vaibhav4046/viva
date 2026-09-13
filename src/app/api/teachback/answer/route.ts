@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { resolveSubject, subjectMissing } from "@/lib/courses/subject";
 import { gradeAnswer, scoreTeachback } from "@/lib/tutor";
+import { checkClaim } from "@/lib/tutor/claim";
 import { getStore } from "@/lib/store";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
@@ -67,13 +68,18 @@ export async function POST(req: NextRequest) {
   const retrieved = await store.retrieveEvidence(identity.userId, `${concept.name} ${p.data.transcript}`, {
     sourceId: null, conceptIds: [p.data.conceptId], limit: 3, courseId: course.id,
   });
+  const chunks = retrieved.map((r) => r.chunk);
   const graded = await gradeAnswer({
     subject: course.title,
     question: `Teach it back: ${concept.name}.`,
     requiredKeywords: required,
     hint,
     answer: p.data.transcript,
-    chunks: retrieved.map((r) => r.chunk),
+    chunks,
+    // Coverage is what teachback scores, and coverage cannot read a passage:
+    // the same guard the quiz path carries, so "strong" here can never mean
+    // "the source says the opposite".
+    check: checkClaim({ claim: p.data.transcript, chunks, course, conceptId: p.data.conceptId }),
     baseline: {
       verdict: s.verdict === "strong" ? "correct" : s.verdict === "developing" ? "partial" : "incorrect",
       correctPoints: s.hits,

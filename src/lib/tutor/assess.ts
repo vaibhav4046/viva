@@ -1,6 +1,7 @@
 import { REASON_TIMEOUT_MS, reasonObject } from "@/lib/ai/reason";
 import type { SourceChunk } from "@/lib/types";
 import { AssessmentReplySchema } from "./schema";
+import type { ClaimCheck } from "./claim";
 import { isFragmentAnswer, quotedHits, SAY_IT_AS_A_SENTENCE, scoreTeachback } from "./heuristic";
 
 /**
@@ -57,20 +58,32 @@ function passageBlock(chunks: SourceChunk[]): string {
 }
 
 /**
- * Grade one answer. The model does the judging; keyword coverage is both the
- * fallback when the model is unavailable and a floor underneath it — an answer
- * that affirms every required point can never come back "incorrect", whatever
- * the model says.
+ * Grade one answer. The model does the judging, with the passages in front of
+ * it; keyword coverage is the fallback when the model is unavailable and a
+ * floor underneath it — an answer that affirms every required point does not
+ * come back "incorrect", whatever the model says.
  *
- * Two things keyword coverage may NOT do, both of them measured failures:
+ * Three things keyword coverage may NOT do, all of them measured failures:
  *
  *   - lift a verdict on an answer that is the marking words and nothing else.
  *     "order attention permutation" cleared the floor and was told CORRECT,
  *     which is a quiz a student can pass without knowing anything, and the map
  *     believes the result;
+ *   - lift ANY verdict to "correct". It used to turn the model's "incorrect"
+ *     into CORRECT whenever every required word was present, which is how "an
+ *     attention weight is the number of tokens in the batch divided by the
+ *     weight of the document" came back **correct above the model's own prose
+ *     saying it did not state what an attention weight is** (S-A-01, measured
+ *     on 13 Sep 2026). The floor now stops at "partial": not told they are
+ *     wrong, not told they are right;
  *   - stand in for what the learner said. `correctPoints` is replaced with
  *     quotes of their own words, so "What was right" can never be a story
  *     about a student who understood.
+ *
+ * `check` is the deterministic read of the same passages (`checkClaim`). It
+ * cannot make a verdict correct — only the model or a supporting line can do
+ * that — but a contradiction in it removes "correct", because a verdict may
+ * never be more generous than the source it was checked against.
  */
 export async function gradeAnswer(input: {
   subject: string;
@@ -80,6 +93,8 @@ export async function gradeAnswer(input: {
   answer: string;
   chunks: SourceChunk[];
   baseline: GradeBaseline;
+  /** What the passages said, from `assessAnswer` or a direct `checkClaim`. */
+  check: ClaimCheck;
 }): Promise<Graded> {
   const user = [
     `Subject: ${input.subject}`,
@@ -101,8 +116,14 @@ export async function gradeAnswer(input: {
   const r = result.value;
   const echo = isFragmentAnswer(input.answer, input.requiredKeywords);
   const covered = !echo && input.requiredKeywords.length > 0 && scoreTeachback(input.answer, input.requiredKeywords).coverage === 1;
-  const lifted = covered && r.verdict === "incorrect" ? "correct" : r.verdict;
-  const verdict = echo && lifted === "correct" ? "partial" : lifted;
+  // The floor: naming every required point keeps an answer off "incorrect".
+  // It stops there. Coverage has never read a passage.
+  const floored = covered && r.verdict === "incorrect" ? "partial" : r.verdict;
+  // The source contradicts it. Whatever the model made of the sentence, it is
+  // not correct, and the learner gets the line that settles it.
+  const overruled = floored === "correct" && input.check.status === "contradicted";
+  const capped = overruled ? "incorrect" : floored;
+  const verdict = echo && capped === "correct" ? "partial" : capped;
   return {
     verdict,
     // Their words or nothing. A paraphrase here is the app inventing a version
@@ -111,8 +132,16 @@ export async function gradeAnswer(input: {
     missingPoints: verdict === "correct" ? [] : r.missingPoints,
     // No misconception is read off an answer that stated nothing: a
     // one-word answer came back with a belief the learner never expressed.
-    possibleMisconception: verdict === "correct" || echo ? null : r.possibleMisconception,
-    feedback: echo ? SAY_IT_AS_A_SENTENCE : r.feedback.trim() || input.baseline.feedback,
+    possibleMisconception:
+      verdict === "correct" || echo ? null : overruled ? input.baseline.possibleMisconception : r.possibleMisconception,
+    feedback: echo
+      ? SAY_IT_AS_A_SENTENCE
+      : // Overruled: the model's congratulation is not the sentence to print
+        // over a contradiction. The keyword branch already wrote the honest
+        // one, with the passage line inside it.
+        overruled
+        ? input.baseline.feedback
+        : r.feedback.trim() || input.baseline.feedback,
     // Citations stay server-chosen: the model never names a passage id here.
     evidenceIds: input.baseline.evidenceIds,
     nextQuestion: r.nextQuestion,

@@ -289,7 +289,16 @@ export function mergeLearner<C extends ConceptLite>(
     ? server.concepts
     : ((mine?.concepts ?? Object.values(mirror.subjects).flatMap((s) => s.concepts)) as unknown as C[]);
 
-  writeRecord({ v: 1, mastery, events, subjects: mirror.subjects });
+  // Persist only what the browser minted. An event that came back from the
+  // server has no `clientEventId`, because the server does not return one —
+  // and the replay contract requires it, so storing those poisoned the record:
+  // the very next POST /api/learner/sync was rejected whole on
+  // `events.0.clientEventId`, and it stayed rejected for the life of that
+  // browser. Every page load logged a 400 and the replay that makes a lost
+  // subject come back never ran once. A server event needs no replay anyway;
+  // the server already has it. `events` above still carries the union, so what
+  // the page renders is unchanged.
+  writeRecord({ v: 1, mastery, events: events.filter((e) => e.clientEventId), subjects: mirror.subjects });
 
   const ids = new Set(concepts.map((c) => c.id));
   return {
@@ -379,7 +388,11 @@ export type SyncResult = LearnerPayload & {
  */
 export async function syncRecord(subjectId?: string | null): Promise<SyncResult | null> {
   const mirror = readRecord();
-  let events = mirror.events.slice(0, MAX_EVENTS);
+  // Belt and braces for records already poisoned by the bug above: a browser
+  // that stored server events before this shipped still holds them, and one
+  // such event rejects the whole call. Nothing replayable is lost — an event
+  // without this key was never replayable.
+  let events = mirror.events.filter((e) => e.clientEventId).slice(0, MAX_EVENTS);
   let subjects = Object.values(mirror.subjects)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .slice(0, MAX_SUBJECTS);

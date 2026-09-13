@@ -34,6 +34,31 @@ type UserDoc = {
 
 const locks = new Map<string, Promise<void>>();
 
+/** Distinguishes two writes by the same process; see `save`. */
+let saveSeq = 0;
+
+/**
+ * POSIX rename over an existing file is atomic and cannot fail because someone
+ * is reading the destination. Windows disagrees: a concurrent open handle — a
+ * reader, an indexer, an antivirus scan — makes the same call fail EPERM, and
+ * the burst probe turned that into HTTP 500s on a developer's own machine.
+ * Vercel is Linux, so this is not a production fault, but a store that 500s
+ * where it is developed is a store nobody trusts. Three tries over ~60 ms; a
+ * failure that outlives them is a real one and is thrown.
+ */
+async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (attempt >= 2 || (code !== "EPERM" && code !== "EBUSY" && code !== "EACCES")) throw e;
+      await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
+    }
+  }
+}
+
 async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = locks.get(key) ?? Promise.resolve();
   let release!: () => void;
@@ -126,9 +151,29 @@ export class FileEventStore implements EventStore {
 
   private async save(doc: UserDoc): Promise<void> {
     await fs.mkdir(dataDir(), { recursive: true });
-    const tmp = `${userPath(doc.userId)}.tmp.${process.pid}`;
+    // A temp name unique to this write, not to this process.
+    //
+    // `.tmp.${process.pid}` is one path for every write the process makes, so
+    // two concurrent saves for the same learner both wrote it and both renamed
+    // it: the first won, the second got ENOENT, and an unhandled ENOENT is an
+    // HTTP 500. Measured on a 70-request burst — the Postgres pool timed out,
+    // the degradation latch sent everything here, and 13 of 70 came back 500
+    // from the fallback that exists to keep the app answering.
+    //
+    // The per-user mutex above is meant to make that impossible and does, as
+    // long as there is one copy of this module; the burst was run against a dev
+    // server, so I cannot say the same interleaving happens on Vercel. It does
+    // not matter much: a temp path that collides with itself is wrong wherever
+    // it runs, and this costs one counter.
+    const tmp = `${userPath(doc.userId)}.tmp.${process.pid}.${(saveSeq += 1)}`;
     await fs.writeFile(tmp, JSON.stringify(doc), "utf-8");
-    await fs.rename(tmp, userPath(doc.userId));
+    try {
+      await renameWithRetry(tmp, userPath(doc.userId));
+    } catch (e) {
+      // Never leave the scratch file behind for a reader to trip over.
+      await fs.rm(tmp, { force: true }).catch(() => {});
+      throw e;
+    }
   }
 
   async ensureUser(): Promise<void> { /* file store is implicit per userId */ }

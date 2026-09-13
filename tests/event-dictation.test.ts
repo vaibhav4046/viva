@@ -156,7 +156,10 @@ describe("dictation contract", () => {
     expect(audioPart.size).toBe(AUDIO.length - 44); // RIFF header stripped
   });
 
-  it("defaults language_codes to English and omits llm_instruction when not asked for", async () => {
+  it("omits language_codes when none were asked for, and llm_instruction too", async () => {
+    // It used to default to ["en"]. Leaving the key out is the endpoint's own
+    // automatic detection — see batchLanguageCodes and tests/voice-language —
+    // so a caller that names no language gets the language that was spoken.
     let captured: Captured = { url: "" };
     mockFetch((url, init) => {
       captured = { url, init };
@@ -164,7 +167,7 @@ describe("dictation contract", () => {
     });
     await provider().transcribe({ audio: AUDIO, contentType: "audio/wav" });
     const config = await captureConfig(captured.init);
-    expect(config.language_codes).toEqual(["en"]);
+    expect(config.language_codes).toBeUndefined();
     expect(config.llm_instruction).toBeUndefined();
     expect(config.stt_prompt).toBeUndefined();
   });

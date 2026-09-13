@@ -10,7 +10,7 @@ reading a sentence aloud will do:
 
 | script | what it establishes |
 |---|---|
-| `scripts/api-probes/probe-dictation-contract.mjs` | §7 part order, §7 415 bodies, §8 sample-rate validation, the `keyterms_prompt` A/B and `request_time_ms` in the closing section |
+| `scripts/api-probes/probe-dictation-contract.mjs` | §1 the batch language enumeration, §7 part order, §7 415 bodies, §8 sample-rate validation, the `keyterms_prompt` A/B and `request_time_ms` in the closing section |
 | `scripts/api-probes/probe-auth-header.mjs` | §7, the `Authorization` header |
 | `scripts/api-probes/probe-streaming-shape.mjs` | §1 language codes, §4 the `Begin` payload, §5 the concurrency cap |
 | `scripts/api-probes/probe-stream-timing.mjs` | §2 lag, cadence, settle and turn counts; §3 the `Terminate` table |
@@ -78,10 +78,52 @@ code, `scripts/api-probes/probe-streaming-shape.mjs`:
 ```
 
 A one-line list of accepted codes in the streaming docs would have saved us
-three bad entries in a twenty-option picker: `pl`, `uk` and `en,hi`. Nothing
-kills a session now, because we clamp anything the socket does not serve to
-`multi` before sending it — but a clamp is a workaround for a list we could
-only get by feeding the endpoint garbage.
+three bad entries in a twenty-option picker: `pl`, `uk` and `en,hi`. Polish and
+Ukrainian are gone from it now — no endpoint of yours transcribes them, so
+offering them named a language we cannot produce — and `en,hi` is clamped to
+`multi` before it reaches the socket. A clamp is a workaround for a list we
+could only get by feeding the endpoint garbage.
+
+### …and the batch list is the same thirty-two minus the one that means "detect"
+
+`language_codes` on Dictation and on `sync/transcribe` enumerates identically
+on a bad value, with one difference that matters: `multi` is not in it, and
+sending it is a refusal rather than automatic detection
+(`scripts/api-probes/probe-dictation-contract.mjs` §6):
+
+```
+POST {dictation}  config {"language_codes":["multi"]}
+400 {"status":400,"title":"Bad Request","detail":"invalid config part:
+     language_codes.0: Input should be 'en', 'es', 'de', 'fr', 'it', 'pt',
+     'tr', 'nl', 'sv', 'no', 'da', 'fi', 'hi', 'vi', 'ar', 'he', 'ja', 'ur',
+     'zh', 'ko', 'ca', 'gl', 'ru', 'ro', 'et', 'fa', 'yue', 'af', 'mr', 'zu',
+     'xh' or 'nn'"}
+```
+
+One word, "detect the language" on the socket and "reject this request" on the
+buffered endpoint. The batch way to ask for detection is to leave
+`language_codes` out, which works and is written down nowhere. A 4.69 s Hindi
+clip, said: "मुझे समझ नहीं आ रहा कि अटेंशन को पोज़िशनल एन्कोडिंग की ज़रूरत क्यों है।"
+
+```
+  omitted   -> 200 "मुझे समझ नहीं आ रहा कि अटेंशन को पोजिशनल एंकोडिंग की जरूरत क्यूं है?"
+  ["en"]    -> 200 "मुझे समझ नहीं आ रहा कि अटेंशन को पोजिशनल एंकोडिंग की जरूरत क्यों है?"
+  ["hi"]    -> 200 "मुझे समझ नहीं आ रहा कि अटेंशन को पोजिशनल एंकोडिंग की जरूरत क्यूं है?"
+  ["multi"] -> 400 (above)
+  ["pl"]    -> 400 (above)
+```
+
+Two things in that table are worth documenting. `language_codes` does not gate
+detection — `["en"]` over Hindi audio still came back in Devanagari — so it is
+a hint, not a constraint. It is not inert either: `["hi"]` over a Spanish clip
+returned the Spanish sentence transliterated into Devanagari, "नो एंटी एंडो
+पोर्के एल मेकानिज्मो…", where omitting the field returned it correctly in
+Spanish. A wrong hint keeps the words and changes the writing system.
+
+The ask is three lines of documentation: publish the batch list beside the
+streaming one, say that `multi` is streaming-only, and say that omitting the
+field is how the batch endpoints detect. Until then a client that mirrors one
+picker onto both APIs sends `multi` to both, and half its transcripts are 400s.
 
 ## 2. Naming a language silently changes the model, and the two behave differently
 

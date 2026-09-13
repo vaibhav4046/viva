@@ -173,6 +173,56 @@ export const MAX_KEYTERMS = 100;
 export const MAX_STT_PROMPT = 6000;
 export const MAX_LLM_INSTRUCTION = 2048;
 
+/**
+ * The language codes the two BATCH endpoints accept, read out of their own 400
+ * rather than a docs page. Probed 2026-09-13,
+ * `scripts/api-probes/probe-dictation-contract.mjs` §6:
+ *
+ *   config {"language_codes":["zzz"]}
+ *   400 {"status":400,"title":"Bad Request","detail":"invalid config part:
+ *        language_codes.0: Input should be 'en', 'es', … 'xh' or 'nn'"}
+ *
+ * Note what is NOT in it: `multi`. The streaming socket's otherwise identical
+ * enumeration ends "… 'nn' or 'multi'" (see STREAM_LANGUAGES in ./audio/stream),
+ * and `multi` is the picker's default. Both batch endpoints answer 400 to it,
+ * and to `pl` and `uk`, which the picker used to offer. A refused code is not
+ * a worse transcript, it is no transcript.
+ */
+export const BATCH_LANGUAGES = [
+  "en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi",
+  "hi", "vi", "ar", "he", "ja", "ur", "zh", "ko", "ca", "gl", "ru", "ro",
+  "et", "fa", "yue", "af", "mr", "zu", "xh", "nn",
+] as const;
+
+const BATCH_LANGUAGE_SET: ReadonlySet<string> = new Set(BATCH_LANGUAGES);
+
+/**
+ * What actually goes in `language_codes`, or an empty list meaning: leave the
+ * key out.
+ *
+ * Leaving it out IS this endpoint's automatic detection, and that is measured
+ * rather than assumed — the same probe posted a 4.69 s Hindi clip and a 4.60 s
+ * Spanish one with the key omitted and got correct Devanagari and correct
+ * Spanish back. So everything the endpoint refuses becomes detection here:
+ * `multi`, a language it does not serve, a subject carrying a junk code. That
+ * is exactly what `toStreamLanguage` does with the same values on the socket,
+ * which is the point — one picker, one meaning, two transcribers.
+ *
+ * A code it DOES serve is still a hint worth sending, and a wrong one is worth
+ * avoiding: `["hi"]` over the Spanish clip came back as Spanish romanised into
+ * Devanagari ("नो एंटी एंडो पोर्के…"), so the field biases the writing system
+ * even where it cannot override detection.
+ */
+export function batchLanguageCodes(codes: readonly string[] | undefined): string[] {
+  const out: string[] = [];
+  for (const raw of codes ?? []) {
+    const code = String(raw ?? "").trim().toLowerCase();
+    if (!BATCH_LANGUAGE_SET.has(code) || out.includes(code)) continue;
+    out.push(code);
+  }
+  return out;
+}
+
 export class AssemblyAIProvider implements TranscriptionProvider {
   readonly name = "assemblyai";
   constructor(readonly mode: TranscriptionMode = "sync") {}
@@ -197,8 +247,11 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     const form = new FormData();
     const bytes = new Uint8Array(req.audio.buffer, req.audio.byteOffset, req.audio.byteLength);
     form.append("audio", new Blob([bytes as unknown as BlobPart], { type: "audio/wav" }), "clip.wav");
+    // Same enumeration and the same 400 as Dictation, probed on the Hindi clip:
+    // omitted and ["hi"] both returned Devanagari, ["multi"] and ["pl"] were 400.
+    const syncLanguages = batchLanguageCodes(req.languageCodes);
     form.append("config", JSON.stringify({
-      language_codes: req.languageCodes?.length ? req.languageCodes : ["en"],
+      ...(syncLanguages.length ? { language_codes: syncLanguages } : {}),
       keyterms_prompt: capKeyterms(req.keyterms),
       prompt: (req.sttPrompt ?? "").slice(0, MAX_STT_PROMPT) || undefined,
       timestamps: false,
@@ -273,9 +326,13 @@ export class AssemblyAIProvider implements TranscriptionProvider {
       // Guaranteed by toPcm16kMono above, not assumed of the caller.
       sample_rate: TARGET_RATE,
       channels: 1,
-      language_codes: req.languageCodes?.length ? req.languageCodes : ["en"],
       keyterms_prompt: capKeyterms(req.keyterms),
     };
+    // Omitted, not defaulted to English: the key left out is this endpoint's
+    // automatic detection, which is what the picker's Automatic means and what
+    // the socket does with the same value. See batchLanguageCodes.
+    const languages = batchLanguageCodes(req.languageCodes);
+    if (languages.length) config.language_codes = languages;
     const sttPrompt = (req.sttPrompt ?? "").slice(0, MAX_STT_PROMPT);
     if (sttPrompt) config.stt_prompt = sttPrompt;
     if (req.llmInstruction) config.llm_instruction = req.llmInstruction.slice(0, MAX_LLM_INSTRUCTION);

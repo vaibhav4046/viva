@@ -87,12 +87,12 @@ holds every word unsettled until the end of the turn, so the transcript arrives
 in lumps about a second apart and the settle never happens word by word.
 Automatic runs the multilingual model, which finalises words as they land — on
 the same clip, **seventeen of its nineteen words settle before their turn
-closes, against none on `en`**, because only the last word of a turn has to
-wait. The picker is the override: twenty entries, sixteen naming a single
-language the socket serves. It accepts thirty-two codes in all, so sixteen are
-unreachable from the UI, and the three entries it does not serve (Polish,
-Ukrainian, English + Hindi) fall back to Automatic rather than killing the
-session.
+closes, against none on `en`**. It means the same thing to the recorded
+transcript, which asks the buffered endpoint to detect by sending it no
+language at all, because that endpoint answers 400 to the word `multi`. The
+picker is the override: eighteen entries against the thirty-two codes both
+endpoints accept, sixteen naming a single language, and English + Hindi, which
+the socket does not take and which falls back to Automatic there.
 
 ## Reproduce the transcription yourself
 
@@ -265,10 +265,10 @@ Stated plainly, because a demo that hides its edges is not worth trusting.
   Without `DATABASE_URL` the store is per-instance instead: the browser holds
   the record and replays it on load, so your map, plan and subjects still come
   back on that device, and health reports `durable: false` rather than pretend.
-- **Non-English accuracy is untested.** Streaming accepts 32 languages and the
-  transcript is real, but every clip measured here was English. Nobody has
-  checked a Hindi or Mandarin transcript word by word, so no accuracy claim is
-  made for them.
+- **Non-English accuracy is barely tested.** Two synthesised clips, one Hindi
+  and one Spanish, checked word by word: the recorded transcript got the words
+  right on both (the Hindi came back with its two English terms in Latin
+  script), the live line was right on the Spanish and badly wrong on the Hindi.
 - **Screen readers.** Automated checks report zero violations on seven routes
   at two widths against production. They also return 253 results as "needs
   review" rather than pass — 245 of them colour contrast, 101 on the study

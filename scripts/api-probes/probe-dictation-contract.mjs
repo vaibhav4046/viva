@@ -121,3 +121,53 @@ const ok = times.filter((t) => typeof t === "number").sort((a, b) => a - b);
 if (ok.length) {
   log(`  n=${ok.length}  min ${ok[0]}  median ${ok[Math.floor(ok.length / 2)]}  max ${ok[ok.length - 1]}`);
 }
+
+// ── 6. What does `language_codes` actually do on this endpoint? ────────────
+// The picker's default is "Automatic", which the streaming socket honours as
+// `language_code=multi`. The batch path sends `language_codes`, and nothing
+// established what it accepts, what omitting it does, or what non-English
+// audio comes back as under each. Needs a clip that is not English: set
+// LANG_CLIPS to a comma list of wav paths (default the two under .viva/audio).
+log("\n=== 6. language_codes on non-English audio ===");
+const LANG_CLIPS = (process.env.LANG_CLIPS ?? ".viva/audio/hindi-16k.wav,.viva/audio/spanish-16k.wav,.viva/audio/confusion-16k.wav")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+/** What each default clip actually says, so the output can be judged and not
+ *  just compared with itself. Synthesised by .viva/synth-lang.mjs. */
+const TRUTH = {
+  "hindi-16k.wav": "मुझे समझ नहीं आ रहा कि अटेंशन को पोज़िशनल एन्कोडिंग की ज़रूरत क्यों है।",
+  "spanish-16k.wav": "No entiendo por qué el mecanismo de atención necesita codificación posicional.",
+  "confusion-16k.wav": "(English reference clip)",
+};
+// `undefined` means the key is left out of the config entirely.
+const LANG_CASES = [
+  ["omitted", undefined],
+  ["[]", []],
+  ['["en"]', ["en"]],
+  ['["multi"] (the picker default)', ["multi"]],
+  ['["hi"]', ["hi"]],
+  ['["es"]', ["es"]],
+  ['["en","hi"]', ["en", "hi"]],
+  ['["pl"] (a picker entry)', ["pl"]],
+  ['["uk"] (a picker entry)', ["uk"]],
+  ['["zzz"] (bogus — does it enumerate?)', ["zzz"]],
+];
+for (const clip of LANG_CLIPS) {
+  if (!fs.existsSync(clip)) { log(`  ${clip}: not present, skipped`); continue; }
+  const clipPcm = pcmFrom(clip);
+  const said = TRUTH[clip.split(/[\\/]/).pop()];
+  log(`\n  ${clip} — ${(clipPcm.length / 32000).toFixed(2)} s${said ? `\n    said: ${said}` : ""}`);
+  for (const [label, codes] of LANG_CASES) {
+    await new Promise((r) => setTimeout(r, 1200));
+    const config = { sample_rate: 16000, channels: 1 };
+    if (codes !== undefined) config.language_codes = codes;
+    const r = await post({ config, pcm: clipPcm });
+    // A refusal is printed WHOLE: its detail is the endpoint's own enumeration
+    // of what it accepts, which is the only place that list is written down.
+    let out = r.body;
+    try {
+      const j = JSON.parse(r.body);
+      if (typeof j.text === "string") out = JSON.stringify(j.text);
+    } catch { /* not JSON */ }
+    log(`    ${label.padEnd(32)} -> ${r.status} ${out}`);
+  }
+}

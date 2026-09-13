@@ -236,18 +236,30 @@ export function condenseContext(turns: string[], limit = MAX_STT_PROMPT): string
   return kept.join(" ");
 }
 
+/**
+ * The picker's value as codes, or the subject's when the field is not there
+ * at all.
+ *
+ * What is deliberately NOT here any more is a `/^[a-z]{2}$/` test. It looked
+ * like input hygiene and was the whole defect: "multi" — Automatic, the
+ * picker's default — failed it, the empty result fell through to the subject's
+ * codes, and every buffered clip left as ["en"] while the socket ran the
+ * multilingual model on the same words. It also dropped `yue`, which the
+ * endpoint does serve. Validation belongs where the vendor's own enumeration
+ * is known: `batchLanguageCodes` keeps what the endpoint takes and turns
+ * everything else — Automatic included — into detection.
+ */
 function parseLanguageCodes(raw: string | null, fallback: string[]): string[] {
   if (!raw) return fallback;
   const parsed = raw.trim().startsWith("[")
     ? ((): unknown => { try { return JSON.parse(raw); } catch { return null; } })()
     : raw.split(",");
   const list = Array.isArray(parsed) ? parsed : [];
-  const codes = list
+  return list
     .filter((c): c is string => typeof c === "string")
     .map((c) => c.trim().toLowerCase())
-    .filter((c) => /^[a-z]{2}$/.test(c))
+    .filter(Boolean)
     .slice(0, 4);
-  return codes.length ? codes : fallback;
 }
 
 function field(form: FormData, name: string): string | null {
@@ -293,8 +305,11 @@ export async function POST(req: Request): Promise<Response> {
     const { identity } = await resolveIdentity(req);
     const wantsClean = (field(form, "mode") ?? "study") !== "verbatim";
     const voice = await subjectVoiceConfig(identity.userId, subjectId, parseKeytermHint(field(form, "keyterms")));
-    // The form wins, the subject is the default: a Hindi-English subject keeps
-    // code-switching recognition without the picker having to be touched.
+    // The form wins, the subject is the default for a caller that sends no
+    // picker value at all — a curl against this route, or the extension — so a
+    // Hindi-English subject still gets code-switching recognition. The picker
+    // itself always sends something, and its Automatic means detection rather
+    // than the subject's codes: that is what the learner asked for.
     const languageCodes = parseLanguageCodes(field(form, "languageCodes"), voice.languageCodes);
     const contextRaw = field(form, "context");
     const request = {

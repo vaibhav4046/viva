@@ -201,11 +201,15 @@ describe("POST /api/voice/transcribe", () => {
   });
 
   it("parses languageCodes from a comma list and from JSON, dropping junk", async () => {
+    // Junk no longer becomes ["en"]: a code the endpoint refuses is dropped and
+    // the key goes out omitted, which is its automatic detection. Only a field
+    // that is not there at all still falls back to the subject's codes.
     for (const [input, expected] of [
       ["en,hi", ["en", "hi"]],
       ['["en","hi"]', ["en", "hi"]],
       ["EN , Hi", ["en", "hi"]],
-      ["klingon,!!", ["en"]],
+      ["klingon,!!", undefined],
+      ["multi", undefined],
       ["", ["en"]],
     ] as const) {
       const calls = mockCalls(() => new Response(JSON.stringify(okDictation), { status: 200 }));

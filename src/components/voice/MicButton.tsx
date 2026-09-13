@@ -114,6 +114,17 @@ type PathFacts = { fellBackFrom: string | null; requestTimeMs: number | null };
  * ms against 971-1342 ms. A student who never opens this menu should get the
  * better of the two, and anyone who wants their language pinned can still say
  * so.
+ *
+ * `multi` is the socket's word for detection; the buffered path spells the
+ * same thing by leaving `language_codes` out, which is what its own 400 forced
+ * and what `scripts/api-probes/probe-dictation-contract.mjs` §6 measured on
+ * Hindi and Spanish clips. One value, one meaning, both transcribers.
+ *
+ * Polish and Ukrainian are not here. Neither endpoint's enumeration contains
+ * them, so the picker would have been naming a language VIVA cannot produce:
+ * the socket quietly swapped in detection while the recorded path posted `pl`
+ * and got 400 Bad Request back — live words on screen, then a failure where
+ * the note should have been.
  */
 export const LANGUAGE_PRESETS: { value: string; label: string }[] = [
   { value: "multi", label: "Automatic" },
@@ -133,8 +144,6 @@ export const LANGUAGE_PRESETS: { value: string; label: string }[] = [
   { value: "ur", label: "Urdu" },
   { value: "ru", label: "Russian" },
   { value: "tr", label: "Turkish" },
-  { value: "pl", label: "Polish" },
-  { value: "uk", label: "Ukrainian" },
   { value: "vi", label: "Vietnamese" },
 ];
 

@@ -134,9 +134,9 @@ provider.** Where you enter the network moves it more than anything the app does
 
 ## Bring a source, or start from the shelf
 
-Thirteen subjects ship with the app — algebra, anatomy, astronomy, biology,
+Twenty-six subjects ship with the app — algebra, anatomy, astronomy, biology,
 chemistry, economics, government, physics, psychology, sociology, statistics,
-and two hand-written labs. Eleven are built from OpenStax textbooks under
+and two hand-written labs. Twenty-four are built from OpenStax textbooks under
 CC BY 4.0, each passage keeping the section it came from, and each subject
 saying plainly that a language model read the book and drew the map.
 
@@ -252,7 +252,7 @@ Environment:
 | `ASSEMBLYAI_TRANSCRIPTION_MODE` | no | `dictation` (default), `sync` or `async`; anything else falls back to `dictation` |
 | `DATABASE_URL` | no | Postgres. Without it, a per-instance file store |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | no | Without them the heuristic tutor answers |
-| `LLM_FALLBACKS` | no | Spare credentials, `baseUrl\|key\|model` separated by commas. Tried in order when the first is rate limited, and skipped for a minute after |
+| `LLM_FALLBACKS` | no | Spare credentials, `baseUrl\|key\|model` separated by commas. Tried in order when the first is rate limited, and skipped for a minute after. Free tiers meter per model, so the same key with two models is two budgets; the deployment above runs ten |
 | `MCP_TOKEN_SECRET` | no | Signs assistant pairing keys. Unset, pairings break on redeploy |
 
 ---
@@ -261,11 +261,11 @@ Environment:
 
 Stated plainly, because a demo that hides its edges is not worth trusting.
 
-- **Persistence.** Without `DATABASE_URL` the server store is per-instance and
-  does not survive a redeploy, so the browser holds the record and replays it
-  on every load: your map, your plan and your subjects come back, on that
-  device. `GET /api/health/ready` reports `durable: false` rather than
-  pretending otherwise, and the app says so on screen.
+- **Persistence.** The deployment above runs on Postgres and
+  `GET /api/health/ready` reports `durable: true`, so a map survives a redeploy.
+  Without `DATABASE_URL` the store is per-instance instead: the browser holds
+  the record and replays it on load, so your map, plan and subjects still come
+  back on that device, and health reports `durable: false` rather than pretend.
 - **Non-English accuracy is untested.** Streaming accepts 32 languages and the
   transcript is real, but every clip measured here was English. Nobody has
   checked a Hindi or Mandarin transcript word by word, so no accuracy claim is

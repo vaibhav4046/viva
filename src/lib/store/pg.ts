@@ -8,8 +8,9 @@ import type { ConceptDef, EventStore, RecordInput, RecordOutcome } from "./repo"
 
 /**
  * Postgres EventStore. Concurrency: recordLearning runs in ONE transaction
- * with SELECT ... FOR UPDATE on the mastery row — two simultaneous events
- * for the same concept serialize instead of corrupting state (§68).
+ * which materialises the mastery row and then takes SELECT ... FOR UPDATE on
+ * it — two simultaneous events for the same concept serialize instead of
+ * corrupting state, including the first two, which had nothing to lock (§68).
  * Retrieval: tsvector rank + active-source filter (§18); lexical lives on
  * in the file store and as a query fallback.
  */
@@ -225,6 +226,33 @@ export class PgEventStore implements EventStore {
       let delta: number | null = null;
       let reason: string | null = null;
       if (cid) {
+        /*
+         * Materialise before locking. `SELECT ... FOR UPDATE` locks a row; on
+         * the first ever event for a concept there is no row, so it locked
+         * nothing and two simultaneous events both read empty, both started
+         * from the same blank state, and the second write replaced the first —
+         * one student's graded event gone, counts and delta with it.
+         *
+         * This insert gives the lock something to hold. A second transaction
+         * arriving at the same key collides on the primary key and waits for
+         * this one to finish before it decides what to do, so by the time it
+         * reads, the first event is committed and it counts on top of it.
+         *
+         * The seed row is `blankMastery`, not the column defaults, so the
+         * starting point stays defined in one place even if a migration ever
+         * moves a default. Version 0, so the write below still lands on 1.
+         */
+        const seed = blankMastery(stripScope(cid), event.createdAt);
+        await client.query(
+          `INSERT INTO mastery_state(user_id, concept_id, exposure_count, successful_recall_count, failed_recall_count,
+            confusion_count, misconception_count, teachback_score_avg, last_seen_at, last_successful_recall_at,
+            mastery, confidence, review_priority, version)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0)
+           ON CONFLICT (user_id, concept_id) DO NOTHING`,
+          [userId, cid, seed.exposureCount, seed.successfulRecallCount, seed.failedRecallCount,
+           seed.confusionCount, seed.misconceptionCount, seed.teachbackScoreAvg, seed.lastSeenAt,
+           seed.lastSuccessfulRecallAt, seed.mastery, seed.confidence, seed.reviewPriority]
+        );
         const row = await client.query("SELECT * FROM mastery_state WHERE user_id=$1 AND concept_id=$2 FOR UPDATE", [userId, cid]);
         const prev = row.rows.length ? toMastery(row.rows[0]) : blankMastery(stripScope(cid as string), event.createdAt);
         const { next, delta: d, reason: r } = reduceMastery(prev, {

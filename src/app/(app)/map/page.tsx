@@ -15,7 +15,7 @@ import {
   writeStoredCourse,
   type CourseMeta,
 } from "@/components/course/CoursePicker";
-import type { ConceptMastery, LearningEvent } from "@/lib/types";
+import { mergeLearner, syncRecord, type LearnerPayload } from "@/components/mirror";
 
 /*
  * /map — what VIVA has picked up about this subject.
@@ -25,11 +25,8 @@ import type { ConceptMastery, LearningEvent } from "@/lib/types";
  * anything. Now: the map, and the history of whichever node you click.
  */
 
-type LearnerData = {
-  mastery: Record<string, ConceptMastery>;
-  events: LearningEvent[];
-  concepts: { id: string; name: string; description: string; related?: string[] }[];
-};
+type MapConcept = { id: string; name: string; description: string; related?: string[] };
+type LearnerData = LearnerPayload<MapConcept>;
 
 export default function MapPage() {
   const [data, setData] = useState<LearnerData | null>(null);
@@ -54,9 +51,23 @@ export default function MapPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/learner?courseId=${encodeURIComponent(courseId)}`);
-      if (!res.ok) throw new Error("learner failed");
-      const d = (await res.json()) as LearnerData;
+      /*
+       * The same two steps /study and /today take, for the same reason: every
+       * write lands in one instance's own /tmp, so the instance that answers
+       * this read may never have seen the turn the student just did.
+       * `syncRecord` hands the browser's copy back first, and `mergeLearner`
+       * unions what comes back with what the browser holds — so the map is
+       * never thinner than the session behind it. A hand-back that fails is
+       * not an error a student should see: fall back to the plain read, and
+       * failing that, to the mirror alone.
+       */
+      let payload = (await syncRecord(courseId)) as LearnerData | null;
+      if (!payload) {
+        const res = await fetch(`/api/learner?courseId=${encodeURIComponent(courseId)}`);
+        if (res.ok) payload = (await res.json()) as LearnerData;
+      }
+      const d = mergeLearner(payload ?? { mastery: {}, events: [], concepts: [] }, courseId);
+      if (!payload && !d.concepts.length) throw new Error("learner failed");
       setData(d);
       setSelectedId((prev) => (prev && d.mastery[prev] ? prev : null));
     } catch {

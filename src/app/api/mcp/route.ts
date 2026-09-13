@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { readToken } from "@/lib/mcp/auth";
 import { handleBody, parseError, type JsonRpcResponse } from "@/lib/mcp/rpc";
 import type { ToolEnvironment } from "@/lib/mcp/tools";
 
@@ -34,13 +35,37 @@ function selfOrigin(req: NextRequest): string {
   return `${proto}://${host}`;
 }
 
+/**
+ * Who the rate limits on VIVA's own routes should count this call against.
+ *
+ * A tool call reaches those routes over HTTP, so whatever the inner request
+ * says its caller is decides the bucket. This used to forward the caller's own
+ * `x-forwarded-for`, which is not an identity: off Vercel `clientIp` reads
+ * that header, so a caller got a fresh bucket per value they invented, and on
+ * Vercel it is ignored in favour of the platform header — which on a request
+ * this server makes to itself is our own egress address, one bucket for every
+ * paired student at once. Neither is per-caller.
+ *
+ * The key is. It is signed, it is checked before anything is believed, and the
+ * device id inside it is the same identity the tool layer resolves rows
+ * against, so a student cannot mint themselves a second bucket without a
+ * second pairing. Callers with no readable key share one bucket and cost
+ * nothing to serve: every tool that spends anything refuses them first.
+ */
+function callerBucket(authorization: string | null): string {
+  const bearer = /^Bearer\s+(.+)$/i.exec(authorization ?? "")?.[1];
+  const read = readToken(bearer, "access");
+  return read.ok ? `mcp:${read.did}` : "mcp:unpaired";
+}
+
 function environmentFor(req: NextRequest): ToolEnvironment {
+  const authorization = req.headers.get("authorization");
   return {
     origin: selfOrigin(req),
-    authorization: req.headers.get("authorization"),
-    // Passed through so a per-caller rate limit stays per-caller rather than
-    // counting every connected student as one server talking to itself.
-    forwardedFor: req.headers.get("x-forwarded-for"),
+    authorization,
+    // Deliberately not the caller's own x-forwarded-for: that header is theirs
+    // to write. See callerBucket.
+    forwardedFor: callerBucket(authorization),
     fetch: (url: string, init: RequestInit) => fetch(url, init),
   };
 }

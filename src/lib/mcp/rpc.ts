@@ -106,10 +106,34 @@ export async function handleMessage(message: unknown, env: ToolEnvironment): Pro
   }
 }
 
+/**
+ * How many messages one POST may carry.
+ *
+ * Every element of a batch may be a tools/call, and a tools/call reaches back
+ * into this same deployment over HTTP — so an array of N costs N inner
+ * requests, fired at once, off one request the caller paid for. Unbounded,
+ * that is an amplifier pointed at ourselves.
+ *
+ * Sixteen is twice the eight tools this server has: a client that called every
+ * tool it knows about, twice, in one message would still fit, and no client
+ * batches like that. The number is a ceiling on fan-out, not a quota — the
+ * per-call rate limits downstream are what ration the work.
+ */
+export const MAX_BATCH = 16;
+
 /** One POST body: a single message, or a batch of them. */
 export async function handleBody(body: unknown, env: ToolEnvironment): Promise<JsonRpcResponse[]> {
   const messages = Array.isArray(body) ? body : [body];
   if (messages.length === 0) return [fail(null, INVALID_REQUEST, "Empty batch.")];
+  if (messages.length > MAX_BATCH) {
+    return [
+      fail(
+        null,
+        INVALID_REQUEST,
+        `That batch carries ${messages.length} messages and VIVA takes at most ${MAX_BATCH} in one POST. Send them in smaller batches.`
+      ),
+    ];
+  }
   const answers = await Promise.all(messages.map((m) => handleMessage(m, env)));
   return answers.filter((a): a is JsonRpcResponse => a !== null);
 }

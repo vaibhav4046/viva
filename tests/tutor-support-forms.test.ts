@@ -24,8 +24,14 @@ import { POST as studyTurn } from "@/app/api/study/turn/route";
  * it is right", citing the passage that ends with that sentence. Measured, the
  * refusal was one word in twelve — the notes write "The turnover number is the
  * number of substrate molecules converted…", the student wrote "kcat", and the
- * acronym counted as a word the line was missing against a bar that forgives
- * one word in five.
+ * acronym counted as a word the line was missing.
+ *
+ * The alias half of that fix is what this file holds. The coverage bar it was
+ * originally built on is gone: it forgave one claim word in five, which is
+ * exactly what let a one-word antonym swap through, and the judge's own
+ * sentence went with it because it reorders its line as well as renaming it.
+ * That loss is measured and recorded on the first test below rather than
+ * softened.
  *
  * The same week, better concept names out of pasted notes made the second half
  * of this worse rather than better. "Ordering invariant" became a term the
@@ -121,8 +127,36 @@ const TRANSFORMERS = getCourse("course_transformers_w4");
 const T_CHUNKS = TRANSFORMERS.sources.flatMap((s) => s.chunks);
 
 describe("the acronym a student's notes use is the term the passage names", () => {
-  it("confirms the judge's kcat sentence, and shows the line", () => {
+  /*
+   * The judge's own sentence, and the one confirmation this work gave back.
+   *
+   * It WAS confirmed, on the strength of covering 0.8 of its line's words. It
+   * is not any more, and the reason is the same reason thirteen one-word
+   * inversions stopped being confirmed on the same day: coverage counted the
+   * claim's vocabulary and never its arrangement. This sentence reorders its
+   * line — the notes read "…molecules converted to product per enzyme molecule
+   * per second", the student wrote "…molecules one enzyme molecule converts to
+   * product per second" — and it uses a word ("one") the line does not.
+   *
+   * That is a real loss and it is recorded rather than argued away: measured
+   * over the shipped library, the same change cost 36 of 2,947 confirmations
+   * and stopped 13 of 14 false ones. A miss is answered with "I could not
+   * check that against your source"; the other way round told a student their
+   * own notes agree that a low Km means low affinity. The alias half of the
+   * fix — "kcat" being the name the line spells "turnover number" — is still
+   * live and is what the second test here holds.
+   */
+  it("says so honestly on the judge's kcat sentence rather than agreeing", () => {
     const c = check(ENZYME, "kcat is the turnover number, the number of substrate molecules one enzyme molecule converts to product per second when it is saturated.");
+    expect(c.status, c.lead ?? "").not.toBe("supported");
+    expect(c.status, c.lead ?? "").not.toBe("contradicted");
+  });
+
+  it("still reads kcat as the thing the line calls the turnover number", () => {
+    // Word for word off the page, with the acronym in place of the phrase.
+    // If the alias resolution had gone with the coverage bar, this would be a
+    // miss too, and the judge's complaint would be back in full.
+    const c = check(ENZYME, "The turnover number kcat is Vmax divided by the total enzyme concentration.");
     expect(c.status, c.lead ?? "").toBe("supported");
     // A confirmation with nothing to show for it is a compliment, not a check.
     expect(c.quote).toBeTruthy();
@@ -134,6 +168,46 @@ describe("the acronym a student's notes use is the term the passage names", () =
     // and that is the whole of what stops it.
     const c = check(ENZYME, "kcat is the turnover number, the number of enzyme molecules one substrate molecule converts to product per second when it is saturated.");
     expect(c.status, c.lead ?? "").not.toBe("supported");
+  });
+});
+
+/**
+ * The other five of the fourteen: a subject a student built five minutes ago
+ * out of pasted notes, with one word of a line swapped for its opposite. All
+ * five were confirmed on a running server on 13 Sep — "That matches Enzyme
+ * Kinetics", quoting the line that says the reverse.
+ *
+ * A subject with no authored traps is where this matters most. There is no
+ * course author here to have written the misconception down; the only thing
+ * standing between the student and "That matches" is what the passage says.
+ */
+describe("one word swapped is never a match, on a subject built from notes", () => {
+  const INVERTED: { id: string; subject: typeof ENZYME; text: string }[] = [
+    { id: "low Km, low affinity", subject: ENZYME, text: "The Michaelis constant Km is the substrate concentration at which the rate is exactly half of Vmax. A low Km means low affinity, because very little substrate is needed to reach half maximal velocity." },
+    { id: "kcat the other way up", subject: ENZYME, text: "The turnover number kcat is the total enzyme concentration divided by Vmax." },
+    { id: "high Km, high affinity", subject: ENZYME, text: "A high Km means high affinity, because a lot of substrate is needed to reach the same point." },
+    { id: "low Km, a lot of substrate", subject: ENZYME, text: "A low Km means high affinity, because a lot of substrate is needed to reach half maximal velocity." },
+    { id: "AVL at least one", subject: BST, text: "AVL trees keep the tree short by enforcing a strict balance condition: for every node, the heights of its two subtrees differ by at least one." },
+  ];
+
+  for (const inv of INVERTED) {
+    it(`never confirms "${inv.id}"`, () => {
+      const c = check(inv.subject, inv.text);
+      expect(c.status, `${c.lead ?? ""} ${c.quote ?? ""}`).not.toBe("supported");
+    });
+  }
+
+  it("still confirms each of those lines the way the notes actually write them", () => {
+    // The control. Every guard above is one word wide, so each needs the
+    // unmodified sentence to prove it refuses the modified one for the right
+    // reason and has not simply stopped confirming anything.
+    for (const [subject, text] of [
+      [ENZYME, "A low Km means high affinity, because very little substrate is needed to reach half maximal velocity."],
+      [ENZYME, "A high Km means low affinity, because a lot of substrate is needed to reach the same point."],
+      [BST, "AVL trees keep the tree short by enforcing a strict balance condition: for every node, the heights of its two subtrees differ by at most one."],
+    ] as [typeof ENZYME, string][]) {
+      expect(check(subject, text).status, text).toBe("supported");
+    }
   });
 });
 

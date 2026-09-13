@@ -58,6 +58,30 @@ import {
  * sentences twenty-six subject authors wrote down as mistakes. Two widenings
  * that would have reached further were measured and rejected against it, and
  * both are recorded below the recall block.
+ *
+ * 13 Sep, third pass. An adversarial pass on a running server swapped ONE word
+ * of a passage line for its opposite and left the rest of the sentence alone —
+ * "the ABDOMINAL cavity", "PRODUCERS are willing and able to SELL", "this
+ * DIRECT relationship", "a low Km means LOW affinity". Thirteen of fourteen
+ * came back "That matches", quoting the line that says the reverse, with the
+ * concept moved UP the map. Coverage was one-directional and set-shaped, so a
+ * substitution kept nine tenths of the vocabulary, and it preserved the
+ * adjacent pairs either side of the swap. `saysInOrder` replaced both bars:
+ *
+ *   one-word inversions confirmed              13/14 → 0/14
+ *   wrong caught                               5/10 → 5/10 (unchanged)
+ *   right contradicted                         0/22 → 0/22
+ *   HELD-OUT true sentences contradicted       0/14 → 0/14
+ *   every true sentence VIVA ships (3910)      26 → 27 contradicted
+ *   the same 3910, CONFIRMED                   2947 → 2911
+ *   every FALSE sentence the library ships (65)  0 → 0 confirmed
+ *
+ * The last two rows are the price and they are quoted rather than buried: 36
+ * true sentences VIVA used to confirm now get "I could not check that", and
+ * one more gets contradicted. Every one of the 36 is a paraphrase VIVA itself
+ * wrote — a concept description or a formal explainer, not a line of anyone's
+ * source — and the newly contradicted one is `course_os_bio`'s three-sentence
+ * description of what all cells share.
  */
 
 const CAUGHT = new Set([
@@ -179,8 +203,10 @@ describe("precision: nobody who was right gets told they were wrong", () => {
  * The whole library, both directions. Every sentence VIVA itself asserts —
  * every passage sentence, every authored correction, every formal explainer,
  * every concept description — none of which a student should be corrected for
- * saying back. 26 of 3910 come back contradicted, one fewer than before this
- * work and none of them new.
+ * saying back. 27 of 3910 come back contradicted. The one added by the order
+ * check is `course_os_bio`'s "All cells share four common components…", a
+ * three-sentence description that used to exit as a match and now falls
+ * through to the strategies below it.
  *
  * The ceiling is a RATE, not a count, because the preloaded library is
  * generated (`scripts/seed-corpus.mjs`) and grew from eleven subjects to
@@ -242,12 +268,13 @@ describe("precision across every subject VIVA ships", () => {
  *      sentence now finds its own line and all of them must.
  *   b. the same passage in the student's own words ("shuffle" for "permute",
  *      and the source's "without position information" dropped). Still a miss,
- *      and deliberately: it covers 0.89 of its best line's words but only 0.33
- *      of its adjacent pairs, and that line carries a denial the claim does
- *      not. Relaxing both to reach it was measured — it endorses two labelled
- *      -false sentences the library ships, including "A light-year is a unit
- *      of time, not distance". A miss says "I could not check that"; that
- *      would say "correct" to a student who is wrong.
+ *      and deliberately: it uses words the line does not, in an order the line
+ *      does not, and that line carries a denial the claim does not. Relaxing
+ *      the bars to reach it was measured — it endorses two labelled-false
+ *      sentences the library ships, including "A light-year is a unit of time,
+ *      not distance". A miss says "I could not check that"; that would say
+ *      "correct" to a student who is wrong. A paraphrase is the price of
+ *      never confirming its inversion, and this is the sentence that names it.
  *   c. flatly false, and refuted by the passage beside it. Still a miss. Every
  *      strategy here is lexical and this sentence shares its whole vocabulary
  *      with the lines that disprove it; nothing in the shape separates them.
@@ -291,8 +318,9 @@ describe("the shapes a student actually typed", () => {
  * with. Widening the support check is the change that could break this, and it
  * has already tried twice — dropping the word floor from six to five endorses
  * "Ionic compounds are made of covalent bonds", and dropping the pair floor
- * endorses "A light-year is a unit of time, not distance", which shares five
- * of its six words with a line that says the opposite.
+ * that `saysInOrder` has since replaced endorsed "A light-year is a unit of
+ * time, not distance", which shares five of its six words with a line that
+ * says the opposite.
  */
 describe("never agrees with a sentence the subject calls a mistake", () => {
   it("supports none of the traps the library ships", () => {

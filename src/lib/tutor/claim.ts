@@ -291,13 +291,9 @@ function rankLines(chunks: SourceChunk[], claim: string): Line[] {
  *
  * Saying so is an assertion, so it carries the guards an assertion needs:
  *
- *   - eight tenths of the claim's own words are in ONE line of the passage,
- *     and every term the subject names in the claim is in that line;
- *   - the words are in the source's ARRANGEMENT, not merely its vocabulary.
- *     "A light-year is a unit of time, not distance" reuses five of the six
- *     words of a line reading "the light-year is a unit of distance … you
- *     would not arrive", so a bag of words endorsed the exact inversion of
- *     what the source says. Half the claim's adjacent pairs have to survive;
+ *   - ONE line of the passage says every word of the claim, in the claim's
+ *     own order (`saysInOrder`), and every term the subject names in the
+ *     claim is in that line;
  *   - same polarity. "Positional encodings are NOT added to the token
  *     embeddings" shares every word with the line that says they are, and
  *     without this it would have come back "That matches p.11";
@@ -314,17 +310,6 @@ function rankLines(chunks: SourceChunk[], claim: string): Line[] {
  * really.") sinks the whole claim rather than riding along on the rest.
  */
 const SUPPORT_MIN_WORDS = 6;
-
-/** How much of the claim's own vocabulary the line repeats. */
-const SUPPORT_MIN_COVER = 0.8;
-
-/**
- * How many of the claim's adjacent word pairs the line repeats. Lower than the
- * word bar on purpose: a source line is allowed a parenthetical the student
- * left out ("Positional encodings (fixed sinusoidal patterns…) are added to…"),
- * which breaks the pairs either side of it without changing the sentence.
- */
-const SUPPORT_MIN_PAIRS = 0.5;
 
 /**
  * Tokens with the hyphen read as a space, for the support check only.
@@ -347,13 +332,6 @@ function looseTerms(terms: Term[]): Term[] {
   return terms
     .map((t) => ({ text: t.text, toks: looseTokens(t.text), concept: t.concept }))
     .sort((a, b) => b.toks.length - a.toks.length || b.text.length - a.text.length);
-}
-
-/** Adjacent word pairs — the cheapest test that a bag of words is a sentence. */
-function pairs(toks: string[]): Set<string> {
-  const out = new Set<string>();
-  for (let i = 1; i < toks.length; i += 1) out.add(`${toks[i - 1]} ${toks[i]}`);
-  return out;
 }
 
 /**
@@ -447,6 +425,85 @@ function negative(s: string): boolean {
   return DENIAL.test(s) || HEDGED.test(s);
 }
 
+/**
+ * The words `negative()` already reads, as whole stemmed tokens.
+ *
+ * `saysInOrder` steps over them rather than looking for them in the line,
+ * because polarity is compared between the two sentences as wholes and a
+ * source is allowed to spell it differently: the notes write "the invariant is
+ * about whole subtrees RATHER THAN immediate children" where the student
+ * writes "…, NOT immediate children", and that is the same sentence. Skipping
+ * them cannot open a polarity hole — a claim that denies what the line asserts
+ * fails `negative(part) !== negative(line)` before the order test runs.
+ */
+const POLARITY_WORD =
+  /^(?:not|never|none|nor|neither|cannot|isn|aren|doesn|didn|won|wrong|false|rarely|seldom|hardly|scarcely|barely|almost|fail|failed|unable)$/;
+
+/**
+ * Every word the line is allowed to be spelling differently: the subject's own
+ * names for the things the line mentions, plus the claim's own wording of the
+ * terms `knownAs` has already accepted. Nothing here invents a synonym, and
+ * `saysInOrder` still refuses any of them that the line does in fact use —
+ * a word in the line but in the wrong place is a reordering, not a synonym.
+ */
+function spellings(says: Names, named: Mention[]): Set<string> {
+  const out = new Set(says.words);
+  for (const m of named) for (const w of m.key.split(" ")) out.add(w);
+  return out;
+}
+
+/**
+ * The line says the claim's words, in the claim's order.
+ *
+ * Coverage was one-directional and set-shaped — how much of the claim's
+ * vocabulary the line repeats — so ONE word swapped for its opposite inside a
+ * long sentence kept nine tenths of the vocabulary and four fifths of the
+ * adjacent pairs, cleared both bars, and came back "That matches". Measured on
+ * a running server against the shipped library, that confirmed thirteen of
+ * fourteen one-word inversions, every one of them the exact reverse of the
+ * line it was quoted against:
+ *
+ *   "the heart is located within the ABDOMINAL cavity, medially between the
+ *   lungs in the mediastinum" (thoracic); "the amount of some good or service
+ *   PRODUCERS are willing and able to SELL at each price" (consumers,
+ *   purchase); "this DIRECT relationship between price and quantity demanded"
+ *   (inverse); "two tokens can have similar VALUES but carry different KEYS"
+ *   (the reverse); "a low Km means LOW affinity" (high); "kcat is the total
+ *   enzyme concentration divided by VMAX" (the other way round).
+ *
+ * Order is what separates those from a source line that simply says more. A
+ * line may carry a parenthetical, an apposition or a clause the student left
+ * out, and each of those is an insertion the claim walks past. It may not put
+ * something ELSE where the claim puts a word, and it may not put the claim's
+ * words in another order, because both of those are the student asserting
+ * something the line does not.
+ *
+ * Greedy is exact here: taking the earliest match for each word leaves the
+ * most line for the words after it, so if this fails no arrangement succeeds.
+ *
+ * ponytail: O(n·m) over one sentence pair, worst case a few thousand
+ * comparisons; a suffix index would pay for itself only if lines got long.
+ */
+function saysInOrder(claimToks: string[], lineToks: string[], inLine: Set<string>, also: Set<string>): boolean {
+  let at = 0;
+  for (const w of claimToks) {
+    if (POLARITY_WORD.test(w)) continue;
+    let found = -1;
+    for (let i = at; i < lineToks.length; i += 1) if (lineToks[i] === w) { found = i; break; }
+    if (found < 0) {
+      // A name the SUBJECT declares for something this line names is not a
+      // word the line is missing, it is one the line spells differently:
+      // the notes say "the turnover number" where the student says "kcat".
+      // Only when the line does not use the word at all — a word that IS in
+      // the line but in the wrong place is a reordering, not a synonym.
+      if (!inLine.has(w) && also.has(w)) continue;
+      return false;
+    }
+    at = found + 1;
+  }
+  return true;
+}
+
 type Support = { chunk: SourceChunk; line: string; score: number };
 
 /** The last word of a term — "ordering invariant" is a kind of invariant. */
@@ -486,7 +543,6 @@ function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): S
   const partToks = looseTokens(part);
   const want = new Set(partToks);
   if (want.size < SUPPORT_MIN_WORDS) return null;
-  const wantPairs = pairs(partToks);
   const denied = negative(part);
   // Every term the subject names in this sentence, which the line has to name
   // too — the same term, or a recognisable form of it.
@@ -516,11 +572,14 @@ function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): S
       const inLine = new Set(lineToks);
       const says = namesOf(lineToks, terms);
       const score = covered(want, inLine, says.words);
-      if (score < SUPPORT_MIN_COVER || (best && score <= best.score)) continue;
-      if (covered(wantPairs, pairs(lineToks)) < SUPPORT_MIN_PAIRS) continue;
+      if (best && score <= best.score) continue;
       if (denied !== negative(line)) continue;
       if (!quantitiesAgree(part, line)) continue;
       if (!named.every((m) => knownAs(m, says, inLine))) continue;
+      // Only now is the claim's own spelling of a term credited: `knownAs` has
+      // just agreed the line names that thing, under one of its own names or
+      // by its head noun ("the invariant" for "the ordering invariant").
+      if (!saysInOrder(partToks, lineToks, inLine, spellings(says, named))) continue;
       best = { chunk, line, score };
     }
   }

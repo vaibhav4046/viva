@@ -27,6 +27,12 @@ import { POST as studyTurn } from "@/app/api/study/turn/route";
  * change: a swapped number, and two hedges that reverse a sentence without
  * using a denial word. See `quantitiesAgree` and `HEDGED` in `claim.ts`.
  *
+ * Eight more, f21 to f29, were found the same day and are the worst of them:
+ * one word of a passage line swapped for its opposite. Thirteen of fourteen
+ * such sentences were confirmed, on a running server, quoting the line that
+ * says the reverse. See `saysInOrder` in `claim.ts`, and the enzyme and BST
+ * half of the same set in `tests/tutor-support-forms.test.ts`.
+ *
  * The rest are the set a paraphrase-confirming path would have to survive.
  * One such path — the model nominating the supporting line, the server
  * checking the nomination — was built against this file and did not survive
@@ -98,6 +104,28 @@ const FALSE_CLAIMS: Probe[] = [
   // anything short of a check that understands the sentence.
   { id: "f19", courseId: "course_os_econ", text: "Demand is the total quantity of a good that producers are willing to sell at each price." },
   { id: "f20", courseId: "course_os_alg", text: "In a relation, the domain is the set of the second components of each ordered pair." },
+  /*
+   * f21 to f29: one word of a passage line swapped for its opposite, the rest
+   * of the sentence left alone. All but f26 were CONFIRMED on a running server
+   * on 13 Sep — "That matches 19.1 Heart Anatomy", quoting the line that says
+   * the reverse, with the concept moved UP the map as a successful recall.
+   *
+   * This is the shape everything else in this file was built to stop and none
+   * of it did: the claim keeps almost all of the line's vocabulary and almost
+   * all of its adjacent word pairs, so a coverage bar of 0.8 and a pair bar of
+   * 0.5 both clear comfortably. Only the ORDER of the words separates them
+   * from the line, which is what `saysInOrder` now reads. f26 is the control
+   * that was already caught, by polarity rather than by order.
+   */
+  { id: "f21", courseId: "course_os_heart", text: "The heart is located within the abdominal cavity, medially between the lungs in the mediastinum." },
+  { id: "f22", courseId: "course_os_econ", text: "Economists use the term demand to refer to the amount of some good or service producers are willing and able to sell at each price." },
+  { id: "f23", courseId: "course_os_econ", text: "Economists call this direct relationship between price and quantity demanded the law of demand." },
+  { id: "f24", courseId: "course_transformers_w4", text: "Two tokens can therefore have similar values (both match a query) but carry different keys (contribute different content)." },
+  { id: "f25", courseId: "course_os_heart", text: "The human heart is located within the thoracic cavity, laterally between the lungs in the space known as the mediastinum." },
+  { id: "f26", courseId: "course_os_phys", text: "For now, we will define friction as a force that opposes the motion past each other of objects that are not touching." },
+  { id: "f27", courseId: "course_transformers_w4", text: "Multi-head attention runs the query-key-value computation h times in series, each in a smaller subspace." },
+  { id: "f28", courseId: "course_transformers_w4", text: "Positional encodings are added to the token embeddings so that 'dog bites man' and 'man bites dog' produce identical representations." },
+  { id: "f29", courseId: "course_transformers_w4", text: "Gradient descent then steps each weight along its gradient, scaled by the learning rate." },
 ];
 
 describe("no false sentence is ever answered with a match", () => {

@@ -1,9 +1,26 @@
 import type { ReactNode } from "react";
 
+/*
+ * These labels name a PART of the answer. None of them may be a band word.
+ *
+ * "MIXED UP" was, and a card can carry it at the same time as the verdict chip
+ * says something else: the chip reads `verdict`, this block renders whenever
+ * the marker returned a misconception, and the two are independent. Invented
+ * technobabble came back as a blue "Partly there" chip 51 px above a red
+ * "MIXED UP" — two verdicts on one card, the friendlier one on top, and a
+ * student skimming on a phone reads the chip. Each label was defensible alone;
+ * together they contradicted.
+ *
+ * The chip is the verdict, so it keeps the band word and this stops using one.
+ * "CLEAR THIS FIRST" is the phrase the Daily Path already prints over the same
+ * event (src/components/today/SegmentCard.tsx), so the two screens name it the
+ * same way. Same fix as that one: when a label and a verdict collide, the
+ * thing that is not the verdict gives up the word.
+ */
 const TONE: Record<string, { color: string; label: string }> = {
   correct: { color: "var(--color-cognition)", label: "CORRECT" },
   missing: { color: "var(--color-band-getting)", label: "MISSING" },
-  misconception: { color: "var(--color-band-mixed)", label: "MIXED UP" },
+  misconception: { color: "var(--color-band-mixed)", label: "CLEAR THIS FIRST" },
   next: { color: "var(--color-paper)", label: "NEXT" },
 };
 

@@ -289,15 +289,15 @@ export default function ExamPage() {
                   <h2 className="heading text-xl">Answer under exam conditions</h2>
                   <ul className="mt-4 space-y-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
                     <li className="flex gap-3">
-                      <span aria-hidden className="mono" style={{ color: "var(--color-cognition)" }}>01</span>
+                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-cognition)" }}>01</span>
                       Questions from this subject, weakest concept first.
                     </li>
                     <li className="flex gap-3">
-                      <span aria-hidden className="mono" style={{ color: "var(--color-cognition)" }}>02</span>
+                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-cognition)" }}>02</span>
                       Every verdict quotes the passage it was scored against.
                     </li>
                     <li className="flex gap-3">
-                      <span aria-hidden className="mono" style={{ color: "var(--color-cognition)" }}>03</span>
+                      <span aria-hidden className="mono shrink-0" style={{ color: "var(--color-cognition)" }}>03</span>
                       Scored on what you covered, not on how you worded it.
                     </li>
                   </ul>

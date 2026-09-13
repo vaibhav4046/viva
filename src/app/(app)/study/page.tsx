@@ -437,7 +437,13 @@ export default function StudyPage() {
   const bandCounts = boot
     ? BAND_ORDER.map((key) => ({
         key,
-        count: boot.concepts.filter((c) => bandFor(boot.mastery[c.id]?.mastery, Boolean(boot.mastery[c.id])) === key).length,
+        // `seen` is exposureCount > 0, not "a record exists" — the same test
+        // the map beside this row uses (Graph.bandOf, /map). Asking a different
+        // question here is how one concept ends up with two band words on one
+        // screen: a record with no exposures reads Not yet in the map and
+        // Shaky in this chip.
+        count: boot.concepts.filter((c) => bandFor(boot.mastery[c.id]?.mastery, Boolean(boot.mastery[c.id]?.exposureCount)) === key)
+          .length,
       })).filter((b) => b.count > 0)
     : [];
 
@@ -625,8 +631,12 @@ export default function StudyPage() {
             <section aria-label="Concept detail" className="surface-card p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="heading text-base">{selConcept.name}</h3>
-                <span className="chip" style={{ color: BAND_COLOR[bandFor(selMastery.mastery)] }}>
-                  {BAND_LABEL[bandFor(selMastery.mastery)]}
+                {/* Same two arguments as the map above it. Letting `seen`
+                    default to true made this chip the one place that could
+                    call a concept Shaky while the node next to it said Not
+                    yet. */}
+                <span className="chip" style={{ color: BAND_COLOR[bandFor(selMastery.mastery, selMastery.exposureCount > 0)] }}>
+                  {BAND_LABEL[bandFor(selMastery.mastery, selMastery.exposureCount > 0)]}
                 </span>
               </div>
               <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>

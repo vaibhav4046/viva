@@ -33,7 +33,15 @@ function conditionsOf(l: SourceLicence): string | null {
   return parts.length ? parts.join(" ") : null;
 }
 
-const LINK = "underline decoration-dotted underline-offset-2 transition-colors hover:text-[var(--color-cognition)]";
+/*
+ * min-h-11 because these are links, not decoration. At 390 px the two of them
+ * wrap onto separate lines and each was a 20 px-tall target four pixels from
+ * its neighbour — half the 44 px floor every other control in the product
+ * keeps. The type stays 11 px and ash; only the box a thumb can land on grows,
+ * which is the same trick the shell's own footer link uses.
+ */
+const LINK =
+  "inline-flex min-h-11 items-center underline decoration-dotted underline-offset-2 transition-colors hover:text-[var(--color-cognition)]";
 
 export function Attribution({
   licences,

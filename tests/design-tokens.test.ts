@@ -138,3 +138,32 @@ describe("type scale", () => {
     expect(body).toMatch(/line-height:\s*1\.55/);
   });
 });
+
+/* ------------------------------ one verdict ----------------------------- */
+/*
+ * A marked answer carries exactly one band word, and the verdict chip is what
+ * carries it. The blocks under the chip name PARTS of the answer, so a block
+ * label that is also a band word reads as a second, competing verdict — which
+ * is what "Partly there" over a red "MIXED UP" was. Same trap the Daily Path
+ * fell into with "MISCONCEPTION", fixed the same way.
+ */
+describe("a card says one thing", () => {
+  const BAND_WORDS = ["Solid", "Getting there", "Shaky", "Mixed up", "Not yet"];
+
+  it("no result-block label is a mastery band word", () => {
+    const src = readFileSync(fileURLToPath(new URL("../src/components/ui/ResultBlock.tsx", import.meta.url)), "utf8");
+    const labels = [...src.matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
+    expect(labels.length).toBeGreaterThan(0);
+    const collisions = labels.filter((l) =>
+      BAND_WORDS.some((w) => w.toLowerCase() === l.toLowerCase())
+    );
+    expect(collisions).toEqual([]);
+  });
+
+  it("no Daily Path segment label is a mastery band word either", () => {
+    const src = readFileSync(fileURLToPath(new URL("../src/components/today/SegmentCard.tsx", import.meta.url)), "utf8");
+    const labels = [...src.matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.filter((l) => BAND_WORDS.some((w) => w.toLowerCase() === l.toLowerCase()))).toEqual([]);
+  });
+});

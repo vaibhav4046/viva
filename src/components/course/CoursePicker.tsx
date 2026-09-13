@@ -88,7 +88,12 @@ export function CoursePicker({
 
   return (
     <label className="flex min-w-0 items-center gap-2">
-      <span className="mono text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }}>
+      {/* shrink-0: body sets `overflow-wrap: anywhere` so a student's own long
+          words cannot widen a page, and on /study this label shares a squeezed
+          row with the orb — so the rule broke "SUBJECT" into SUB / JEC / T,
+          three lines, at 390 px. The select beside it already carries min-w-0,
+          so it is the one that gives way. */}
+      <span className="mono shrink-0 text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }}>
         {label.toUpperCase()}
       </span>
       {/* The chevron is ours, not the OS's: globals.css strips `appearance`

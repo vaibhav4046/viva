@@ -24,8 +24,8 @@ import type { ConceptMastery } from "@/lib/types";
  * are real text at real size.
  */
 
-/** Below this the ring cannot seat a two-line name without overlap. */
-const RING_MIN_WIDTH = 400;
+/** Below this the ring crowds its own labels; the rows read better there. */
+const RING_MIN_WIDTH = 440;
 /** Horizontal room a wrapped name needs beside the ring, in px. */
 const LABEL_BAND = 118;
 /** Average advance of the label face at 12 px, for turning px into characters. */
@@ -300,7 +300,7 @@ function Ring({
             <title>{`${c.name}: ${BAND_LABEL[band]}`}</title>
             <text
               x={x}
-              y={y - 36 - (lines.length - 1) * LINE}
+              y={y - LABEL_UP - (lines.length - 1) * LINE}
               textAnchor="middle"
               fill="var(--color-paper)"
               fontSize={12}
@@ -313,7 +313,7 @@ function Ring({
                 </tspan>
               ))}
             </text>
-            <text x={x} y={y + 42} textAnchor="middle" fill={color} fontSize={12} fontFamily="var(--font-mono)" {...KNOCKOUT}>
+            <text x={x} y={y + WORD_DOWN} textAnchor="middle" fill={color} fontSize={12} fontFamily="var(--font-mono)" {...KNOCKOUT}>
               {BAND_LABEL[band]}
             </text>
           </g>
@@ -364,11 +364,11 @@ function Rows({
             </span>
           </>
         );
-        const shape = "flex min-h-11 w-full items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors";
-        const tone = {
-          borderColor: isSel ? color : "transparent",
-          background: isSel ? "var(--color-panel)" : undefined,
-        };
+        const shape =
+          "flex min-h-11 w-full items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-left transition-colors";
+        /* Only the selected row states its border inline. An inline colour on
+           every row would beat the hover rule and the rows would never respond. */
+        const tone = isSel ? { borderColor: color, background: "var(--color-panel)" } : undefined;
         return (
           <li key={c.id}>
             {interactive ? (
@@ -376,6 +376,9 @@ function Rows({
                 type="button"
                 className={`${shape} graph-node cursor-pointer hover:border-[var(--color-hairline)]`}
                 style={tone}
+                /* Same sentence the ring's nodes announce, so the two shapes of
+                   the same map read the same way out loud. */
+                aria-label={`${c.name}: ${BAND_LABEL[band]}`}
                 aria-pressed={isSel}
                 onClick={() => onSelect(c.id)}
               >

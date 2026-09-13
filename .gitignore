@@ -35,3 +35,5 @@ CLAUDE.md
 VIVA_MASTER_PROMPT.md
 
 AGENTS.md
+# Agent scratch under scripts/, never part of the product.
+scripts/.tmp-*/

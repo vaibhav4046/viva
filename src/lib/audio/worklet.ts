@@ -69,6 +69,29 @@ function captureError(code: string, message: string): CaptureError {
   return { code, message };
 }
 
+/**
+ * A hold this long that captured almost nothing was not a short hold.
+ *
+ * The input device delivered no samples — muted at the operating system, a
+ * headset that never finished connecting, a virtual input with nothing behind
+ * it. The browser grants the microphone, the button says "Listening", the
+ * timer counts, and the worklet is handed empty quanta for the whole hold.
+ *
+ * Reproduced 2026-09-13 in Chromium on /study: a seven-second hold against an
+ * input that produced no samples rejected as AUDIO_TOO_SHORT and told the
+ * student "That was too short. Hold a little longer and speak." Holding
+ * longer cannot fix it, and the sentence sends them to do exactly that.
+ *
+ * A working microphone held for a second yields about a second of audio —
+ * twelve times MIN_MS — so nothing below this bound is a judgement call.
+ */
+export const DEAD_INPUT_MS = 1_000;
+
+/** Which of the two failures a sub-MIN_MS clip actually is. */
+export function shortClipCode(heldMs: number): "AUDIO_TOO_SHORT" | "NO_AUDIO" {
+  return heldMs >= DEAD_INPUT_MS ? "NO_AUDIO" : "AUDIO_TOO_SHORT";
+}
+
 /** Worklet frames arrive as `{type:"pcm", frame}`; the last one after "flush". */
 type WorkletMessage = { type: "pcm"; frame: Int16Array } | { type: "done" };
 
@@ -193,7 +216,10 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
         }
         const durationMs = Math.round((samples / TARGET_RATE) * 1000);
         if (durationMs < MIN_MS) {
-          reject(captureError("AUDIO_TOO_SHORT", "That was too short. Hold a little longer and speak."));
+          // Which of the two this is depends on how long they held, not on how
+          // little came back: see `shortClipCode`.
+          const code = shortClipCode(Date.now() - startedAt);
+          reject(captureError(code, `Captured ${durationMs} ms of audio.`));
           return;
         }
         resolve({ wav: int16ToWav(frames, TARGET_RATE), durationMs });

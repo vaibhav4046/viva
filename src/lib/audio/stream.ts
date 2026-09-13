@@ -63,7 +63,7 @@
  * `close()` waits for Termination rather than yanking the connection.
  */
 
-import { liveMessage, voiceMessage } from "./messages";
+import { liveMessage, liveTokenMessage, voiceMessage } from "./messages";
 
 /** Must match TARGET_RATE in ./wav and the worklet's own resampling target. */
 const SAMPLE_RATE = 16_000;
@@ -237,19 +237,27 @@ export type TranscriptSocket = {
   readonly state: LiveState;
 };
 
-/** Mint a streaming token from our own origin. The key never comes with it. */
+/**
+ * Mint a streaming token from our own origin. The key never comes with it.
+ *
+ * The sentences here are the live ones, not VOICE_MESSAGES': failing to get a
+ * token loses the live words and nothing else, because the microphone is still
+ * recording and the buffered clip still goes to Dictation. `liveTokenMessage`
+ * owns the one exception — a deployment with no voice at all — and the reason
+ * the distinction is load-bearing.
+ */
 export async function mintToken(): Promise<string> {
   let res: Response;
   try {
     res = await fetch("/api/voice/stream-token", { cache: "no-store" });
   } catch {
-    throw new Error(voiceMessage("NETWORK_DOWN"));
+    throw new Error(liveTokenMessage("NETWORK_DOWN"));
   }
   const body = (await res.json().catch(() => null)) as
     | { token?: string; error?: { code?: string } }
     | null;
   if (!res.ok || typeof body?.token !== "string") {
-    throw new Error(voiceMessage(body?.error?.code));
+    throw new Error(liveTokenMessage(body?.error?.code));
   }
   return body.token;
 }

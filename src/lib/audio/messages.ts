@@ -13,7 +13,13 @@ export const VOICE_MESSAGES: Record<string, string> = {
   MIC_BLOCKED: "Microphone access is blocked. Allow it in the browser bar, or type instead.",
   NO_MIC: "This browser will not give VIVA a microphone. Type instead.",
   NO_WORKLET: "This browser could not start the microphone. Type instead.",
-  NO_AUDIO: "No audio came through. Hold the mic and speak.",
+  // Held long enough to say something, and the input device delivered nothing:
+  // muted at the operating system, a dead virtual input, a headset that never
+  // finished connecting. Naming the microphone matters because the old
+  // sentence for this state was AUDIO_TOO_SHORT's "hold a little longer",
+  // which is false and cannot be fixed by doing it — see `shortClipCode` in
+  // src/lib/audio/worklet.ts.
+  NO_AUDIO: "Your microphone sent no sound. Check it is not muted, or pick a different input — or type instead.",
   NETWORK_DOWN: "You look offline. Reconnect and hold the mic again, or type instead.",
   EMPTY_AUDIO: "No audio came through. Hold the mic and speak.",
   // A clip that recorded silence: the commonest real failure (muted headset,
@@ -77,5 +83,28 @@ export const LIVE_MESSAGES: Record<string, string> = {
 };
 
 export function liveMessage(code: string | undefined): string {
-  return (code && LIVE_MESSAGES[code]) || "Live words stopped.";
+  return (code && LIVE_MESSAGES[code]) || `Live words stopped. ${STILL_RECORDING}`;
+}
+
+/**
+ * Codes where "keep talking" would be the lie instead: the whole voice path is
+ * off, so the buffered clip is not going to rescue the turn either.
+ */
+const VOICE_OFF = new Set(["NO_API_KEY", "AUTH_FAILED", "NO_DICTATION_URL"]);
+
+/**
+ * The sentence for a live socket that never got a token.
+ *
+ * Measured 2026-09-13 against the dev server: killing `/api/voice/stream-token`
+ * mid-hold put "You look offline. Reconnect and hold the mic again, or type
+ * instead." on screen while the microphone was still recording, and the clip
+ * then went to Dictation and came back fine. That is the exact failure the
+ * LIVE_MESSAGES note above exists to prevent — the learner is told to abandon a
+ * clip that is about to succeed — and it arrived through the token path, which
+ * was throwing VOICE_MESSAGES sentences. A token failure that means voice is
+ * off keeps its sentence, because then it is true; everything else keeps them
+ * talking.
+ */
+export function liveTokenMessage(code: string | undefined): string {
+  return VOICE_OFF.has(code ?? "") ? voiceMessage(code) : liveMessage(code);
 }

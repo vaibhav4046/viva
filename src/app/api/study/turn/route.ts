@@ -203,20 +203,47 @@ export async function POST(req: NextRequest) {
         const cited = asideCheck.chunkId ? ownChunks.filter((c) => c.id === asideCheck.chunkId) : [];
         citations = cited.map((c) => ({ chunkId: c.id, quote: c.text.slice(0, 160) }));
         citedIds = citations.map((c) => c.chunkId);
+        source = "heuristic";
       } else {
+        /*
+         * Not an answer to the open question — but still a sentence, and the
+         * lexical checks caught nothing in it. Declining to GRADE it against a
+         * question it is not answering is right; letting a false one past
+         * unread is not. The mastery lane measured exactly that: a flatly
+         * false statement said while a question was open on another concept
+         * was filed `flat` under "I have kept it as a note", while the same
+         * sentence typed cold was refuted, because only the cold path ever
+         * reached the tutor.
+         *
+         * So it gets the same read the cold path gives it, on its own
+         * retrieval, and then hands the open question back. A correction still
+         * needs a line to stand on: `groundReply` strips a citation that is
+         * not in the retrieved set and blanks the correction with it, so a
+         * refutation counts here only when one survived. Without one, the note
+         * line is what an honest answer looks like.
+         */
+        const aside = await tutorReply({
+          course, plan, text: draft.cleanedTranscript, history: memory, chunks: ownChunks,
+          conceptName: other, unchecked: true,
+        });
+        const refutation = aside.reply.wrong?.trim() ?? "";
+        const refuted = refutation.length > 0 && aside.reply.citations.length > 0;
         text = [
           other ? `That one is about ${other}, not the question on the table${asked ? ` — that is still ${asked}` : ""}.` : "That one is not an answer to the question on the table.",
-          "I have kept it as a note rather than marking it against a question it is not answering.",
+          refuted ? refutation : "I have kept it as a note rather than marking it against a question it is not answering.",
           `The question still stands: ${q.question}`,
         ].join(" ");
-        // Nothing was checked and nothing was graded, so nothing may move.
-        masterySignal = "flat";
-        strategy = "probe";
-        citations = [];
-        citedIds = [];
+        // Wrong about the thing they raised, not about the question they have
+        // not answered yet. Nothing moves when nothing was caught.
+        masterySignal = refuted ? "down" : "flat";
+        strategy = refuted ? "contrast" : "probe";
+        misconception = refuted ? aside.reply.misconception : null;
+        citations = refuted ? aside.reply.citations : [];
+        citedIds = citations.map((x) => x.chunkId);
+        source = aside.source;
+        latencyMs = aside.latencyMs;
       }
       question = q.question;
-      source = "heuristic";
     } else {
     const baseline = assessAnswer(q.id, raw, { course });
     graded = await gradeAnswer({

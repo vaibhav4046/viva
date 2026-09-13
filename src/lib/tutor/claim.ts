@@ -159,25 +159,25 @@ function firstSentence(s: string): string {
  * keeps a substitution finding to things the material actually names.
  * ------------------------------------------------------------------ */
 
-type Term = { text: string; toks: string[] };
+type Term = { text: string; toks: string[]; concept: string };
 
 function keyTerms(course: Course): Term[] {
   const seen = new Set<string>();
   const out: Term[] = [];
-  const add = (raw: string): void => {
+  const add = (raw: string, concept: string): void => {
     const text = raw.trim().toLowerCase();
     const toks = stemTokens(text);
     const key = toks.join(" ");
     if (!key || key.length < 3 || seen.has(key)) return;
     seen.add(key);
-    out.push({ text, toks });
+    out.push({ text, toks, concept });
   };
-  for (const c of course.concepts) for (const raw of [c.name, ...c.aliases]) add(raw);
+  for (const c of course.concepts) for (const raw of [c.name, ...c.aliases]) add(raw, c.id);
   // Longest first so "value iteration" wins over "value".
   return out.sort((a, b) => b.toks.length - a.toks.length || b.text.length - a.text.length);
 }
 
-type Mention = { key: string; text: string; at: number; len: number };
+type Mention = { key: string; text: string; at: number; len: number; concept: string };
 
 /** Non-overlapping term hits, by token index, longest term first. */
 function mentionsIn(toks: string[], terms: Term[]): Mention[] {
@@ -190,7 +190,7 @@ function mentionsIn(toks: string[], terms: Term[]): Mention[] {
       for (let k = 0; k < n; k += 1) if (taken[i + k] || toks[i + k] !== term.toks[k]) { hit = false; break; }
       if (!hit) continue;
       for (let k = 0; k < n; k += 1) taken[i + k] = true;
-      out.push({ key: term.toks.join(" "), text: term.text, at: i, len: n });
+      out.push({ key: term.toks.join(" "), text: term.text, at: i, len: n, concept: term.concept });
     }
   }
   return out.sort((a, b) => a.at - b.at);
@@ -345,7 +345,7 @@ function looseTokens(s: string): string[] {
 /** The same terms, read the same loose way, so the guard still bites. */
 function looseTerms(terms: Term[]): Term[] {
   return terms
-    .map((t) => ({ text: t.text, toks: looseTokens(t.text) }))
+    .map((t) => ({ text: t.text, toks: looseTokens(t.text), concept: t.concept }))
     .sort((a, b) => b.toks.length - a.toks.length || b.text.length - a.text.length);
 }
 
@@ -356,10 +356,15 @@ function pairs(toks: string[]): Set<string> {
   return out;
 }
 
-function covered(want: Set<string>, have: Set<string>): number {
+/**
+ * How much of `want` the line carries. `also` is a second set that counts as
+ * carried — the other words the subject declares for the things this line
+ * names, so an acronym is not read as a word the line is missing.
+ */
+function covered(want: Set<string>, have: Set<string>, also?: Set<string>): number {
   if (want.size === 0) return 0;
   let hits = 0;
-  want.forEach((w) => { if (have.has(w)) hits += 1; });
+  want.forEach((w) => { if (have.has(w) || also?.has(w)) hits += 1; });
   return hits / want.size;
 }
 
@@ -444,6 +449,38 @@ function negative(s: string): boolean {
 
 type Support = { chunk: SourceChunk; line: string; score: number };
 
+/** The last word of a term — "ordering invariant" is a kind of invariant. */
+function head(key: string): string {
+  const w = key.split(" ");
+  return w[w.length - 1];
+}
+
+/**
+ * What the line calls the things it names: the terms themselves, the concepts
+ * behind them, and every other word the subject declares for those same
+ * concepts.
+ *
+ * A source is allowed to call something by one of its other names. The notes
+ * write "The turnover number kcat is Vmax divided by…" and then, in the next
+ * sentence, "The turnover number is the number of substrate molecules…", so a
+ * student who types the acronym is naming the thing that line names. Reading
+ * `kcat` as a word the line simply lacks cost the sentence one word in twelve
+ * against a bar that forgives one in five, and the judge got "I could not
+ * check that" over a passage ending in their own sentence.
+ *
+ * Only forms the SUBJECT declares are credited. Nothing here invents a synonym.
+ */
+type Names = { keys: Set<string>; concepts: Set<string>; words: Set<string> };
+
+function namesOf(lineToks: string[], terms: Term[]): Names {
+  const mentions = mentionsIn(lineToks, terms);
+  const keys = new Set(mentions.map((m) => m.key));
+  const concepts = new Set(mentions.map((m) => m.concept));
+  const words = new Set<string>();
+  for (const t of terms) if (concepts.has(t.concept)) for (const w of t.toks) words.add(w);
+  return { keys, concepts, words };
+}
+
 /** The one line of the passage that says this sentence back. */
 function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): Support | null {
   const partToks = looseTokens(part);
@@ -452,35 +489,65 @@ function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): S
   const wantPairs = pairs(partToks);
   const denied = negative(part);
   // Every term the subject names in this sentence, which the line has to name
-  // too — either the same term, or every word of it as a term of its own.
+  // too — the same term, or a recognisable form of it.
   //
-  // Both halves are load-bearing. Demanding the identical term was too strict:
-  // the source writes "a query (what this token is looking for), a key …, and
-  // a value …", so the concept "queries, keys, values" never sits together in
-  // it, and the line that said the claim word for word was thrown away.
-  // Accepting bare words was too loose: "Value iteration alternates policy
-  // evaluation and policy improvement" is wrong, and both words of "value
-  // iteration" turn up in the line saying POLICY iteration does that — "value"
-  // because it is also a queries/keys/values alias, sitting in "compute values
-  // for the current policy". That line names "policy iteration" and "value";
-  // it never names "iteration", so the claim's term is not in it.
-  const named = mentionsIn(partToks, terms).map((m) => m.key);
+  // Demanding the identical phrase was too strict in two ways. The source
+  // writes "a query (what this token is looking for), a key …, and a value …",
+  // so the concept "queries, keys, values" never sits together in it, and the
+  // line that said the claim word for word was thrown away — that is the
+  // every-word-of-it fallback. And a source that writes "the invariant" is
+  // naming the same thing as a claim that says "ordering invariant": better
+  // concept names out of a student's own notes made more phrases into terms
+  // the line then had to repeat verbatim, so improving intake made this
+  // refusal likelier on exactly the material a student wrote themselves.
+  //
+  // Accepting bare words was too loose, and that guard survives here. "Value
+  // iteration alternates policy evaluation and policy improvement" is wrong,
+  // and both words of "value iteration" turn up in the line saying POLICY
+  // iteration does that. The head-noun reading is what would let it past, so
+  // it is refused whenever the line names some OTHER thing of the same kind:
+  // that line names "policy iteration", which is an iteration too, so the
+  // claim's "value iteration" is not what the line is talking about.
+  const named = mentionsIn(partToks, terms);
   let best: Support | null = null;
   for (const chunk of chunks) {
     for (const line of sentencesOf(chunk.text)) {
       const lineToks = looseTokens(line);
       const inLine = new Set(lineToks);
-      const score = covered(want, inLine);
+      const says = namesOf(lineToks, terms);
+      const score = covered(want, inLine, says.words);
       if (score < SUPPORT_MIN_COVER || (best && score <= best.score)) continue;
       if (covered(wantPairs, pairs(lineToks)) < SUPPORT_MIN_PAIRS) continue;
       if (denied !== negative(line)) continue;
       if (!quantitiesAgree(part, line)) continue;
-      const inLineTerms = new Set(mentionsIn(lineToks, terms).map((m) => m.key));
-      if (!named.every((k) => inLineTerms.has(k) || k.split(" ").every((w) => inLineTerms.has(w)))) continue;
+      if (!named.every((m) => knownAs(m, says, inLine))) continue;
       best = { chunk, line, score };
     }
   }
   return best;
+}
+
+/** The line names this term, or a form of it the subject already declares. */
+function knownAs(m: Mention, says: Names, inLine: Set<string>): boolean {
+  if (says.keys.has(m.key)) return true;
+  // Every word of it is a term of its own in the line ("queries", "keys",
+  // "values" for the concept "queries, keys, values").
+  const parts = m.key.split(" ");
+  if (parts.every((w) => says.keys.has(w))) return true;
+  // NOT "the line names the same concept". Measured, and it confirmed two
+  // false sentences: a subject may file two contrasting things under one
+  // concept — "Policy vs value iteration" lists both as aliases, and
+  // "Backpropagation" lists "gradient descent" — so same-concept read
+  // "Value iteration alternates policy evaluation and policy improvement" and
+  // "Gradient descent applies the chain rule…" as matching the lines that say
+  // the opposite. Sameness of concept is not sameness of thing.
+  //
+  // Its head noun, unless the line puts a different named thing of the same
+  // kind there — "policy iteration" is what stops "value iteration".
+  const h = head(m.key);
+  if (!inLine.has(h)) return false;
+  for (const k of says.keys) if (k !== m.key && head(k) === h) return false;
+  return true;
 }
 
 function supportedBy(claim: string, chunks: SourceChunk[], terms: Term[]): Support | null {
@@ -1008,6 +1075,37 @@ function negatedAbout(text: string, reference: string): boolean {
     if (s > score) { score = s; best = part; }
   }
   return NEGATED.test(best);
+}
+
+/**
+ * A "correction" that is the learner's own sentence back.
+ *
+ * Measured against the live provider on 13 Sep, three cold runs out of three:
+ * "Multi-head attention just runs the same attention twice to make it faster"
+ * — which is false, and which the lexical checks are recorded as missing —
+ * came back *"It runs the same attention twice to make it faster."* as the
+ * correction, and the map moved down. So the reply asserted the misconception
+ * in VIVA's own voice while filing the learner as wrong about it.
+ *
+ * `groundReply` already deletes `right` for this reason: the model echoing the
+ * learner is not a check. `wrong` had no such guard, and it is the more
+ * dangerous half, because the echo of a FALSE sentence reads as VIVA agreeing.
+ *
+ * The test is deliberately absolute rather than a ratio: a correction that
+ * introduces no word the learner did not already use cannot be correcting
+ * anything. One new word ("in parallel" for "twice") is a real correction and
+ * survives. A denial is the exception a ratio would get wrong — "…does NOT run
+ * the same attention twice" reuses every content word on purpose — so polarity
+ * is read first.
+ */
+export function echoesClaim(correction: string | null, claim: string): boolean {
+  if (!correction?.trim() || !claim.trim()) return false;
+  if (DENIAL.test(correction) !== DENIAL.test(claim)) return false;
+  const said = contentTokens(correction);
+  if (said.size === 0) return false;
+  const heard = contentTokens(claim);
+  for (const w of said) if (!heard.has(w)) return false;
+  return true;
 }
 
 /**

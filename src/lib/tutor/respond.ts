@@ -3,6 +3,7 @@ import type { Course, ExamQuestion } from "@/lib/courses";
 import type { LearningEvent, LearningIntent, SourceChunk } from "@/lib/types";
 import type { CompileDraft } from "@/lib/compiler";
 import { IntentConfirmSchema, TutorReplySchema, type TurnIntent, type TutorReply } from "./schema";
+import { echoesClaim } from "./claim";
 import { UNCHECKED_LEAD, tutorRespond } from "./heuristic";
 
 /** One remembered exchange: what the learner was doing and what VIVA asked. */
@@ -326,7 +327,7 @@ export async function tutorReply(opts: {
   });
   if (!result) return heuristicTurn(opts);
 
-  const reply = groundReply(result.value, chunks);
+  const reply = groundReply(result.value, chunks, { said: opts.text });
   // Nothing was caught and nothing was confirmed: say which, in the same words
   // the heuristic branch uses, so a learner gets one answer either way. A
   // reply that corrects something is not an affirmation and needs no lead.
@@ -358,13 +359,19 @@ export async function tutorReply(opts: {
 export function groundReply(
   reply: TutorReply,
   chunks: SourceChunk[],
-  opts: { mayAffirm?: boolean } = {}
+  opts: { mayAffirm?: boolean; said?: string } = {}
 ): TutorReply {
   const known = new Set(chunks.map((c) => c.id));
   const citations = reply.citations.filter((c) => known.has(c.chunkId));
   const right = opts.mayAffirm ? reply.right : null;
-  const wrong = askForTheRest(reply.wrong);
-  if (citations.length > 0 || !wrong) return { ...reply, right, wrong, citations };
+  const asked = askForTheRest(reply.wrong);
+  // A correction that says nothing the learner did not already say is the
+  // learner's own sentence in VIVA's voice — and when the sentence was false,
+  // that is the product asserting the misconception. See `echoesClaim`.
+  const echoed = Boolean(opts.said && echoesClaim(asked, opts.said));
+  const wrong = echoed ? null : asked;
+  const misconception = echoed ? null : reply.misconception;
+  if (citations.length > 0 || !wrong) return { ...reply, right, wrong, citations, misconception };
   return { ...reply, right, wrong: NO_SOURCE_LINE, citations, misconception: null };
 }
 

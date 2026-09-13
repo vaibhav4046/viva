@@ -60,17 +60,31 @@ function check(name, cond, extra = "") {
 }
 
 // 4. Upload validation codes.
+//
+// Against /api/subjects/create, which is the route a student's file actually
+// reaches. These checks used to run against /api/sources/upload, a second
+// multipart PDF endpoint with no caller anywhere in the app: the only thing
+// keeping an untrusted-bytes parser reachable was the test that tested it.
+// The route is gone; the coverage is not.
 {
-  const empty = await call("/api/sources/upload", { method: "POST" });
+  const empty = await call("/api/subjects/create", { method: "POST", body: new FormData() });
   check("upload empty → NO_FILE/400-or-413", empty.status === 400 || empty.status === 413, `got ${empty.status}`);
   const form = new FormData();
   form.append("file", new Blob(["%PDF- but truncated"], { type: "application/pdf" }), "x.pdf");
-  const bad = await call("/api/sources/upload", { method: "POST", body: form });
+  const bad = await call("/api/subjects/create", { method: "POST", body: form });
   check("upload truncated PDF → 415/422", bad.status === 415 || bad.status === 422, `got ${bad.status} ${JSON.stringify(bad.body?.error)}`);
+  // A .pdf that is not a PDF is read as a document rather than rejected on its
+  // extension, which is right — a mislabelled text file still works — so what
+  // it must do is refuse the empty result with a coded, non-retryable message
+  // rather than build a subject out of nothing.
   const form2 = new FormData();
-  form2.append("file", new Blob(["not a pdf"], { type: "text/plain" }), "x.txt");
-  const notpdf = await call("/api/sources/upload", { method: "POST", body: form2 });
-  check("upload non-PDF → 415", notpdf.status === 415, `got ${notpdf.status}`);
+  form2.append("file", new Blob(["not a pdf"], { type: "application/pdf" }), "x.pdf");
+  const notpdf = await call("/api/subjects/create", { method: "POST", body: form2 });
+  check(
+    "upload junk → coded 4xx, not retryable",
+    notpdf.status >= 400 && notpdf.status < 500 && typeof notpdf.body?.error?.code === "string" && notpdf.body.error.retryable === false,
+    `got ${notpdf.status} ${JSON.stringify(notpdf.body?.error)}`
+  );
 }
 
 // 5. Review shape.

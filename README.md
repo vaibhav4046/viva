@@ -247,7 +247,7 @@ Environment:
 | Variable | Required | Notes |
 |---|---|---|
 | `ASSEMBLYAI_API_KEY` | yes | Server-side only |
-| `ASSEMBLYAI_DICTATION_URL` | no | Defaults to the v1 live endpoint |
+| `ASSEMBLYAI_DICTATION_URL` | no | No default. Unset, Dictation answers `NO_DICTATION_URL` and the turn hands off to Sync on that code — the mic still works, the `mode` field says `sync` |
 | `ASSEMBLYAI_TRANSCRIPTION_MODE` | no | `dictation` (default), `sync` or `async`; anything else falls back to `dictation` |
 | `DATABASE_URL` | no | Postgres. Without it, a per-instance file store |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | no | Without them the heuristic tutor answers |
@@ -269,11 +269,13 @@ Stated plainly, because a demo that hides its edges is not worth trusting.
   and one Spanish, checked word by word: the recorded transcript got the words
   right on both (the Hindi came back with its two English terms in Latin
   script), the live line was right on the Spanish and badly wrong on the Hindi.
-- **Screen readers.** Automated checks report zero violations on seven routes
-  at two widths against production. They also return 253 results as "needs
-  review" rather than pass — 245 of them colour contrast, 101 on the study
-  screen alone — so contrast is unadjudicated by that pass, not verified good.
-  A manual pass with a real screen reader has not been done.
+- **Screen readers.** Automated checks report zero serious-or-worse violations
+  on seven routes at desktop and mobile widths against production
+  (`npx playwright test`, 13 September 2026). They also return 189 results as
+  "needs review" rather than pass — 185 of them colour contrast, 53 on the
+  study screen and 53 on the demo screen — so contrast is unadjudicated by
+  that pass, not verified good. A manual pass with a real screen reader has
+  not been done.
 - **Marking.** VIVA checks a claim against the passages in your subject. It
   will say it could not check something rather than guess, but a claim your
   source does not speak to is a claim it cannot mark.

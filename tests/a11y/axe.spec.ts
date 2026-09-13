@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
  * Automated accessibility audit: 0 serious+ violations on every route.
  * Run: npm run dev -- -p 3110  →  npm run test:accessibility
  */
-const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map"];
+const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map", "/demo"];
 
 for (const route of ROUTES) {
   test(`${route} has no serious accessibility violations`, async ({ page }) => {

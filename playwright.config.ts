@@ -15,5 +15,8 @@ export default defineConfig({
   use: {
     baseURL: process.env.A11Y_BASE ?? "http://localhost:3000",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile", use: { ...devices["Pixel 7"] } },
+  ],
 });

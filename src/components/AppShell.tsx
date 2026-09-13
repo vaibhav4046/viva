@@ -113,7 +113,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             slot on a 320 px phone. It still has to be reachable there: the
             header nav that holds it is md:-only, and a page nobody on a phone
             can find is a page that does not exist. */}
-        <div className="mx-auto w-full max-w-6xl px-4 pb-6 pt-2 sm:px-6 md:hidden">
+        {/* A <footer>, not a <div>: <main> lives inside {children}, so this
+            sits outside every landmark and axe rightly calls that a region
+            violation on all five app routes at 390. There is no other
+            contentinfo in the shell, so this creates no duplicate. */}
+        <footer className="mx-auto w-full max-w-6xl px-4 pb-6 pt-2 sm:px-6 md:hidden">
           <Link
             href="/connect"
             className="mono inline-flex min-h-11 items-center gap-2 text-xs"
@@ -122,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Plug size={14} aria-hidden strokeWidth={1.8} />
             Use VIVA from another assistant
           </Link>
-        </div>
+        </footer>
       </div>
 
       {/* Mobile bottom tabs. Fixed so the destinations are always one thumb

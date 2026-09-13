@@ -126,7 +126,12 @@ export default function MapPage() {
       ) : null}
 
       <div className="mt-5 grid gap-5 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0">
+        {/* Reserve the map's own height while it loads. A six-line skeleton is
+            178 px and the map that replaces it is around 400, so the page
+            jumped 223 px on arrival and CLS read 0.175 against a 0.1 budget.
+            The map is taller than this on a big subject and shorter on a small
+            one, but nothing shifts upward, and the one shift left is small. */}
+        <div className="min-w-0 min-h-[26rem]">
           {data ? (
             <Graph mastery={data.mastery} selected={selectedId} onSelect={select} concepts={data.concepts} title={null} />
           ) : loading ? (

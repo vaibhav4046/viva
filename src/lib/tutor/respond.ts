@@ -3,7 +3,7 @@ import type { Course, ExamQuestion } from "@/lib/courses";
 import type { LearningEvent, LearningIntent, SourceChunk } from "@/lib/types";
 import type { CompileDraft } from "@/lib/compiler";
 import { IntentConfirmSchema, TutorReplySchema, type TurnIntent, type TutorReply } from "./schema";
-import { tutorRespond } from "./heuristic";
+import { UNCHECKED_LEAD, tutorRespond } from "./heuristic";
 
 /** One remembered exchange: what the learner was doing and what VIVA asked. */
 export type TurnMemory = {
@@ -296,6 +296,12 @@ export async function tutorReply(opts: {
   chunks: SourceChunk[];
   conceptName: string | null;
   mastery?: number;
+  /**
+   * The claim check ran on these words and came back with nothing either way.
+   * Not caught is not agreed with, so the reply says so out loud rather than
+   * letting the model fill the silence with encouragement.
+   */
+  unchecked?: boolean;
 }): Promise<TutorTurn> {
   const { course, plan, chunks } = opts;
 
@@ -318,19 +324,39 @@ export async function tutorReply(opts: {
   if (!result) return heuristicTurn(opts);
 
   const reply = groundReply(result.value, chunks);
-  return { reply, text: composeReply(reply), citedIds: reply.citations.map((c) => c.chunkId), source: "model", latencyMs: result.latencyMs };
+  // Nothing was caught and nothing was confirmed: say which, in the same words
+  // the heuristic branch uses, so a learner gets one answer either way. A
+  // reply that corrects something is not an affirmation and needs no lead.
+  const composed = composeReply(reply);
+  // Blank-but-present is the shape the live provider actually sends for "no
+  // correction", and `!reply.wrong` reads a single space as a correction.
+  const corrected = Boolean(reply.wrong && reply.wrong.trim());
+  const text = opts.unchecked && !corrected ? `${UNCHECKED_LEAD} ${composed}`.trim() : composed;
+  return { reply, text, citedIds: reply.citations.map((c) => c.chunkId), source: "model", latencyMs: result.latencyMs };
 }
 
 /**
  * Master prompt 5.2: a citation survives only if its id is in the retrieved
  * set. If a correction loses its last citation, the correction goes with it —
  * VIVA says it cannot find it rather than asserting it anyway.
+ *
+ * `right` is deleted unless the caller says something actually verified the
+ * learner's sentence, and nothing on this path does: the only check that can
+ * confirm a claim is `checkClaim`, and it never reaches the model. Left in, the
+ * field is the model echoing the learner's own words back as VIVA's line —
+ * measured, and on a false claim about the learner's own module that is the
+ * app teaching them the wrong thing in its own voice.
  */
-export function groundReply(reply: TutorReply, chunks: SourceChunk[]): TutorReply {
+export function groundReply(
+  reply: TutorReply,
+  chunks: SourceChunk[],
+  opts: { mayAffirm?: boolean } = {}
+): TutorReply {
   const known = new Set(chunks.map((c) => c.id));
   const citations = reply.citations.filter((c) => known.has(c.chunkId));
-  if (citations.length > 0 || !reply.wrong) return { ...reply, citations };
-  return { ...reply, citations, wrong: NO_SOURCE_LINE, misconception: null };
+  const right = opts.mayAffirm ? reply.right : null;
+  if (citations.length > 0 || !reply.wrong) return { ...reply, right, citations };
+  return { ...reply, right, citations, wrong: NO_SOURCE_LINE, misconception: null };
 }
 
 /** At most three parts, 90 words. Drops the praise line first when over. */

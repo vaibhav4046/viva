@@ -4,16 +4,17 @@ import path from "path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { FileEventStore } from "@/lib/store/file";
-import { WEEK_DAYS, projectWeek, type PlannerInput } from "@/lib/planner";
+import { WEEK_DAYS, projectWeek, reviewIntervalDays, type PlannerInput } from "@/lib/planner";
 import { blankMastery } from "@/lib/mastery";
 import type { LearningEvent } from "@/lib/types";
 import { GET as weekGet } from "@/app/api/learner/week/route";
 
 /**
  * 7-day review projection ("Your week").
- * Covers: deterministic output for a seeded store, due-date escalation per the
- * spacing rule (queue dueAt + one-candidate-per-day ladder spread), empty state,
- * and the route wire shape with a fixed identity.
+ * Covers: deterministic output for a seeded store, the 1/2/4/7-day spacing
+ * ladder (including a concept answered correctly today coming back later in
+ * the same week), stored queue dueAt, empty state, and the route wire shape
+ * with a fixed identity.
  */
 
 vi.mock("@/lib/auth/identity", async (importOriginal) => {
@@ -146,18 +147,62 @@ describe("projectWeek", () => {
 
     // Day 0 = the same concepts /api/learner/path selects from this state:
     // the wrong answer first, then the weakest thing they touched, then the
-    // one they got right.
-    expect(first.days[0].segments.map((s) => s.conceptId)).toEqual(["c_position", "c_qkv", "c_self_attention"]);
-    expect(first.days[0].count).toBe(3);
+    // one they got right, then the rest of the ten minutes.
+    expect(first.days[0].segments.slice(0, 3).map((s) => s.conceptId)).toEqual([
+      "c_position",
+      "c_qkv",
+      "c_self_attention",
+    ]);
+    expect(first.days[0].count).toBeGreaterThanOrEqual(3);
     expect(first.days[0].segments.every((s) => s.title.length > 0 && s.reason.length > 0)).toBe(true);
 
-    // Every concept the learner touched is already placed on Today, so no
-    // queue item is left to escalate: the rest of the week is honestly empty.
-    expect(first.days.slice(1).every((d) => d.count === 0)).toBe(true);
+    // Being on today's plan no longer erases a concept from the week: every
+    // one of them comes back on its own ladder day. This is the promise the
+    // landing page makes, and the whole reason the projection exists.
+    expect(first.days.slice(1).some((d) => d.count > 0)).toBe(true);
 
-    // A concept appears at most once across the week.
-    const ids = first.days.flatMap((d) => d.segments.map((s) => s.conceptId));
-    expect(new Set(ids).size).toBe(ids.length);
+    // A concept is scheduled at most once in the future.
+    const future = first.days.slice(1).flatMap((d) => d.segments.map((s) => s.conceptId));
+    expect(new Set(future).size).toBe(future.length);
+  });
+
+  it("brings a concept answered correctly today back later in the same week", async () => {
+    const user = `demo_week_correct_${Date.now().toString(36)}`;
+    const s = new FileEventStore();
+    await say(s, user, "c_self_attention", { assessment: "correct" });
+    const [mastery, events, concepts] = await Promise.all([
+      s.getMastery(user),
+      s.listEvents(user, 50),
+      s.getConcepts(user),
+    ]);
+    const input: PlannerInput = { mastery, events, queue: [], concepts };
+
+    const { days } = projectWeek(input, FIXED_NOW);
+    expect(dayOf(days, "c_self_attention")).toBe(0);
+
+    // One correct answer buys a two-day gap, so it is due again on day 2 —
+    // not absent from the projection, which is what "Nothing projected" under
+    // every future day meant.
+    const back = days.slice(1).findIndex((d) => d.segments.some((x) => x.conceptId === "c_self_attention"));
+    expect(back).toBeGreaterThanOrEqual(0);
+    expect(back + 1).toBe(reviewIntervalDays(mastery.c_self_attention, events));
+  });
+
+  it("stretches the gap as the learner keeps getting it right, and shortens it on a wrong answer", () => {
+    const at = FIXED_NOW.toISOString();
+    const m = (over: Partial<ReturnType<typeof blankMastery>>) => ({ ...blankMastery("c_x", at), ...over });
+    expect(reviewIntervalDays(m({ successfulRecallCount: 0 }), [])).toBe(1);
+    expect(reviewIntervalDays(m({ successfulRecallCount: 1 }), [])).toBe(2);
+    expect(reviewIntervalDays(m({ successfulRecallCount: 2 }), [])).toBe(4);
+    expect(reviewIntervalDays(m({ successfulRecallCount: 9 }), [])).toBe(7);
+
+    // An uncleared wrong answer pulls it back to tomorrow…
+    const wrong = { ...event("e_wrong", "c_x"), intent: "claim" as const, assessment: "incorrect" as const };
+    expect(reviewIntervalDays(m({ successfulRecallCount: 2 }), [wrong])).toBe(1);
+    // …and a later correct answer clears it, so one bad day does not pin the
+    // concept to "clear this first" forever.
+    const cleared = m({ successfulRecallCount: 2, lastSuccessfulRecallAt: atNow(1) });
+    expect(reviewIntervalDays(cleared, [wrong])).toBe(4);
   });
 
   it("escalates due dates per the spacing rule: stored queue dueAt is honored", () => {
@@ -191,10 +236,12 @@ describe("projectWeek", () => {
       ],
     };
     const { days } = projectWeek(input, FIXED_NOW);
-    // Path takes only the weakest today; the rest escalate one per day.
-    expect(days[0].segments.map((s) => s.conceptId)).toEqual(["c_a"]);
-    expect(days[1].segments.map((s) => s.conceptId)).toEqual(["c_b"]);
-    expect(days[2].segments.map((s) => s.conceptId)).toEqual(["c_c"]);
+    // Three concepts is five minutes of questions, so all three belong in
+    // today's ten — spreading them one per day was what starved the plan.
+    expect(days[0].segments.map((s) => s.conceptId)).toEqual(["c_a", "c_b", "c_c"]);
+    // None has been recalled right yet, so all three come back tomorrow.
+    expect(days[1].segments.map((s) => s.conceptId)).toEqual(["c_a", "c_b", "c_c"]);
+    expect(days.slice(2).every((d) => d.count === 0)).toBe(true);
   });
 
   it("returns a complete, empty week for a learner with no state", () => {

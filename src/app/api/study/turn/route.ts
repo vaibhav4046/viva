@@ -9,8 +9,8 @@ import { Trace, rid, serverLog } from "@/lib/observe";
 import { clientIp, withIdentityCookie } from "@/lib/http";
 import { err } from "@/lib/types";
 import { bandLabelFor } from "@/lib/mastery";
-import { assessAnswer, gradeAnswer, sealAnswerKey, verifyResponse } from "@/lib/tutor";
-import { checkClaim, composeClaimReply, sentencesOf, type ClaimCheck } from "@/lib/tutor/claim";
+import { assessAnswer, gradeAnswer, scoreTeachback, sealAnswerKey, verifyResponse } from "@/lib/tutor";
+import { checkClaim, composeClaimReply, composeInterruptReply, sentencesOf, type ClaimCheck } from "@/lib/tutor/claim";
 import { LEARNING_INTENT, MAX_ATTEMPTS, confirmPlan, planTurn, quizQuestionFor, readHistory, tutorReply } from "@/lib/tutor/respond";
 import type { ExamQuestion } from "@/lib/courses";
 import type { CompileDraft } from "@/lib/compiler";
@@ -145,6 +145,79 @@ export async function POST(req: NextRequest) {
 
   if (plan.intent === "answer" && plan.openQuestion) {
     const q = plan.openQuestion;
+
+    /*
+     * An open question used to swallow the turn. Every sentence typed while
+     * one was live was graded as an attempt at it and nothing else, so a
+     * flatly false claim landed under a friendly "What was right" and was
+     * never checked against the passage that disproves it — while the same
+     * sentence typed cold got the correction. And a sentence about something
+     * else entirely was marked against a question it was not answering.
+     *
+     * So the message is read for what it says first, on its own retrieval
+     * rather than the one biased by the open question's wording, and only
+     * then graded. Neither branch below consumes an attempt: the learner did
+     * not answer the question, and being corrected on the way past must not
+     * cost them one of their three tries at it.
+     */
+    const ownRetrieval = await store.retrieveEvidence(identity.userId, draft.cleanedTranscript, {
+      sourceId: null, conceptIds: draft.conceptIds, limit: 3, courseId: course.id,
+    });
+    const ownChunks = ownRetrieval.map((r) => r.chunk).filter((c) => /^[A-Za-z0-9_:-]+$/.test(c.id));
+    const asideCheck = checkClaim({
+      claim: draft.cleanedTranscript,
+      chunks: ownChunks,
+      course,
+      conceptId: draft.primaryConceptId ?? plan.primaryConceptId,
+    });
+    /*
+     * Named a concept, not this one, and lands under half of what the question
+     * asks for: that is a different subject, not a wrong answer to this one.
+     *
+     * The half-a-question threshold is what keeps a thin but genuine attempt —
+     * "because attention is permutation-equivariant", which names neither
+     * "positional" nor "order" — on the graded path, while a complete true
+     * sentence about another concept ("multi-head attention runs several heads
+     * in parallel") stops being marked Mixed up against a question it was
+     * never answering. Bouncing a real answer costs the learner one repeat;
+     * grading a sentence that was not one moves their map on nothing.
+     */
+    const landed = scoreTeachback(draft.cleanedTranscript, q.requiredKeywords).hits.length;
+    const elsewhere =
+      draft.conceptIds.length > 0 &&
+      !draft.conceptIds.includes(q.conceptId) &&
+      landed * 2 < Math.max(1, q.requiredKeywords.length);
+
+    if (asideCheck.status === "contradicted" || elsewhere) {
+      plan = { ...plan, conceptIds: draft.conceptIds, primaryConceptId: draft.primaryConceptId };
+      claimCheck = asideCheck;
+      const other = course.concepts.find((c) => c.id === draft.primaryConceptId)?.name ?? null;
+      const asked = course.concepts.find((c) => c.id === q.conceptId)?.name ?? null;
+      if (asideCheck.status === "contradicted") {
+        text = composeInterruptReply(asideCheck, q.question);
+        misconception = asideCheck.lead;
+        // Wrong about the thing they raised, not about the question they have
+        // not answered yet, so the move is smaller than a failed attempt.
+        masterySignal = "down";
+        strategy = "contrast";
+        const cited = asideCheck.chunkId ? ownChunks.filter((c) => c.id === asideCheck.chunkId) : [];
+        citations = cited.map((c) => ({ chunkId: c.id, quote: c.text.slice(0, 160) }));
+        citedIds = citations.map((c) => c.chunkId);
+      } else {
+        text = [
+          other ? `That one is about ${other}, not the question on the table${asked ? ` — that is still ${asked}` : ""}.` : "That one is not an answer to the question on the table.",
+          "I have kept it as a note rather than marking it against a question it is not answering.",
+          `The question still stands: ${q.question}`,
+        ].join(" ");
+        // Nothing was checked and nothing was graded, so nothing may move.
+        masterySignal = "flat";
+        strategy = "probe";
+        citations = [];
+        citedIds = [];
+      }
+      question = q.question;
+      source = "heuristic";
+    } else {
     const baseline = assessAnswer(q.id, raw, { course });
     graded = await gradeAnswer({
       subject: course.title,
@@ -179,6 +252,7 @@ export async function POST(req: NextRequest) {
     // came back `{"source":"model","latencyMs":null}`, which reads as a model
     // that answered in no time at all.
     latencyMs = graded.latencyMs;
+    }
   } else if (plan.intent === "hint" && !plan.openQuestion) {
     // Stuck, with nothing open to be stuck on. Offer the way in rather than
     // filing the request as a statement about whatever retrieval returned.
@@ -225,6 +299,20 @@ export async function POST(req: NextRequest) {
       // The correction earns its question: the next turn grades the answer.
       opensQuestion = claimCheck.openQuestion;
       source = "heuristic";
+    } else if (claimCheck.status === "supported") {
+      // The one case where VIVA may say a learner is right: a line of their own
+      // source says the same thing, in the same polarity, and it is quoted
+      // underneath. "Not quite —" over a sentence that is nearly the source's
+      // own words is the error a student cannot recover from at 1am.
+      text = composeClaimReply(claimCheck, concept?.name ?? null);
+      question = claimCheck.question;
+      strategy = "recall";
+      const cited = claimCheck.chunkId ? chunks.filter((c) => c.id === claimCheck?.chunkId) : chunks.slice(0, 1);
+      citations = cited.map((c) => ({ chunkId: c.id, quote: c.text.slice(0, 160) }));
+      citedIds = citations.map((c) => c.chunkId);
+      masterySignal = "up";
+      opensQuestion = claimCheck.openQuestion;
+      source = "heuristic";
     } else if (claimCheck.status === "unsupported") {
       text = composeClaimReply(claimCheck, concept?.name ?? null);
       question = claimCheck.question;
@@ -241,6 +329,9 @@ export async function POST(req: NextRequest) {
       const turn = await tutorReply({
         course, plan, text: draft.cleanedTranscript, history: memory, chunks,
         conceptName: concept?.name ?? null,
+        // Checked, caught nothing, confirmed nothing. The reply says so instead
+        // of handing the learner's own sentence back as VIVA's line.
+        unchecked: true,
       });
       text = turn.text;
       question = turn.reply.question;
@@ -250,7 +341,12 @@ export async function POST(req: NextRequest) {
       // Same rule for the claim the checks did not catch: a heuristic reply
       // emits no direction, and "no direction" must mean "no movement" rather
       // than a quiet penalty for a sentence nobody graded.
-      masterySignal = turn.reply.masterySignal ?? "flat";
+      //
+      // "up" is refused outright here. The reply on this path says out loud
+      // that VIVA could not check the sentence, and a map that rises anyway is
+      // the same unearned "you got it right" written as a number instead of a
+      // sentence. Only a correction the model can point at moves anything.
+      masterySignal = turn.reply.masterySignal === "down" ? "down" : "flat";
       misconception = turn.reply.misconception;
       source = turn.source;
       latencyMs = turn.latencyMs;

@@ -377,9 +377,11 @@ function DueRow({
     <li className="surface-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="heading text-base">{item.conceptName}</h3>
-        <span className="chip" title="How overdue this one is">
-          {Math.round(item.priority * 100)}% priority
-        </span>
+        {item.priority === null ? null : (
+          <span className="chip" title="How overdue this one is">
+            {Math.round(item.priority * 100)}% priority
+          </span>
+        )}
       </div>
       <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
         {item.reason}

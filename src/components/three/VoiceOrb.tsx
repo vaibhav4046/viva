@@ -137,8 +137,12 @@ const SHELL_FRAG = /* glsl */ `
 precision highp float;
 uniform vec3 uRim;
 uniform vec3 uSpec;
-uniform float uTime;
 uniform float uLevel;
+/* The band clocks. Each already runs faster with its own band, so borrowing
+ * them here makes the pattern drift with the voice instead of at a fixed rate
+ * multiplied by it — no discontinuity when the level jumps. */
+uniform float uT1;
+uniform float uT2;
 varying vec3 vN;
 varying vec3 vV;
 varying vec3 vP;
@@ -150,8 +154,8 @@ ${SIMPLEX}
 const float LIMB    = 0.20;  // wide fresnel: the glass thickening at the edge
 const float EDGE    = 2.30;  // narrow fresnel: the hard silhouette stroke
 const float VEIN    = 0.22;  // caustic filaments pooling inside
-const float LAT     = 2.10;  // latitude isolines
-const float MER     = 1.00;  // meridian isolines
+const float LAT     = 2.40;  // latitude isolines
+const float MER     = 1.15;  // meridian isolines
 const float BODY    = 0.030; // the faintest tint, so the glass is not a hole
 const float SPEC    = 0.65;  // one glint
 const float BLEACH  = 2.60;  // where a highlight starts turning white
@@ -180,7 +184,9 @@ void main() {
   // its own slow clock, so the inside of the orb is never still even when
   // nobody is talking — that is the state a first-time visitor sees.
   vec3 R = refract(-V, N, 0.62);
-  float caustic = pow(1.0 - abs(snoise(vP * 1.05 + R * 0.80 + vec3(0.0, 0.0, uTime * 0.14))), 7.0);
+  float vol = snoise(vP * 1.05 + R * 0.80 + vec3(0.0, 0.0, uT1 * 0.55));
+  float caustic = pow(1.0 - abs(vol), 7.0);   // thin veins
+  float glow = 0.5 + 0.5 * vol;               // the broad pool they sit in
 
   // Isolines etched on the surface: latitudes, and a few meridians under them.
   // Two families is what turns a striped ball into a globe with a front and a
@@ -190,13 +196,24 @@ void main() {
   // sphere is soft. And both are sampled at the DISPLACED position with the
   // field added on top, so a travelling wave drags the whole pattern across
   // the face instead of the orb simply getting bigger.
-  float lat = vP.y * 4.6 + uTime * 0.07 + vF * 10.0;
-  float mer = atan(vP.x, vP.z) * 1.43 + vF * 4.0;
-  float latLine = 1.0 - smoothstep(0.0, 1.35 * max(fwidth(lat), 1e-4), abs(fract(lat) - 0.5));
-  float merLine = 1.0 - smoothstep(0.0, 1.10 * max(fwidth(mer), 1e-4), abs(fract(mer) - 0.5));
+  float lat = vP.y * 4.6 + uT2 * 0.24 + vF * 10.0;
+  // 9 / TAU, so the phase is continuous across atan's branch cut rather than
+  // ending the last meridian mid-stride.
+  float mer = atan(vP.x, vP.z) * 1.43239 + uT1 * 0.05 + vF * 4.0;
+  // Both families are faded out wherever their own screen-space derivative
+  // stops being believable — on atan's branch cut, and where either family
+  // piles into a pole faster than the mesh can resolve it. Without this the
+  // orb printed a dotted seam down its front and a pentagon at its south pole,
+  // both of them the low-poly cap showing through the pattern.
+  float lw = fwidth(lat);
+  float mw = fwidth(mer);
+  float latLine = (1.0 - smoothstep(0.0, 1.35 * max(lw, 1e-4), abs(fract(lat) - 0.5)))
+                * (1.0 - smoothstep(0.12, 0.40, lw));
+  float merLine = (1.0 - smoothstep(0.0, 1.10 * max(mw, 1e-4), abs(fract(mer) - 0.5)))
+                * (1.0 - smoothstep(0.08, 0.28, mw));
   // Light pools unevenly inside, so the rings are not all lit the same. This
   // is the difference between a wireframe and something with a body.
-  float pool = 0.58 + 0.70 * caustic;
+  float pool = 0.40 + 0.85 * glow + 0.35 * caustic;
 
   // One hard light, up and to the left, and only on the near surface: letting
   // the flipped back-face normal make a highlight too put a second white spot
@@ -209,7 +226,7 @@ void main() {
            + uRim * caustic * (VEIN + uLevel * 0.60) * back * (0.42 + 0.58 * rim)
            + uRim * latLine * (LAT + uLevel * 0.85) * back * lens * pool
            + uRim * merLine * (MER + uLevel * 0.50) * back * lens * pool
-           + uRim * (BODY + 0.070 * caustic)
+           + uRim * (BODY + 0.075 * glow)
            + uSpec * spec * SPEC;
 
   // Lime is far off white (184, 255, 90), so a naive sum clips green long
@@ -381,7 +398,7 @@ export default function VoiceOrb({ detail = 5, paused = false }: { detail?: numb
        */
       resize={{ offsetSize: true }}
       frameloop={paused ? "never" : "always"}
-            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       camera={{ position: [0, 0, 3.1], fov: 42 }}
       style={{ width: "100%", height: "100%" }}
     >

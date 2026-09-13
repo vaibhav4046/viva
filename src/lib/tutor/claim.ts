@@ -1,4 +1,4 @@
-import type { Course, ExamQuestion } from "@/lib/courses";
+import type { Course, ExamQuestion, Trap } from "@/lib/courses";
 import { tokens } from "@/lib/retrieval";
 import type { SourceChunk } from "@/lib/types";
 
@@ -26,8 +26,9 @@ import type { SourceChunk } from "@/lib/types";
  *   0. is the learner denying a mistake rather than making one? then nothing
  *      below may assert a contradiction — this is the guard that protects the
  *      student who understands the material;
- *   0b. does a passage already say the whole claim? then it is supported and
- *      nothing below may contradict it;
+ *   0b. does a passage already say the whole claim? then it is `supported` —
+ *      the one status that may tell a learner they are right, because a line
+ *      of their own source says the same thing in the same polarity;
  *   1. a trap the subject ships (the author wrote why it is wrong);
  *   2. conflation — "X and Y are the same" where the source separates them;
  *   3. the source rules it out in its own words ("…, not X", "instead of X");
@@ -46,7 +47,7 @@ import type { SourceChunk } from "@/lib/types";
  * ever needs to go higher.
  */
 
-export type ClaimStatus = "contradicted" | "unsupported" | "consistent";
+export type ClaimStatus = "contradicted" | "supported" | "unsupported" | "consistent";
 
 export type ClaimCheck = {
   status: ClaimStatus;
@@ -65,9 +66,30 @@ export type ClaimCheck = {
  * The learner is denying, correcting or contrasting rather than asserting.
  * `\bnot\b` was the whole guard before, which cannot match inside "cannot" —
  * so the one spelling a confident student actually uses got them marked wrong.
+ *
+ * Contrast words are here bare rather than only as "different FROM". A student
+ * separating two things writes "backpropagation and gradient descent are two
+ * different steps", and requiring the preposition meant that sentence read as
+ * an assertion that they are the same. Every use of this pattern widens the
+ * set of sentences VIVA leaves alone, so a word too many costs a miss and
+ * never a false correction.
  */
 const NEGATED =
-  /\b(not|never|no|isn['’]?t|aren['’]?t|can\s?not|cannot|can['’]t|won['’]?t|will\s+not|does\s?n['’]?t|do\s?n['’]?t|did\s?n['’]?t|wrong|false|myth|misconception|differs?\s+from|different\s+from|unlike|rather\s+than|instead\s+of|as\s+opposed\s+to)\b/i;
+  /\b(not|never|no|isn['’]?t|aren['’]?t|can\s?not|cannot|can['’]t|won['’]?t|will\s+not|does\s?n['’]?t|do\s?n['’]?t|did\s?n['’]?t|wrong|false|myth|misconception|differs?|different(?:ly)?|distinct|separate(?:ly)?|unlike|rather\s+than|instead\s+of|as\s+opposed\s+to)\b/i;
+
+/**
+ * Denial only — the half of `NEGATED` that flips a sentence's truth rather
+ * than drawing a contrast within it.
+ *
+ * The wide pattern cannot decide polarity: a passage line ending "produce
+ * DIFFERENT representations" matched it, so "Positional encodings are NOT
+ * added to the token embeddings" scored as the same polarity as the line
+ * saying they are, and came back "That matches p.11". Widening the pattern is
+ * safe everywhere it only suppresses a correction, and unsafe in the one place
+ * it licenses an assertion, which is why that place gets its own test.
+ */
+const DENIAL =
+  /\b(not|never|no|none|isn['’]?t|aren['’]?t|can\s?not|cannot|can['’]t|won['’]?t|will\s+not|does\s?n['’]?t|do\s?n['’]?t|did\s?n['’]?t|without|neither|nor|wrong|false)\b/i;
 
 /** Sentence split that keeps abbreviations like "p.11" and "e.g." intact. */
 export function sentencesOf(text: string): string[] {
@@ -161,6 +183,55 @@ function related(a: string, b: string): boolean {
   return a === b || a.includes(b) || b.includes(a);
 }
 
+/**
+ * The same word, two spellings — but only when one grows out of the front of
+ * the other. "backprop"/"backpropagation" yes; "dependent"/"independent" no,
+ * which is a pair of opposites that a plain substring test calls identical.
+ */
+function sameWord(a: string, b: string): boolean {
+  return a === b || a.startsWith(b) || b.startsWith(a);
+}
+
+/**
+ * What makes a trap that trap: the words its statement uses that its OWN
+ * correction does not.
+ *
+ * This is the mechanism the round-2 fix missed. A trap statement is mostly
+ * topic nouns, and a correct sentence about the same topic necessarily reuses
+ * every one of them, so "does the claim contain the trap's words" fires on
+ * agreement and disagreement alike — the co-occurrence bug, once as
+ * `overlapRatio` measuring the trap inside the claim, and again here as a
+ * ratio compared against a correction with a different-sized vocabulary.
+ *
+ * Subtracting the correction cancels the topic. What survives is the part that
+ * makes the sentence a mistake: "same"/"thing" for backprop vs gradient
+ * descent, "important"/"cosmetic" for order vs importance. A claim has to
+ * carry THAT to be making the mistake.
+ */
+export function trapTell(trap: Trap): Set<string> {
+  return distinctive(trap.statement, trap.correct);
+}
+
+/** The words in `a` that `b` does not also use. */
+function distinctive(a: string, b: string): Set<string> {
+  const other = stemTokens(b);
+  const out = new Set<string>();
+  for (const w of stemTokens(a)) if (!other.some((c) => sameWord(c, w))) out.add(w);
+  return out;
+}
+
+/** How much of a trap's tell the claim actually says. */
+function tellCoverage(claim: string, tell: Set<string>): number {
+  if (tell.size === 0) return 0;
+  const said = contentTokens(claim);
+  let hits = 0;
+  tell.forEach((w) => { if (said.has(w)) hits += 1; });
+  return hits / tell.size;
+}
+
+/** A claim has to say most of what makes the mistake a mistake. */
+const TELL_FLOOR = 0.6;
+
 const CTX = 4;
 
 function ctxLeft(toks: string[], m: Mention): Set<string> {
@@ -197,13 +268,28 @@ function rankLines(chunks: SourceChunk[], claim: string): Line[] {
 
 /**
  * The claim is already in the source. "A single attention head computes one
- * weighted average" is a sentence from the notes; nothing below may correct it.
+ * weighted average" is a sentence from the notes; nothing below may correct
+ * it, and this is the one place VIVA is allowed to say a learner is right.
+ *
+ * Saying so is an assertion, so it carries the guards an assertion needs:
+ *
+ *   - eight tenths of the claim's own words are in ONE line of the passage,
+ *     and every term the subject names in the claim is in that line;
+ *   - same polarity. "Positional encodings are NOT added to the token
+ *     embeddings" shares every word with the line that says they are, and
+ *     without this it would have come back "That matches p.11";
+ *   - a whole sentence, not three nouns. "order attention permutation" is
+ *     inside a passage line word for word and understands nothing.
  */
-function isSupported(claim: string, lines: Line[], terms: Term[]): boolean {
+const SUPPORT_MIN_WORDS = 6;
+
+function supportedBy(claim: string, lines: Line[], terms: Term[]): Line | null {
   const top = lines[0];
-  if (!top || top.score < 0.8) return false;
+  if (!top || top.score < 0.8) return null;
+  if (contentTokens(claim).size < SUPPORT_MIN_WORDS) return null;
+  if (DENIAL.test(claim) !== DENIAL.test(top.line)) return null;
   const inLine = new Set(mentionsIn(top.toks, terms).map((m) => m.key));
-  return mentionsIn(stemTokens(claim), terms).every((m) => inLine.has(m.key));
+  return mentionsIn(stemTokens(claim), terms).every((m) => inLine.has(m.key)) ? top : null;
 }
 
 /** The passage line closest to a reference sentence. */
@@ -289,17 +375,36 @@ export function checkClaim(input: {
   //    source. This guard, and the polarity checks below it, are what protect
   //    the student who is right; skipping them is how "mutually exclusive
   //    events cannot be independent" got answered with "Not quite —".
-  const supported = isSupported(claim, lines, terms);
+  const support = supportedBy(claim, lines, terms);
 
-  if (!supported) {
-    // 1. A trap the subject's author already wrote down. Three ways out of it,
+  if (support) {
+    return ask({
+      status: "supported",
+      lead: `That matches ${where(support.chunk)} —`,
+      quote: support.line,
+      chunkId: support.chunk.id,
+    });
+  }
+
+  {
+    // 1. A trap the subject's author already wrote down. Four ways out of it,
     //    all of them the same question: is the learner making this mistake, or
-    //    naming it? The claim must read more like the mistake than like the
-    //    correction, and it must not flip the trap's own polarity.
+    //    naming it? The claim must be on the trap's topic, say the words that
+    //    make the mistake a mistake (`trapTell` — the guard the co-occurrence
+    //    bug kept getting past), read more like the mistake than like the
+    //    correction, and not flip the trap's own polarity.
     const scoped = course.traps.filter((t) => t.conceptId === conceptId);
     const pool = conceptId ? scoped : course.traps;
     for (const trap of pool) {
       if (overlapRatio(claim, trap.statement) < 0.6) continue;
+      const mistake = tellCoverage(claim, trapTell(trap));
+      if (mistake < TELL_FLOOR) continue;
+      // And the claim must not read more like the correction than like the
+      // mistake. Some traps distinguish themselves by a single word ("only",
+      // "always", "same"), where the tell alone is thin; this is the symmetric
+      // half of the same test, and it can never block a trap from firing on
+      // its own statement, whose overlap with the correction's tell is zero.
+      if (tellCoverage(claim, distinctive(trap.correct, trap.statement)) >= mistake) continue;
       if (overlapRatio(claim, trap.correct) >= overlapRatio(claim, trap.statement)) continue;
       if (negatedAbout(claim, trap.statement) !== negatedAbout(trap.statement, trap.statement)) continue;
       const line = bestLine(chunks, trap.correct) ?? bestLine(chunks, trap.statement);
@@ -313,7 +418,7 @@ export function checkClaim(input: {
   // Denying something is not asserting it. The passage-shaped checks below
   // have no authored correction to compare against, so a claim carrying any
   // denial is left for the honest "I could not check that" reply.
-  const asserting = !supported && !NEGATED.test(claim);
+  const asserting = !NEGATED.test(claim);
 
   if (asserting) {
 
@@ -486,12 +591,32 @@ function negatedAbout(text: string, reference: string): boolean {
  */
 const FALLBACK_PROBE = "What would you change in your sentence so it matches that line?";
 
+/**
+ * The same correction, delivered without taking the open question away.
+ *
+ * A question used to swallow every later sentence: a flatly false claim typed
+ * while one was open was graded as an attempt at the question and never
+ * checked against the passage that disproves it. It is checked first now, and
+ * the question is still there afterwards, so neither turn costs the other.
+ */
+export function composeInterruptReply(check: ClaimCheck, openQuestion: string): string {
+  const lead = (check.lead ?? "").replace(/^Not quite\s*—\s*/, "");
+  return [
+    lead ? `Before that — ${lead}` : "Before that —",
+    check.quote ? `The passage says: “${check.quote.slice(0, 220)}”` : null,
+    `The question still stands: ${openQuestion}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function composeClaimReply(check: ClaimCheck, conceptName: string | null): string {
   const parts: string[] = [];
   if (check.lead) parts.push(check.lead);
   if (check.quote) parts.push(`The passage says: “${check.quote.slice(0, 220)}”`);
   if (check.question) parts.push(check.question);
   else if (check.status === "contradicted") parts.push(FALLBACK_PROBE);
+  else if (check.status === "supported") parts.push("Say the next step of it and I will check that line too.");
   if (parts.length === 0) {
     parts.push(
       `That is your position on ${conceptName ?? "this"} — let's test it rather than file it.`,

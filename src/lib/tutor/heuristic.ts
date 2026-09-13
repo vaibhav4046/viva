@@ -69,6 +69,99 @@ function affirmedHits(fullText: string, keywords: string[]): string[] {
 }
 
 /**
+ * What the learner actually said, in their words, for each point they landed.
+ *
+ * "What was right: you identified that without positional information a
+ * Transformer cannot distinguish the order of tokens" was printed over three
+ * typed nouns. Nothing produced that sentence except a model filling in a
+ * story about a student who understood — so credit is a quote now, and a
+ * quote cannot describe reasoning that never happened.
+ */
+export function quotedHits(answer: string, requiredKeywords: string[]): string[] {
+  const hits = affirmedHits(answer, requiredKeywords);
+  if (hits.length === 0) return [];
+  const said = hits.map((k) => spokenForm(answer, k) ?? k);
+  return [`You said ${said.map((s) => `“${s}”`).join(", ")}.`];
+}
+
+/** The learner's own spelling of a required point, pulled out of their answer. */
+function spokenForm(answer: string, keyword: string): string | null {
+  const kw = keyword.toLowerCase().split(/\s+/).filter(Boolean);
+  if (kw.length === 0) return null;
+  const words = answer.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) ?? [];
+  for (let i = 0; i + kw.length <= words.length; i++) {
+    const slice = words.slice(i, i + kw.length);
+    const ok = kw.every((k, j) => {
+      const w = slice[j].toLowerCase();
+      return w.includes(k) || (w.length >= 4 && k.includes(w));
+    });
+    if (ok) return slice.join(" ");
+  }
+  return null;
+}
+
+/**
+ * The answer names one of the required points and predicates nothing.
+ *
+ * A judge typed "order attention permutation" into a question and was told
+ * CORRECT, then said it was a quiz they could beat without knowing anything —
+ * and the map believes the result. Naming the points is not making them, so a
+ * list of nouns is capped at partial however it is graded, by the keywords
+ * here or by the model, and gets back the one thing that is true about it:
+ * those are the words, now say it as a sentence.
+ */
+export function isFragmentAnswer(answer: string, requiredKeywords: string[]): boolean {
+  if (requiredKeywords.length === 0) return false;
+  if (affirmedHits(answer, requiredKeywords).length === 0) return false;
+  return !statesSomething(answer, new Set(requiredKeywords.flatMap((k) => tokenize(k))));
+}
+
+/** The word is one of the required points, in any of its spellings. */
+function isPoint(key: Set<string>, word: string): boolean {
+  for (const k of key) if (word.includes(k) || k.includes(word)) return true;
+  return false;
+}
+
+/**
+ * Does anything in here do the work of a verb?
+ *
+ * Not a parser — a closed class of auxiliaries and high-frequency verbs, plus
+ * any word of the learner's own carrying a verb ending. It only has to
+ * separate a sentence from a list of nouns, and it errs towards "sentence",
+ * because calling a real answer a list is the expensive mistake: it caps what
+ * the learner can score on a question they may have answered properly.
+ */
+function statesSomething(answer: string, key: Set<string>): boolean {
+  return tokenize(answer).some(
+    (w) =>
+      VERBS.has(w) ||
+      (w.length > 3 && /(?:ed|ing|es|s)$/.test(w) && !/(?:ss|us|is)$/.test(w) && !isPoint(key, w))
+  );
+}
+
+const VERBS = new Set(
+  ("is,are,was,were,be,been,being,am,has,have,had,do,does,did,can,cannot,could,will,would,shall,should,may,might,must," +
+    "mean,means,matter,matters,work,works,help,helps,show,shows,tell,tells,keep,keeps,hold,holds,come,comes,go,goes," +
+    "get,gets,make,makes,made,need,needs,give,gives,lose,loses,lost,let,lets,say,says,know,knows,think,thinks,use,uses,add,adds").split(",")
+);
+
+/**
+ * The honest lead when nothing checked out either way. One string, used by the
+ * keyword branch and the model branch alike, so a learner gets the same answer
+ * whether or not a provider was reachable.
+ *
+ * It used to say "Nothing in the passage contradicts it", which was the worst
+ * sentence in the product: the checks are lexical, so not catching a claim
+ * means the check could not read it, NOT that the source agrees.
+ */
+export const UNCHECKED_LEAD =
+  "I could not check that against your source, so I will not tell you it is right.";
+
+/** "That is the word. Now say it as a sentence." */
+export const SAY_IT_AS_A_SENTENCE =
+  "Those are the words. Now say it as a sentence and I will check that against the passage.";
+
+/**
  * HARNESS D (exam/teachback branch) — claim assessment against retrieved
  * evidence. Keyword-coverage rubric, deterministic. No invented citations:
  * evidenceIds always resolve to real chunk ids. The question bank and the
@@ -101,11 +194,14 @@ export function assessAnswer(
   ) {
     return {
       verdict: "incorrect",
-      correctPoints: ["You recognised attention compares tokens."],
+      // Credit is a quote of what they said or it is nothing. "You recognised
+      // attention compares tokens" was printed over answers that said no such
+      // thing — an understanding invented on the learner's behalf.
+      correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
       missingPoints: ["Without position information the model loses sequence order."],
       possibleMisconception: "Attention weights already encode importance — what is lost without position is order, not importance (see the positional information section).",
       feedback:
-        "Good instinct — attention does compare tokens. But the missing piece is sequence order: without positional information the model cannot tell first from last. Try that distinction again.",
+        "The missing piece is sequence order: without positional information the model cannot tell first from last. Try that distinction again.",
       evidenceIds: chunks.map((c) => c.id),
       fullAnswerCovers: q.requiredKeywords,
     };
@@ -114,10 +210,25 @@ export function assessAnswer(
   const hits = affirmedHits(answerTranscript, q.requiredKeywords);
   const misses = q.requiredKeywords.filter((k) => !hits.includes(k));
   const ratio = hits.length / q.requiredKeywords.length;
+  // The marking words with nothing around them. Never correct, and the line
+  // back is the one thing that is actually true about it: those are the words.
+  if (isFragmentAnswer(answerTranscript, q.requiredKeywords)) {
+    return {
+      verdict: "partial",
+      correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
+      missingPoints: ["Say it as a sentence."],
+      possibleMisconception: null,
+      feedback: SAY_IT_AS_A_SENTENCE,
+      evidenceIds: chunks.map((c) => c.id),
+      fullAnswerCovers: q.requiredKeywords,
+    };
+  }
   if (ratio >= 0.66) {
     return {
       verdict: "correct",
-      correctPoints: [`Mentioned: ${hits.join(", ")}.`],
+      // The learner's own words, never the marking key: printing "Mentioned:
+      // order, attention, permutation" handed the scheme back on the card.
+      correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
       missingPoints: [],
       possibleMisconception: null,
       feedback: "Correct — that covers the distinction the source draws.",
@@ -128,7 +239,7 @@ export function assessAnswer(
   if (ratio > 0) {
     return {
       verdict: "partial",
-      correctPoints: [`You have part of it: ${hits.join(", ")}.`],
+      correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
       // The remaining points are the marking key. They are named only once the
       // question is closed — see `fullAnswerCovers` and `sealAnswerKey`.
       missingPoints: [`There is ${misses.length === 1 ? "one piece" : `${misses.length} pieces`} still missing.`],
@@ -247,7 +358,7 @@ export function tutorRespond(opts: {
     // and the passage linked underneath was sometimes the one that disproved
     // the student. Never assert agreement the check did not produce.
     const q = course.examQuestions.find((x) => x.conceptId === opts.conceptId);
-    const head = `I could not check that against your source, so I will not tell you it is right.`;
+    const head = UNCHECKED_LEAD;
     return {
       text: q
         ? `${head} ${evidenceIds.length > 0 ? "The nearest passage is beside this — read it, then answer me:" : "Answer me this instead:"} ${q.question}`

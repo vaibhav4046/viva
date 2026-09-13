@@ -283,7 +283,14 @@ export function OrbHost() {
         Math.abs(y.target - y.value) > 0.4 ||
         Math.abs(scale.target - scale.value) > 0.002;
       let live = true;
-      if (moving || now - lastMeasure > 100) {
+      // Do NOT measure while moving. The spring animates this host's own
+      // transform; the slot it is flying toward does not move, so re-reading
+      // its rect every frame buys nothing and costs a forced synchronous
+      // layout. On the landing-to-study commit that single
+      // getBoundingClientRect was measured at 169 ms, which is the whole of
+      // the hitch on that navigation. The 10 Hz poll below still catches a
+      // slot that reflows underneath us.
+      if (now - lastMeasure > 100) {
         live = measure();
         lastMeasure = now;
       }

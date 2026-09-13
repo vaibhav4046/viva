@@ -71,7 +71,10 @@ export function deriveToday(snapshot: LearnerSnapshot, now: Date = new Date()): 
       conceptId: s.conceptId,
       conceptName: s.title,
       dueAt: day.date,
-      priority: mastery[s.conceptId]?.reviewPriority ?? 0,
+      // null, not 0: a concept you have never touched has no overdue-ness to
+      // report, and "0% priority" reads as "ignore this" on exactly the rows
+      // that are new material.
+      priority: mastery[s.conceptId]?.reviewPriority ?? null,
       reason: s.reason,
     }))
   );

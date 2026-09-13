@@ -54,10 +54,24 @@ def wait_hydrated(page) -> None:
     )
 
 
+def wait_subject(page) -> None:
+    """The subject resolves async after load; a turn sent before it lands used
+    to be silently dropped (words eaten, box cleared). Gate on the header."""
+    page.wait_for_function(
+        "() => { const h = document.querySelector('h1');"
+        " return !!(h && !/^study$/i.test(h.innerText.trim())); }",
+        timeout=20000,
+    )
+
+
 def send_thought(page, text: str) -> None:
     wait_hydrated(page)
+    wait_subject(page)
     page.fill("#viva-type", text)
-    page.get_by_role("button", name="Send").click()
+    # Exact accessible name: the loose "Send" also matches transient mic-panel
+    # buttons, and a click that lands on the wrong one submits nothing while
+    # looking green. The typed box's own button is "Send what you typed".
+    page.get_by_role("button", name="Send what you typed").click()
 
 
 results: list[tuple[str, float]] = []
@@ -135,16 +149,25 @@ def main() -> None:
             page.press("#viva-type", "Enter")
             tutor = page.locator('section[aria-label="What VIVA said"]')
             tutor.wait_for(timeout=15000)
+            # Arrow-function form, never an f-string expression: the page ships
+            # a strict CSP, and a bare expression string is evaluated with eval
+            # and dies on it. A function predicate goes through callFunctionOn.
             page.wait_for_function(
-                f"document.querySelector('section[aria-label=\"What VIVA said\"]')?.innerText.includes('{MISCONCEPTION_SNIPPET}')",
-                timeout=15000,
+                "(s) => document.querySelector('section[aria-label=\"What VIVA said\"]')?.innerText.includes(s)",
+                arg=MISCONCEPTION_SNIPPET,
+                # Graded answers wait on a model call; the note and quiz steps
+                # above prove the plumbing, this one proves the content.
+                timeout=40000,
             )
             page.screenshot(path=str(FOOT / "shot-exam.png"))
 
         def s_graph_node():
-            node = page.locator("svg text", has_text="Positional")
-            node.first.wait_for(timeout=10000)
-            assert node.count() >= 1, "graph node for positional information not found"
+            # The study rail renders the narrow Rows map, not the SVG ring
+            # (same concepts, same bands, one row each) — so assert the map
+            # list, not svg text, which only the wide ring paints.
+            node = page.locator('ul[aria-label="Your map of this subject"]', has_text="Positional")
+            node.wait_for(timeout=10000)
+            assert node.inner_text().count("Positional") >= 1, "map has no positional concept"
 
         def s_evidence_link():
             link = page.locator('section[aria-label="What VIVA said"] a[href^="#chunk-"]').first
@@ -218,14 +241,36 @@ def main() -> None:
             mpage.goto(BASE + "/study", wait_until="domcontentloaded", timeout=15000)
             mpage.locator("#viva-type").wait_for(timeout=10000)
             wait_hydrated(mpage)
+            wait_subject(mpage)
             mpage.fill("#viva-type", THOUGHT_1)
-            mpage.get_by_role("button", name="Send").click()
+            mpage.get_by_role("button", name="Send what you typed").click()
             mpage.locator('article[aria-label^="Note"]').first.wait_for(timeout=15000)
             mpage.screenshot(path=str(FOOT / "shot-mobile.png"))
             overflow = mpage.evaluate("document.body.scrollWidth")
             assert overflow <= 391, f"horizontal overflow on mobile: scrollWidth={overflow}"
 
         run_step("mobile-390-reduced-motion", s_mobile)
+
+        def s_fast_submit_no_loss():
+            """A turn fired the instant hydration passes must never vanish
+            silently: either it sends (note appears) or the page says the
+            subject is still opening and offers a retry that delivers it."""
+            fpage = mctx.new_page()
+            fpage.goto(BASE + "/study", wait_until="domcontentloaded", timeout=15000)
+            fpage.locator("#viva-type").wait_for(timeout=10000)
+            wait_hydrated(fpage)
+            fpage.fill("#viva-type", THOUGHT_1)
+            fpage.get_by_role("button", name="Send what you typed").click()
+            try:
+                fpage.locator('article[aria-label^="Note"]').first.wait_for(timeout=20000)
+            except Exception:
+                banner = fpage.locator("text=Still opening your subject")
+                banner.wait_for(timeout=5000)
+                fpage.get_by_role("button", name="Try again").click()
+                fpage.locator('article[aria-label^="Note"]').first.wait_for(timeout=25000)
+            fpage.close()
+
+        run_step("fast-submit-no-silent-loss", s_fast_submit_no_loss)
         mpage.close()
         mctx.close()
         browser.close()

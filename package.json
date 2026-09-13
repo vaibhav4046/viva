@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint:copy && npm run test && npm run test:extension && npm run build",
-    "seed:demo": "tsx scripts/seed-demo.ts",
+    "seed:demo": "tsx scripts/seed-demo.mts",
     "smoke": "node scripts/smoke.mjs",
     "test:e2e": "python scripts/e2e-golden.py",
     "test:evals": "vitest run tests/intent.test.ts tests/grounding.test.ts tests/tutor.test.ts",

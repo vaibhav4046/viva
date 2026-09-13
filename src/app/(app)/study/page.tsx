@@ -308,7 +308,20 @@ export default function StudyPage() {
    */
   const takeTurn = useCallback(
     async (t: VoiceTurn) => {
-      if (!courseId) return;
+      /*
+       * The subject resolves asynchronously after load (?subject → ?course →
+       * stored → default). A turn sent before it lands used to vanish: an
+       * early return with no error, while the typed box had already been
+       * cleared — words eaten with zero feedback. Say so, and offer the retry:
+       * the closure still holds the text, so one tap replays it.
+       */
+      if (!courseId) {
+        setTurnError({
+          message: "Still opening your subject — nothing was sent. Try again in a moment.",
+          retry: () => void takeTurn(t),
+        });
+        return;
+      }
       setBusy(true);
       setTurnError(null);
       const clientEventId = crypto.randomUUID();

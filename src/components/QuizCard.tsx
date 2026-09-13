@@ -49,7 +49,7 @@ export function QuizQuestion({
   children?: ReactNode;
 }) {
   return (
-    <section className={large ? "surface-card p-6" : "surface-card p-5"} aria-live="polite">
+    <section className={large ? "surface-card p-6" : "surface-card p-5"} aria-live="polite" aria-label="Quiz question">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="eyebrow">{eyebrow}</p>
         {status ?? null}

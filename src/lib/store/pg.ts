@@ -67,9 +67,20 @@ function toMastery(r: Record<string, unknown>): ConceptMastery {
   };
 }
 
-/** Passages of a subject that ships with the app, which no database holds. */
+/**
+ * Passages of a subject that ships with the app, which no database holds.
+ *
+ * `COURSES[id]`, never `getCourse(id)`: getCourse resolves an unknown id to the
+ * default Transformers lab, which is right for a picker and catastrophic here.
+ * A learner's own subject id is never in COURSES, so routing it through
+ * getCourse answered a pasted subject on the heart with the reinforcement-
+ * learning passages of a lab they had never opened — three runs out of three,
+ * and only with a database attached. That is precisely the guarantee the
+ * product is built on: a citation resolves to a passage of *this* subject or
+ * there is no citation. An unknown id has no compiled passages, full stop.
+ */
 function compiledChunks(courseId: string): SourceChunk[] {
-  return getCourse(courseId).sources.flatMap((src) => src.chunks);
+  return COURSES[courseId]?.sources.flatMap((src) => src.chunks) ?? [];
 }
 
 export class PgEventStore implements EventStore {
@@ -298,8 +309,10 @@ export class PgEventStore implements EventStore {
     );
     // Same reason as getCourseChunks: a shipped subject's concepts are compiled
     // in, so without this the map is empty on Postgres.
-    if (!rows.length) {
-      return getCourse(courseId).concepts.map((c) => ({
+    // Same rule as compiledChunks: an unknown id borrows nobody's concepts.
+    const compiled = COURSES[courseId];
+    if (!rows.length && compiled) {
+      return compiled.concepts.map((c) => ({
         id: c.id, name: c.name, description: c.description, aliases: c.aliases, related: c.related,
       }));
     }
@@ -324,38 +337,29 @@ export class PgEventStore implements EventStore {
   }
 
   async retrieveEvidence(userId: string, query: string, opts: { sourceId?: string | null; conceptIds?: string[]; limit?: number; courseId?: string } = {}): Promise<{ chunk: SourceChunk; score: number }[]> {
-    const limit = opts.limit ?? 3;
-    const courseId = opts.courseId ?? DEFAULT_COURSE_ID;
-    const scopedSource = opts.sourceId
-      ? (opts.sourceId.includes("::") ? opts.sourceId : scopeId(opts.sourceId, userId, courseId))
-      : null;
-    const rows = await dbQuery<{ id: string; source_id: string; ordinal: number; text: string; locator: unknown; score: number }>(
-      `SELECT c.id, c.source_id, c.ordinal, c.text, c.locator,
-              ts_rank(c.search, plainto_tsquery('english', $2)) AS score
-       FROM source_chunks c JOIN sources s ON s.id = c.source_id
-       WHERE c.user_id=$1 AND s.course_id=$3 AND ($4::text IS NULL OR c.source_id LIKE $4 || '%')
-         AND c.search @@ plainto_tsquery('english', $2)
-       ORDER BY score DESC LIMIT $5`,
-      [userId, query, scopeId(courseId, userId, courseId), scopedSource, limit]
-    );
-    if (!rows.length) {
-      // Nothing of the learner's own matched, so fall back to the compiled
-      // subject and score it the way the file store does. Without this the
-      // headline feature — checking a claim against your source — returned
-      // nothing on every shipped subject the moment a database was attached.
-      const compiled = compiledChunks(courseId);
-      if (!compiled.length) return [];
-      const pool = opts.sourceId ? compiled.filter((c) => c.sourceId === opts.sourceId) : compiled;
-      const { courseId: _courseId, ...rest } = opts;
-      return scoreChunks(pool.length ? pool : compiled, query, { ...rest, sourceId: null });
-    }
-    return rows.map((r) => ({
-      chunk: {
-        id: stripScope(r.id), sourceId: stripScope(r.source_id), ordinal: r.ordinal, text: r.text,
-        locator: (r.locator ?? {}) as SourceChunk["locator"],
-      },
-      score: Number(r.score),
-    }));
+    /*
+     * One retrieval implementation for both stores, deliberately.
+     *
+     * This used to rank in SQL with `search @@ plainto_tsquery(...)`, and
+     * plainto_tsquery ANDs every term — so "Explain how the heart valves stop
+     * backflow" demanded that "explain" and "stop" appear in the passage and
+     * matched nothing. A learner's own subject was unreachable on Postgres
+     * while the identical subject answered fine on the file store, because the
+     * two stores were running different retrieval semantics and only one of
+     * them had ever been exercised.
+     *
+     * Postgres full-text ranking may well beat `scoreChunks` one day, but two
+     * implementations that disagree is worse than one that is merely adequate:
+     * every tutor guarantee is stated in terms of the passages retrieval
+     * returns, so retrieval differing by storage backend makes those
+     * guarantees untestable. A subject caps at 120 passages, so scoring in
+     * memory is bounded.
+     */
+    const chunks = await this.getCourseChunks(userId, opts.courseId ?? DEFAULT_COURSE_ID);
+    if (!chunks.length) return [];
+    const pool = opts.sourceId ? chunks.filter((c) => c.sourceId === opts.sourceId) : chunks;
+    const { courseId: _courseId, ...rest } = opts;
+    return scoreChunks(pool.length ? pool : chunks, query, { ...rest, sourceId: null });
   }
 
   async enqueueReview(userId: string, conceptId: string, priority: number, reason: string): Promise<void> {

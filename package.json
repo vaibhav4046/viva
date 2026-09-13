@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint:copy && npm run test && npm run test:extension && npm run build",
-    "test:assemblyai-live": "vitest run tests/assemblyai-live.test.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "smoke": "node scripts/smoke.mjs",
     "test:e2e": "python scripts/e2e-golden.py",
@@ -17,7 +16,8 @@
     "test:accessibility": "playwright test",
     "test:routes": "node scripts/check-routes.mjs",
     "lint:copy": "node scripts/lint-copy.mjs",
-    "test:extension": "node extension/extract.selftest.mjs"
+    "test:extension": "node extension/extract.selftest.mjs",
+    "test:assemblyai-live": "node scripts/live-test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.45.0",

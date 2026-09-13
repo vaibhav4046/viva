@@ -10,10 +10,16 @@
  * verify`.
  */
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+// Run vitest's own entry with this node, rather than spawning npx: spawning a
+// .cmd shim on Windows fails with EINVAL unless you opt into a shell, and
+// opting into a shell means quoting arguments by hand.
+const vitest = fileURLToPath(new URL("../node_modules/vitest/vitest.mjs", import.meta.url));
 
 const child = spawn(
-  process.platform === "win32" ? "npx.cmd" : "npx",
-  ["vitest", "run", "tests/assemblyai-live.test.ts", ...process.argv.slice(2)],
+  process.execPath,
+  [vitest, "run", "tests/assemblyai-live.test.ts", ...process.argv.slice(2)],
   { stdio: "inherit", env: { ...process.env, VIVA_LIVE: "1" } }
 );
 

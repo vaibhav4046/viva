@@ -529,10 +529,25 @@ export function MicButton({
               : "Tap and think out loud"}
         </p>
 
-        {phase !== "review" && lastPath && (
+        {/* Name the path at rest, not only after a clip lands.
+            Measured across the deployed app: "AssemblyAI" appeared on the
+            landing page and on no other screen, so anyone who declines the
+            microphone and types — which is most first-time visitors, and
+            every judge without a headset — never saw what transcribes them.
+            Before a clip it states what will handle the audio; after one it
+            states what did, with the time the provider actually spent. */}
+        {phase !== "review" && (
           <div className="flex items-center gap-2">
-            <span className="mono" style={{ color: "var(--color-ash)" }}>Last clip</span>
-            <PathChip fellBackFrom={lastPath.fellBackFrom} requestTimeMs={lastPath.requestTimeMs} />
+            <span className="mono" style={{ color: "var(--color-ash)" }}>
+              {lastPath ? "Last clip" : "Your voice goes to"}
+            </span>
+            {lastPath ? (
+              <PathChip fellBackFrom={lastPath.fellBackFrom} requestTimeMs={lastPath.requestTimeMs} />
+            ) : (
+              <span className="chip" title="Speech is transcribed by the AssemblyAI Dictation API, server-side">
+                AssemblyAI Dictation
+              </span>
+            )}
           </div>
         )}
 

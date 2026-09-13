@@ -218,7 +218,21 @@ describe("MicButton refuses to park the learner in a dead review panel", () => {
 
   it("keeps the last path on screen after the panel is gone", () => {
     expect(SRC).toMatch(/setLastPath\(\{/);
-    expect(SRC).toMatch(/phase !== "review" && lastPath/);
+    // Outside review the path row renders, and the measured chip is what
+    // shows once a clip has landed. Matched loosely on purpose: pinning the
+    // exact expression broke when a resting state was added beside it, and
+    // what matters is that `lastPath` still drives the chip outside review.
+    expect(SRC).toMatch(/phase !== "review" &&/);
+    expect(SRC).toMatch(/lastPath \? \(?\s*<PathChip|lastPath &&\s*<PathChip|<PathChip fellBackFrom=\{lastPath\./);
+  });
+
+  it("names the transcriber before a clip has landed, not only after one", () => {
+    // Measured on the deployment: "AssemblyAI" appeared on the landing page
+    // and on no other screen, so anyone who declines the microphone and types
+    // never saw what transcribes them. The resting label is the fix, and it
+    // must stay a resting label rather than drift back to post-hoc only.
+    expect(SRC).toMatch(/Your voice goes to/);
+    expect(SRC).toMatch(/AssemblyAI Dictation/);
   });
 
   it("sends the completed-dictation event somewhere readable", () => {
@@ -267,11 +281,20 @@ describe("turnFactsLine", () => {
     expect(turnFactsLine(voice({ requestTimeMs: Number.NaN }))).not.toContain("NaN");
   });
 
-  it("claims nothing for words another tool dictated", () => {
-    // §4.5: the burst came from Wispr Flow or Windows dictation, so no
-    // AssemblyAI path and no AssemblyAI timing belong on it.
+  it("claims nothing for words another tool produced, and does not claim to know which tool", () => {
+    // Two separate properties, both load-bearing.
     const line = turnFactsLine({ origin: "external-dictation", asrMode: null, requestTimeMs: 900, confidence: 0.9 });
-    expect(line).toBe("Dictated elsewhere");
+
+    // 1. No AssemblyAI path and no AssemblyAI timing belong on a burst we did
+    //    not transcribe, even though requestTimeMs was handed in above.
+    expect(line).not.toMatch(/AssemblyAI|Dictation ·|900|90%/);
+
+    // 2. burst.ts can only tell that the text was not typed. A paste and a
+    //    dictation drop are identical to it, so the label must not settle on
+    //    one of them. Asserting the property, not the wording, so rephrasing
+    //    stays free but re-asserting dictation does not.
+    expect(line).toBeTruthy();
+    expect(String(line).toLowerCase()).toContain("pasted");
   });
 
   it("renders nothing for typed text — the Note already says Typed", () => {

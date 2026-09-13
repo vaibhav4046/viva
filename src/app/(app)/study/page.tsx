@@ -151,6 +151,9 @@ export default function StudyPage() {
   const [storageNote, setStorageNote] = useState<string | null>(null);
   /** Set when the open subject only exists in this browser. */
   const [localOnly, setLocalOnly] = useState(false);
+  /** Scrolled to when a new answer lands, so the reply is never below the fold. */
+  const tutorRef = useRef<HTMLDivElement>(null);
+
   /** The subject whose saved conversation is currently in state. */
   const [convoFor, setConvoFor] = useState<string | null>(null);
   const conceptsRef = useRef<ConceptLite[]>([]);
@@ -351,6 +354,14 @@ export default function StudyPage() {
         const nowBand = moved ? bandFor(moved.mastery, moved.exposureCount > 0) : null;
         setNotes((m) => [{ event: out.event, concept: cname, band: nowBand, facts: t }, ...m].slice(0, 8));
         setTutor({ ...out.tutor, strategy: out.assessment?.verdict ?? out.tutor.strategy });
+        // After the paint, not during it: the card has to exist and have its
+        // final height before scrolling to it means anything.
+        requestAnimationFrame(() => {
+          tutorRef.current?.scrollIntoView({
+            behavior: reduced ? "auto" : "smooth",
+            block: "nearest",
+          });
+        });
         setBoot((b) => (b ? { ...b, mastery: out.mastery, events: [...b.events, out.event] } : b));
         // Written down here as well as on whichever lambda answered, carrying the
         // id the replay dedupes on. This is the copy the next load hands back.
@@ -508,12 +519,19 @@ export default function StudyPage() {
           {turnError ? <ErrorBanner message={turnError.message} onRetry={turnError.retry} retryLabel="Try again" /> : null}
           {busy ? <LoadingBlock label="Thinking…" lines={2} /> : null}
 
-          <TutorPanel
-            text={tutor?.text ?? null}
-            evidenceIds={tutor?.evidenceIds ?? []}
-            passageIds={passageIds}
-            strategy={tutor?.strategy}
-          />
+          {/* The answer has to be on screen. Measured on the deployment at
+              1280x800: after a typed turn the reply card sat at y=820 with the
+              fold at 800, so the visible feedback was the map changing colour
+              and nothing else. A first-time visitor reads that as "it did
+              something" rather than "it answered me". */}
+          <div ref={tutorRef}>
+            <TutorPanel
+              text={tutor?.text ?? null}
+              evidenceIds={tutor?.evidenceIds ?? []}
+              passageIds={passageIds}
+              strategy={tutor?.strategy}
+            />
+          </div>
 
           <AnimatePresence initial={false}>
             {quiz ? (

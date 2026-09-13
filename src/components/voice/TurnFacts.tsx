@@ -50,7 +50,14 @@ export function turnFactsLine(facts: TurnFacts): string | null {
   if (facts.origin === "typed") return null;
   // §4.5: a Wispr Flow / Windows dictation burst went through another tool's
   // recogniser, so claiming an AssemblyAI path or time for it would be a lie.
-  if (facts.origin === "external-dictation") return "Dictated elsewhere";
+  //
+  // "Pasted or dictated", not "Dictated elsewhere". src/lib/audio/burst.ts can
+  // only tell that more than a line arrived inside 300 ms; a paste and a
+  // dictation drop are identical at that layer, and its own comment says so.
+  // Naming it dictation asserts the half we did not measure — which is exactly
+  // the move this product refuses to make about a learner's claim, so it does
+  // not get to make it about their input either.
+  if (facts.origin === "external-dictation") return "Pasted or dictated";
   const parts = [facts.fellBackFrom || facts.asrMode === "sync" ? "Backup path" : "Dictation"];
   if (num(facts.requestTimeMs)) parts.push(`AssemblyAI ${Math.round(facts.requestTimeMs)} ms`);
   if (num(facts.confidence)) parts.push(`${Math.round(facts.confidence * 100)}% confident`);
@@ -59,7 +66,8 @@ export function turnFactsLine(facts: TurnFacts): string | null {
 
 /** Why the backup path answered, in a sentence rather than an error code. */
 export function pathTitle(facts: TurnFacts): string {
-  if (facts.origin === "external-dictation") return "Dictated by another tool and sent as text.";
+  if (facts.origin === "external-dictation")
+    return "This arrived as one block rather than keystrokes, so it was pasted or dictated by another tool. VIVA did not transcribe it and claims no time for it.";
   if (facts.fellBackFrom) {
     return "Dictation did not answer, so AssemblyAI's backup path transcribed this clip. The time is AssemblyAI's own, not the browser round trip.";
   }

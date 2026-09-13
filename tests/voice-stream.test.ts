@@ -371,7 +371,12 @@ describe("openTranscriptSocket", () => {
     sockets[2].drop();
 
     await vi.waitFor(() => expect(errors).toHaveLength(1));
-    expect(errors[0]).toBe("You look offline. Reconnect and hold the mic again, or type instead.");
+    // One sentence, and it must say two true things: the live words are gone,
+    // and the clip in hand is not. The old assertion pinned the fatal-path
+    // wording, which told a learner to try again mid-recording.
+    expect(errors[0]).toMatch(/connection dropped/i);
+    expect(errors[0]).toMatch(/still recording/i);
+    expect(errors[0]).not.toMatch(/type instead/i);
     // Three sockets, then it stops: MAX_RECONNECTS is honoured.
     expect(sockets).toHaveLength(3);
   });
@@ -383,7 +388,12 @@ describe("openTranscriptSocket", () => {
     // The real frame: error_code 1008 when the account has no free session.
     ws.emit({ type: "Error", error_code: 1008, error: "Unauthorized Connection: Too many concurrent sessions" });
 
-    expect(errors).toEqual(["AssemblyAI is busy. Try again in a moment."]);
+    // One message, naming the cause, and it must not tell a learner to try
+    // again: the clip is still recording and the buffered path will carry it.
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/too many sessions/i);
+    expect(errors[0]).toMatch(/still recording/i);
+    expect(errors[0]).not.toMatch(/try again/i);
     ws.drop();
     // Reconnecting into a full account would only burn another slot.
     expect(sockets).toHaveLength(1);

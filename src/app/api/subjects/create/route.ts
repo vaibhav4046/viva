@@ -65,6 +65,15 @@ const NO_DATABASE = "Before you start: VIVA keeps what you build in this browser
 const KEEPING = "Keeping it in this browser — that is where your subjects live.";
 const NOT_KEPT = "Kept in this browser. Open VIVA here again and it is waiting; open it somewhere else and it will not be.";
 
+/**
+ * How much pasted text this route buffers. Not a study limit — a memory one:
+ * the body is held whole in the function before anything reads it. What VIVA
+ * then studies is smaller again (`MAX_CHUNKS` passages), and `buildSubject`
+ * says so; this ceiling gets its own sentence because it is the only place a
+ * student's own characters are dropped before the build even starts.
+ */
+const PASTE_MAX_CHARS = 200_000;
+
 function encoder(controller: ReadableStreamDefaultController<Uint8Array>) {
   const enc = new TextEncoder();
   return (payload: Line) => controller.enqueue(enc.encode(`${JSON.stringify(payload)}\n`));
@@ -84,6 +93,14 @@ export async function POST(req: NextRequest) {
   }
 
   let input: IntakeInput;
+  /**
+   * Sentences the student is owed before the work starts, said once the
+   * stream is open. Only the reasons this route refused to read everything it
+   * was given: a paste over the ceiling used to be sliced in silence, which is
+   * how somebody hands over a book and is told a subject is ready without ever
+   * learning that four fifths of it was never opened.
+   */
+  const notes: string[] = [];
   const contentType = req.headers.get("content-type") ?? "";
 
   if (contentType.includes("multipart/form-data")) {
@@ -143,7 +160,12 @@ export async function POST(req: NextRequest) {
     } else {
       const text = String(body.text ?? "");
       if (text.trim().length < 200) return done(bad("BAD_REQUEST", "Paste a bit more — a few paragraphs is enough."));
-      input = { kind: "paste", title, text: text.slice(0, 200_000) };
+      if (text.length > PASTE_MAX_CHARS) {
+        notes.push(
+          `That paste is longer than VIVA takes in one go, so it is reading the first ${Math.round(PASTE_MAX_CHARS / 1_000)},000 characters and leaving the rest. Paste the next part as its own subject.`
+        );
+      }
+      input = { kind: "paste", title, text: text.slice(0, PASTE_MAX_CHARS) };
     }
   }
 
@@ -164,6 +186,7 @@ export async function POST(req: NextRequest) {
       const send = encoder(controller);
       try {
         if (!durable) send({ line: NO_DATABASE });
+        for (const note of notes) send({ line: note });
         const result = await buildSubject(input, identity.userId, (line) => send({ line }));
         if (!result.ok) {
           // A refusal is a normal outcome, not a crash: say why, in a sentence,

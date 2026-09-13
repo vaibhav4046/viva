@@ -89,6 +89,17 @@ export type Course = {
    * textbook's passages and produced the concepts and questions.
    */
   builtBy?: SubjectBuiltBy | null;
+  /**
+   * Which model, by name, when `builtBy` is "model".
+   *
+   * The library is seeded over several runs against whatever credential still
+   * has budget that day, so one file can hold maps written by two different
+   * models. A single name at the top of `library.json` would then be wrong
+   * about most of it, and "a model wrote this" is a claim the app makes to the
+   * student — the name of the one that did belongs with the subject it wrote,
+   * not with the file.
+   */
+  builtByModel?: string;
   sources: CourseSource[];
   concepts: ConceptDef[];
   examQuestions: ExamQuestion[];

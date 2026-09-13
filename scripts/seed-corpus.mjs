@@ -440,6 +440,10 @@ async function buildOne(entry, index) {
     subject: entry.subject,
     demo: true,
     builtBy: "model",
+    // Which model, recorded with the subject it wrote. The library is seeded
+    // over several runs against whatever credential still has budget, so one
+    // name at the top of the file would be wrong about most of it.
+    builtByModel: model,
     sources: [
       {
         id: sourceId,
@@ -513,7 +517,18 @@ function modelPassages(chunks, attempt = 1) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** The provider's minute window is shared with whatever else is running. */
+/**
+ * The provider's minute window is shared with whatever else is running.
+ *
+ * The wait was a full 65 s, sized when each call sent most of a chapter. It
+ * now sends about 2,500 tokens against a per-minute window of roughly 8,000,
+ * and the loop already sleeps 20 s between subjects, so a further 25 s clears
+ * the window with room to spare. Most retries are not rate limits at all —
+ * they are a small model that wrote one explainer instead of six — and making
+ * those wait a minute each turned a thirty-subject run into an afternoon.
+ */
+const RETRY_WAIT_MS = 25_000;
+
 async function withRetries(key, work, attempts = 3) {
   for (let i = 1; i <= attempts; i += 1) {
     const value = await work(i);
@@ -521,7 +536,7 @@ async function withRetries(key, work, attempts = 3) {
     if (exhausted) return null;
     if (i < attempts) {
       console.log(`    no map on attempt ${i} for ${key}; waiting out the provider's minute…`);
-      await sleep(65_000);
+      await sleep(RETRY_WAIT_MS);
     }
   }
   return null;

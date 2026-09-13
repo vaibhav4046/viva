@@ -47,10 +47,12 @@ export function voiceMessage(code: string | undefined): string {
  * goes to Dictation, so the learner should carry on talking. Telling them to
  * try again would make them abandon a clip that is about to succeed.
  */
+const STILL_RECORDING = "Keep talking — this clip is still recording, and it will be transcribed when you let go.";
+
 export const LIVE_MESSAGES: Record<string, string> = {
-  PROVIDER_BUSY: "Live words are not available right now — AssemblyAI has too many sessions open.",
-  TRANSCRIPTION_FAILED: "Live words stopped.",
-  NETWORK_DOWN: "Live words stopped — the connection dropped.",
+  PROVIDER_BUSY: `Live words are not available right now: AssemblyAI has too many sessions open. ${STILL_RECORDING}`,
+  TRANSCRIPTION_FAILED: `Live words stopped. ${STILL_RECORDING}`,
+  NETWORK_DOWN: `Live words stopped because the connection dropped. ${STILL_RECORDING}`,
 };
 
 export function liveMessage(code: string | undefined): string {

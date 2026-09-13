@@ -86,30 +86,70 @@ function sourceTitleFor(input: IntakeInput): string {
 }
 
 /**
- * Every document becomes its own source, and the total is capped once.
+ * Every document becomes its own source, and the total is capped once — but
+ * the cap is shared out, not handed to whoever arrives first.
  *
- * The per-document cap already lives in `chunkPages`; without a cap across
- * documents, five uploads would quietly become five times the ceiling.
+ * Measured: four uploads of one 300-page PDF gave the first file all 120
+ * passages and the other three none, and the subject was then announced as
+ * ready without a word about the files that were not in it. That is the same
+ * failure the create route already refuses when a file cannot be opened at
+ * all — a student revising from a quarter of their material and not knowing.
+ *
+ * So each document is guaranteed its share of the budget first, and only what
+ * nobody claimed is handed back out in order. Four big uploads become 30
+ * passages each; one big upload and three short ones still let the big one
+ * take everything the short ones did not want. What is still trimmed is
+ * reported to the caller, which says so out loud.
  */
-function sourcesFrom(docs: IntakeDoc[], baseId: string, single: boolean): CourseSource[] {
+type BuiltSources = {
+  sources: CourseSource[];
+  /** Documents that were cut short, and by how much: `["notes.pdf", …]`. */
+  trimmed: string[];
+};
+
+function sourcesFrom(docs: IntakeDoc[], baseId: string, single: boolean): BuiltSources {
+  const all = docs.map((doc, i) => ({
+    doc,
+    id: single ? baseId : `${baseId}_s${i + 1}`,
+    chunks: chunkPages(doc.pages, single ? baseId : `${baseId}_s${i + 1}`, doc.fallbackSection ?? doc.title),
+  }));
+
+  const share = Math.max(1, Math.floor(MAX_CHUNKS / Math.max(1, all.length)));
+  const allowance = all.map((d) => Math.min(d.chunks.length, share));
+  let spare = MAX_CHUNKS - allowance.reduce((n, x) => n + x, 0);
+  for (const [i, d] of all.entries()) {
+    if (spare <= 0) break;
+    const want = Math.min(spare, d.chunks.length - allowance[i]);
+    allowance[i] += want;
+    spare -= want;
+  }
+
   const sources: CourseSource[] = [];
-  let budget = MAX_CHUNKS;
-  for (const [i, doc] of docs.entries()) {
-    if (budget <= 0) break;
-    const id = single ? baseId : `${baseId}_s${i + 1}`;
-    const chunks = chunkPages(doc.pages, id, doc.fallbackSection ?? doc.title).slice(0, budget);
-    if (!chunks.length) continue;
-    budget -= chunks.length;
+  const trimmed: string[] = [];
+  for (const [i, d] of all.entries()) {
+    const kept = d.chunks.slice(0, allowance[i]);
+    if (!kept.length) continue;
+    if (kept.length < d.chunks.length) trimmed.push(d.doc.title);
     sources.push({
-      id,
-      title: doc.title,
-      type: doc.type,
-      chunks,
-      ...(doc.url ? { url: doc.url } : {}),
-      ...(doc.licence ? { licence: doc.licence } : {}),
+      id: d.id,
+      title: d.doc.title,
+      type: d.doc.type,
+      chunks: kept,
+      ...(d.doc.url ? { url: d.doc.url } : {}),
+      ...(d.doc.licence ? { licence: d.doc.licence } : {}),
     });
   }
-  return sources;
+  return { sources, trimmed };
+}
+
+/** One sentence about material VIVA had to leave out, or nothing. */
+function trimNote(trimmed: string[], multiple: boolean): string | null {
+  if (!trimmed.length) return null;
+  if (!multiple) {
+    return "That is more than VIVA studies in one subject, so it is working from the earlier part of it. Make the rest into a second subject and you will have all of it.";
+  }
+  const names = trimmed.length === 1 ? trimmed[0] : `${trimmed.slice(0, -1).join(", ")} and ${trimmed[trimmed.length - 1]}`;
+  return `There was more in ${names} than VIVA studies in one subject, so it took the earlier part of each. Make the rest into a second subject and you will have all of it.`;
 }
 
 export async function buildSubject(
@@ -170,7 +210,7 @@ export async function buildSubject(
   }
 
   onProgress(docs && docs.length > 1 ? "Reading your sources…" : "Reading your notes…");
-  const sources = sourcesFrom(
+  const { sources, trimmed } = sourcesFrom(
     docs ?? [{
       title: sourceTitleFor(input),
       type: input.kind === "pdf" ? "pdf" : input.kind === "named" ? "written" : "notes",
@@ -180,6 +220,8 @@ export async function buildSubject(
     sourceId,
     !docs || docs.length === 1
   );
+  const note = trimNote(trimmed, Boolean(docs && docs.length > 1));
+  if (note) onProgress(note);
   const chunks = sources.flatMap((s) => s.chunks);
   if (chunks.length === 0) {
     return { ok: false, error: { code: "TOO_THIN", message: "VIVA could not find any readable text in that." } };

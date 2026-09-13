@@ -299,7 +299,11 @@ export function openTranscriptSocket(opts: StreamOptions = {}): TranscriptSocket
     } catch (e) {
       if (!closing) {
         closing = true;
-        opts.onError?.(liveMessage(undefined));
+        // A thrown Error here already carries a learner-facing sentence from
+        // mintToken — "Voice is not switched on for this deployment. Type
+        // instead" is strictly better than a generic "live words stopped", so
+        // it is passed through rather than flattened.
+        opts.onError?.(e instanceof Error && e.message ? e.message : liveMessage(undefined));
         terminated?.();
       }
       return;

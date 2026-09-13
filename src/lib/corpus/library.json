@@ -1,7 +1,7 @@
 {
- "generatedAt": "2026-09-13T01:18:29.692Z",
+ "generatedAt": "2026-09-13T01:28:11.092Z",
  "source": "scripts/seed-corpus.mjs",
- "model": "openai/gpt-oss-20b",
+ "model": "openai/gpt-oss-120b",
  "subjects": [
   {
    "id": "course_os_alg",

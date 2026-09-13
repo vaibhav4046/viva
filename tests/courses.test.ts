@@ -74,6 +74,21 @@ describe("multi-course generalization", () => {
     }
   });
 
+  it("every concept in a hand-written lab has a question to be asked about it", () => {
+    // A ten-minute plan picks concepts and then needs something to ask. Both
+    // labs shipped concepts nothing could quiz: Transformers had five
+    // questions for six concepts (backpropagation and policy-vs-value
+    // iteration had none) and Probability had five for six (Monty Hall had
+    // none), so the default subject could not fill its own plan.
+    for (const id of ["course_transformers_w4", "course_probability"]) {
+      const course = getCourse(id);
+      const asked = new Set(course.examQuestions.map((q) => q.conceptId));
+      for (const concept of course.concepts) {
+        expect(asked.has(concept.id), `${id}: nothing asks about ${concept.id}`).toBe(true);
+      }
+    }
+  });
+
   it("teachback keywords and hints exist for every concept in every course", () => {
     for (const course of Object.values(COURSES)) {
       for (const concept of course.concepts) {

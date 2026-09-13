@@ -542,7 +542,7 @@ export function MicButton({
             <LiveTranscript committed={live.committed} words={live.words} listening className="w-full" />
             {liveNote ? (
               <p className="mono text-xs leading-relaxed" style={{ color: "var(--color-band-getting)" }}>
-                {liveNote} Keep talking — this clip is still recording, and it will be transcribed when you let go.
+                {liveNote}
               </p>
             ) : null}
           </div>

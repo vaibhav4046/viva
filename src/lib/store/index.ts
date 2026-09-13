@@ -23,6 +23,8 @@ type Degradation = {
   since: string | null;
 };
 
+/** How long a degraded instance waits before probing the durable backend again. */
+const RETRY_DURABLE_MS = 60_000;
 const degradation: Degradation = { degraded: false, from: "", reason: "", since: null };
 
 /** Snapshot of the degradation state, for /api/health/ready to report. */
@@ -87,7 +89,23 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
           return await (original as (...a: unknown[]) => unknown).apply(target, args);
         }
         if (degradation.degraded && typeof onFallback === "function") {
-          return (onFallback as (...a: unknown[]) => unknown).apply(fallback, args);
+          // The latch used to be permanent: one transient failure cost this
+          // instance its durability until it recycled. Measured on production
+          // 13 Sep - health reported the database reachable while the store
+          // stayed on the ephemeral fallback for hours, reason "unreachable".
+          // After a cooldown the next call probes the durable backend; success
+          // unlatches, failure restarts the clock and falls back as before.
+          if (Date.now() - Date.parse(degradation.since ?? "") < RETRY_DURABLE_MS) {
+            return (onFallback as (...a: unknown[]) => unknown).apply(fallback, args);
+          }
+          try {
+            const out = await (original as (...a: unknown[]) => unknown).apply(target, args);
+            resetStoreDegradation();
+            return out;
+          } catch {
+            degradation.since = new Date().toISOString();
+            return (onFallback as (...a: unknown[]) => unknown).apply(fallback, args);
+          }
         }
         try {
           return await (original as (...a: unknown[]) => unknown).apply(target, args);

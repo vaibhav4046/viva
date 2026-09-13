@@ -1,5 +1,7 @@
 import { checkLimit, limitKey } from "@/lib/limits";
 import { voiceMessage } from "@/lib/audio/messages";
+import { resolveIdentity } from "@/lib/auth/identity";
+import { withIdentityCookie } from "@/lib/http";
 import { rid, serverLog } from "@/lib/observe";
 
 /**
@@ -52,14 +54,37 @@ function fail(code: string, status: number, retryable: boolean, retryAfterSec?: 
   return Response.json({ error: { code, message: voiceMessage(code), retryable } }, { status, headers });
 }
 
+/**
+ * A token is minted for a learner, not for whoever finds the URL.
+ *
+ * This was the one route that never asked who was calling, so the whole gate
+ * on someone else's AssemblyAI meter was a per-IP bucket, and rotating the
+ * address is the ordinary way around one. Identity here is what it is
+ * everywhere else — the `viva_did` cookie, minted when absent, because the
+ * first hold of the microphone must work and there is no sign-in wall.
+ *
+ * That mint is also the honest limit of this: a caller who discards cookies
+ * gets a fresh identity each request and stays bounded by the IP bucket alone.
+ * What it buys is the learner bucket below, which the IP bucket cannot give —
+ * one cookie's budget is one budget however many addresses it arrives from.
+ */
 export async function GET(req: Request): Promise<Response> {
+  const { identity, setCookie } = await resolveIdentity(req);
+  return withIdentityCookie(await mint(req, identity.userId), setCookie);
+}
+
+async function mint(req: Request, userId: string): Promise<Response> {
   const traceId = rid();
   // Same bucket class as /transcribe: a token is a licence to stream audio at
-  // AssemblyAI's meter, so it must not be cheaper to obtain than a clip.
-  const rl = checkLimit(limitKey(["voice-stream", clientIp(req)]), "transcribe");
-  if (!rl.ok) {
-    serverLog("stream_token.rate_limited", traceId, {});
-    return fail("RATE_LIMITED", 429, true, rl.retryAfterSec);
+  // AssemblyAI's meter, so it must not be cheaper to obtain than a clip. Both
+  // buckets are checked — the address bounds a stranger, the learner bounds a
+  // cookie, and neither substitutes for the other.
+  for (const bucket of [["voice-stream", clientIp(req)], ["voice-stream-did", userId]]) {
+    const rl = checkLimit(limitKey(bucket), "transcribe");
+    if (!rl.ok) {
+      serverLog("stream_token.rate_limited", traceId, {});
+      return fail("RATE_LIMITED", 429, true, rl.retryAfterSec);
+    }
   }
 
   const key = process.env.ASSEMBLYAI_API_KEY;

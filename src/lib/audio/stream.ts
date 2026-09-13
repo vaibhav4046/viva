@@ -63,7 +63,7 @@
  * `close()` waits for Termination rather than yanking the connection.
  */
 
-import { voiceMessage } from "./messages";
+import { liveMessage, voiceMessage } from "./messages";
 
 /** Must match TARGET_RATE in ./wav and the worklet's own resampling target. */
 const SAMPLE_RATE = 16_000;
@@ -281,7 +281,7 @@ export function openTranscriptSocket(opts: StreamOptions = {}): TranscriptSocket
   const fail = (code: string) => {
     if (closing) return;
     closing = true;
-    opts.onError?.(voiceMessage(code));
+    opts.onError?.(liveMessage(code));
     terminated?.();
   };
 
@@ -299,14 +299,30 @@ export function openTranscriptSocket(opts: StreamOptions = {}): TranscriptSocket
     } catch (e) {
       if (!closing) {
         closing = true;
-        opts.onError?.(e instanceof Error ? e.message : voiceMessage(undefined));
+        opts.onError?.(liveMessage(undefined));
         terminated?.();
       }
       return;
     }
     if (closing) return;
 
-    const ws = openSocket(url);
+    // `new WebSocket()` throws synchronously when the URL is malformed or the
+    // page's CSP forbids the origin, and that throw was outside every catch:
+    // it left connect() rejecting into nothing, so the live feature vanished
+    // with no message and no reconnect. Found by pointing the socket at a
+    // blocked origin, which is what a stricter injected CSP or a proxy looks
+    // like from here.
+    let ws: SocketLike;
+    try {
+      ws = openSocket(url);
+    } catch {
+      if (!closing) {
+        closing = true;
+        opts.onError?.(liveMessage("NETWORK_DOWN"));
+        terminated?.();
+      }
+      return;
+    }
     socket = ws;
 
     ws.onopen = () => flush();

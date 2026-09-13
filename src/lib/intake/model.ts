@@ -256,7 +256,8 @@ const PLAN_SHAPE = [
 export const PLAN_SYSTEM = [
   "You turn a student's own study material into a map they can be quizzed on.",
   ...PLAN_SHAPE,
-  "Rules: give every concept a short id in lower_snake_case, a name in the words the material uses, and aliases a student might say out loud.",
+  'Rules: give every concept a short id in lower_snake_case, and a name in the words the material uses, written the way a heading would be — "Cell structure", not "cell"; name the idea, not one bare noun from it.',
+  "Give every concept aliases a student might say out loud.",
   "Descriptions and explanations must come from the passages given — never add facts the material does not contain.",
   "Every exam question must be answerable from the passages, and its requiredKeywords are the words a correct spoken answer would contain.",
   "explainers: `formal` mirrors the material's own wording; `jargonFree` says the same thing in everyday language; `missing` lists what a learner still needs after hearing it.",
@@ -299,6 +300,27 @@ export async function writePassages(topic: string): Promise<WrittenPassages | nu
   return result?.value ?? null;
 }
 
+/**
+ * A concept name a student reads as a heading, not as a bare noun.
+ *
+ * The map is written by a model, and a model reading a biology chapter
+ * returns `"cell"` and `"resolution"` about as often as it returns
+ * `"Cell structure"`. The app renders the name as the heading of a card, so
+ * one shipped subject had headings in lower case while the next had them
+ * capitalised. Upper-casing the first letter changes how it is presented and
+ * nothing else — the word is still the material's own. A name that already
+ * carries a capital anywhere ("pH scale", "mRNA", "Newton's first law") is
+ * left exactly as the model wrote it, because raising its first letter would
+ * make it a different word.
+ *
+ * The reading path (`intake/extract.ts`) already title-cases what it finds, so
+ * this is the model path catching up rather than a second rule.
+ */
+export function conceptHeading(name: string): string {
+  if (/\p{Lu}/u.test(name)) return name;
+  return name.replace(/^\p{Ll}/u, (c) => c.toUpperCase());
+}
+
 /** Keep only what the plan grounds in real concepts, and give ids to questions. */
 export function normalizePlan(plan: SubjectPlan): {
   concepts: ConceptDef[];
@@ -311,7 +333,7 @@ export function normalizePlan(plan: SubjectPlan): {
   const ids = new Set(plan.concepts.map((c) => c.id));
   const concepts: ConceptDef[] = plan.concepts.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: conceptHeading(c.name),
     aliases: c.aliases,
     description: c.description,
     related: c.related.filter((r) => ids.has(r) && r !== c.id),

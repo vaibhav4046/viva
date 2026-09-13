@@ -171,6 +171,15 @@ export const PROBABILITY: Course = {
       requiredKeywords: ["average", "outcome", "probability"],
       hint: "Multiply each outcome by its probability and add. Does any single roll equal the total?",
     },
+    // c_monty had no question, so a plan could set the Monty Hall update as
+    // today's work and then have nothing to ask about it.
+    {
+      id: "ex_pr_monty_1",
+      conceptId: "c_monty",
+      question: "The host has opened a goat door and two doors are left. Explain why switching wins two times in three rather than half the time.",
+      requiredKeywords: ["switch", "host", "third"],
+      hint: "Your first pick was right 1/3 of the time and the host cannot move the prize. Where does the other 2/3 go?",
+    },
   ],
   teachback: {
     keywords: {

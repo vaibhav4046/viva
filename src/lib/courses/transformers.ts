@@ -171,6 +171,23 @@ export const TRANSFORMERS: Course = {
       requiredKeywords: ["head", "relation"],
       hint: "One head computes one average. What do several heads let the layer track at once?",
     },
+    // Every concept carries at least one question, so a ten-minute plan can
+    // reach all six. These two had none: the plan could name backpropagation
+    // or policy iteration as due and then have nothing to ask about it.
+    {
+      id: "ex_bp_1",
+      conceptId: "c_backprop",
+      question: "Backpropagation and gradient descent do different jobs. Say what each one computes.",
+      requiredKeywords: ["gradient", "chain rule", "learning rate"],
+      hint: "One answers 'which direction', the other answers 'how far'. Which is which, and what scales the step?",
+    },
+    {
+      id: "ex_rl_1",
+      conceptId: "c_policy_value",
+      question: "How does value iteration differ from policy iteration?",
+      requiredKeywords: ["policy", "value", "bellman"],
+      hint: "Policy iteration alternates two steps. Which of those does value iteration fold into its update?",
+    },
   ],
   teachback: {
     keywords: {

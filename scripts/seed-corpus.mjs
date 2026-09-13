@@ -35,19 +35,85 @@ import { checkClaim } from "../src/lib/tutor/claim.ts";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "src", "lib", "corpus", "library.json");
 
-/** Chapters chosen for prose: a student can be quizzed on sentences, not on stripped equations. */
+/**
+ * Chapters chosen for prose: a student can be quizzed on sentences, not on
+ * stripped equations.
+ *
+ * The list is ordered by SUBJECT rather than by book, because that is what a
+ * student picking VIVA up is looking for. Where a second chapter of a book
+ * appears it is because the chapter is its own module on most timetables —
+ * genetics and ecology are not "more biology", they are the two other papers.
+ *
+ * Every id here is a book OpenStax publishes under CC BY 4.0, checked again at
+ * run time off the CMS rather than trusted from this list. The obvious gaps —
+ * Biology 2e, Chemistry 2e, University Physics, Psychology 2e, Microbiology,
+ * U.S. History, Principles of Marketing — are CC BY-NC-SA 4.0 and are not
+ * here; `buildOne` would refuse them anyway. There is no CC BY U.S. history
+ * book: "Life, Liberty, and the Pursuit of Happiness" is CC BY but has no
+ * published version in the archive, so it has nothing to read.
+ */
+const BOOK = {
+  bio: "185cbf87-c72e-48f5-b51e-f14f21b5eabd", // Biology
+  anat: "14fb4ad7-39a1-4eee-ab6e-3ef2482e3e22", // Anatomy and Physiology
+  chem: "85abf193-2bd2-4908-8563-90b8a7ac8df6", // Chemistry
+  phys: "031da8d3-b525-429c-80cf-6c8ed997733a", // College Physics
+  astro: "2e737be8-ea65-48c3-aa0a-9f35b4c6a966", // Astronomy
+  psych: "4abf04bf-93a0-45c3-9cbc-2cefd46e68cc", // Psychology
+  soc: "02040312-72c8-441e-a685-20e9333f3e1d", // Introduction to Sociology 2e
+  micro: "5c09762c-b540-47d3-9541-dda1f44f16e5", // Principles of Microeconomics 2e
+  macro: "27f59064-990e-48f1-b604-5188b9086c29", // Principles of Macroeconomics 2e
+  stats: "30189442-6998-4686-ac05-ed152b91b9de", // Introductory Statistics
+  alg: "9b08c294-057f-4201-9f48-5d6ad992740d", // College Algebra
+  trig: "13ac107a-f15f-49d2-97e8-60ab2e3b519c", // Algebra and Trigonometry
+  gov: "30e47181-f52c-4a91-9c11-33380c428268", // American Government 3e
+  biz: "4e09771f-a8aa-40ce-9063-aa58cc24e77f", // Introduction to Business
+  ip: "1b4ee0ce-ee89-44fa-a5e7-a0db9f0c94b1", // Introduction to Intellectual Property
+};
+
 const MANIFEST = [
-  { key: "bio", code: "BIO4", subject: "Biology", cnxId: "185cbf87-c72e-48f5-b51e-f14f21b5eabd", chapter: /cell structure/i },
-  { key: "anat", code: "ANAT1", subject: "Anatomy and physiology", cnxId: "14fb4ad7-39a1-4eee-ab6e-3ef2482e3e22", chapter: /introduction to the human body/i },
-  { key: "chem", code: "CHEM1", subject: "Chemistry", cnxId: "85abf193-2bd2-4908-8563-90b8a7ac8df6", chapter: /essential ideas/i },
-  { key: "phys", code: "PHYS4", subject: "Physics", cnxId: "031da8d3-b525-429c-80cf-6c8ed997733a", chapter: /newton's laws of motion/i },
-  { key: "astro", code: "ASTR2", subject: "Astronomy", cnxId: "2e737be8-ea65-48c3-aa0a-9f35b4c6a966", chapter: /birth of astronomy/i },
-  { key: "psych", code: "PSY8", subject: "Psychology", cnxId: "4abf04bf-93a0-45c3-9cbc-2cefd46e68cc", chapter: /^chapter 8 memory$/i },
-  { key: "soc", code: "SOC3", subject: "Sociology", cnxId: "02040312-72c8-441e-a685-20e9333f3e1d", chapter: /^chapter 3 culture$/i },
-  { key: "econ", code: "ECON3", subject: "Economics", cnxId: "5c09762c-b540-47d3-9541-dda1f44f16e5", chapter: /demand and supply/i },
-  { key: "stats", code: "STAT1", subject: "Statistics", cnxId: "30189442-6998-4686-ac05-ed152b91b9de", chapter: /sampling and data/i },
-  { key: "alg", code: "ALG3", subject: "Algebra", cnxId: "9b08c294-057f-4201-9f48-5d6ad992740d", chapter: /^chapter 3 functions$/i },
-  { key: "gov", code: "GOV2", subject: "American government", cnxId: "30e47181-f52c-4a91-9c11-33380c428268", chapter: /constitution and its origins/i },
+  // Life sciences
+  { key: "bio", code: "BIO4", subject: "Biology", cnxId: BOOK.bio, chapter: /cell structure/i },
+  { key: "photo", code: "BIO8", subject: "Photosynthesis", cnxId: BOOK.bio, chapter: /^chapter 8 photosynthesis$/i },
+  { key: "genetics", code: "BIO12", subject: "Genetics", cnxId: BOOK.bio, chapter: /mendel's experiments and heredity/i },
+  { key: "evolution", code: "BIO18", subject: "Evolution", cnxId: BOOK.bio, chapter: /evolution and the origin of species/i },
+  { key: "ecology", code: "BIO44", subject: "Ecology", cnxId: BOOK.bio, chapter: /ecology and the biosphere/i },
+  { key: "anat", code: "ANAT1", subject: "Anatomy and physiology", cnxId: BOOK.anat, chapter: /introduction to the human body/i },
+  { key: "neuro", code: "ANAT12", subject: "Neuroscience", cnxId: BOOK.anat, chapter: /the nervous system and nervous tissue/i },
+  { key: "heart", code: "ANAT19", subject: "Cardiovascular physiology", cnxId: BOOK.anat, chapter: /cardiovascular system: the heart/i },
+  { key: "immune", code: "ANAT21", subject: "Immunology", cnxId: BOOK.anat, chapter: /lymphatic and immune system/i },
+  // Physical sciences
+  { key: "chem", code: "CHEM1", subject: "Chemistry", cnxId: BOOK.chem, chapter: /essential ideas/i },
+  { key: "thermo", code: "CHEM5", subject: "Thermochemistry", cnxId: BOOK.chem, chapter: /^chapter 5 thermochemistry$/i },
+  { key: "bonding", code: "CHEM7", subject: "Chemical bonding", cnxId: BOOK.chem, chapter: /chemical bonding and molecular geometry/i },
+  { key: "phys", code: "PHYS4", subject: "Physics", cnxId: BOOK.phys, chapter: /newton's laws of motion/i },
+  { key: "energy", code: "PHYS7", subject: "Energy and work", cnxId: BOOK.phys, chapter: /work, energy, and energy resources/i },
+  { key: "waves", code: "PHYS16", subject: "Waves and oscillations", cnxId: BOOK.phys, chapter: /oscillatory motion and waves/i },
+  { key: "emag", code: "PHYS18", subject: "Electricity and magnetism", cnxId: BOOK.phys, chapter: /electric charge and electric field/i },
+  { key: "astro", code: "ASTR2", subject: "Astronomy", cnxId: BOOK.astro, chapter: /birth of astronomy/i },
+  { key: "solarsys", code: "ASTR7", subject: "The solar system", cnxId: BOOK.astro, chapter: /other worlds: an introduction to the solar system/i },
+  { key: "stars", code: "ASTR18", subject: "Stars", cnxId: BOOK.astro, chapter: /the stars: a celestial census/i },
+  // Social sciences
+  { key: "psych", code: "PSY8", subject: "Psychology", cnxId: BOOK.psych, chapter: /^chapter 8 memory$/i },
+  { key: "learn", code: "PSY6", subject: "Learning and behaviour", cnxId: BOOK.psych, chapter: /^chapter 6 learning$/i },
+  { key: "devpsych", code: "PSY9", subject: "Developmental psychology", cnxId: BOOK.psych, chapter: /lifespan development/i },
+  { key: "socpsych", code: "PSY12", subject: "Social psychology", cnxId: BOOK.psych, chapter: /^chapter 12 social psychology$/i },
+  { key: "soc", code: "SOC3", subject: "Sociology", cnxId: BOOK.soc, chapter: /^chapter 3 culture$/i },
+  { key: "crime", code: "SOC7", subject: "Criminology", cnxId: BOOK.soc, chapter: /deviance, crime, and social control/i },
+  { key: "econ", code: "ECON3", subject: "Economics", cnxId: BOOK.micro, chapter: /demand and supply/i },
+  { key: "elastic", code: "ECON5", subject: "Elasticity", cnxId: BOOK.micro, chapter: /^chapter 5 elasticity$/i },
+  { key: "macro", code: "MACR8", subject: "Macroeconomics", cnxId: BOOK.macro, chapter: /^chapter 8 unemployment$/i },
+  { key: "gov", code: "GOV2", subject: "American government", cnxId: BOOK.gov, chapter: /constitution and its origins/i },
+  { key: "liberties", code: "GOV4", subject: "Civil liberties", cnxId: BOOK.gov, chapter: /^chapter 4 civil liberties$/i },
+  // Quantitative
+  { key: "stats", code: "STAT1", subject: "Statistics", cnxId: BOOK.stats, chapter: /sampling and data/i },
+  { key: "normal", code: "STAT6", subject: "The normal distribution", cnxId: BOOK.stats, chapter: /^chapter 6 the normal distribution$/i },
+  { key: "hypo", code: "STAT9", subject: "Hypothesis testing", cnxId: BOOK.stats, chapter: /hypothesis testing with one sample/i },
+  { key: "alg", code: "ALG3", subject: "Algebra", cnxId: BOOK.alg, chapter: /^chapter 3 functions$/i },
+  { key: "logs", code: "ALG6", subject: "Logarithms and exponentials", cnxId: BOOK.alg, chapter: /exponential and logarithmic functions/i },
+  { key: "trig", code: "TRIG7", subject: "Trigonometry", cnxId: BOOK.trig, chapter: /the unit circle: sine and cosine functions/i },
+  // Professional
+  { key: "biz", code: "BUS4", subject: "Business", cnxId: BOOK.biz, chapter: /forms of business ownership/i },
+  { key: "ip", code: "IP3", subject: "Intellectual property", cnxId: BOOK.ip, chapter: /copyright basics/i },
 ];
 
 /** Sections that are exercises, glossaries or front matter rather than teaching prose. */
@@ -209,6 +275,15 @@ if (!dry) {
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
+        // A per-DAY cap is not a minute to wait out. The retry loop below is
+        // built for the per-minute window; against an exhausted daily budget it
+        // spends three attempts and two minutes per subject discovering the
+        // same refusal, thirty-odd times over. Say so once and stop, so the
+        // subjects already built are written and the run can resume tomorrow
+        // or on another credential.
+        if (res.status === 429 && /per day|\bTPD\b|\bRPD\b/i.test(detail)) {
+          exhausted = `daily budget exhausted for ${model}: ${detail.slice(0, 200)}`;
+        }
         throw new Error(`provider returned ${res.status}: ${detail.slice(0, 300)}`);
       }
       const data = await res.json();
@@ -218,6 +293,18 @@ if (!dry) {
 }
 
 const strip = (s) => String(s ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+/**
+ * Set when the provider says the DAY's budget is gone, not the minute's.
+ *
+ * `reasonObject` turns every provider failure into `null` so a learner never
+ * sees an exception, which is right for the app and blind for this script: the
+ * retry loop cannot tell "wait a minute" from "come back tomorrow", and against
+ * an exhausted daily cap it burns two minutes and three attempts per subject,
+ * for every subject in the manifest. This is the one thing the script needs to
+ * know, so the provider seam writes it here on the way past.
+ */
+let exhausted = null;
 
 /** .env.local is where this repo keeps LLM_*; the script is run by hand, not by Next. */
 function loadEnvLocal() {
@@ -316,14 +403,34 @@ async function buildOne(entry, index) {
   console.log(`    ${chunks.length} passages, ${total} chars`);
   if (dry) return { dry: true, key: entry.key, chunks: chunks.length };
 
-  const plan = await withRetries(entry.key, (attempt) =>
-    planSubject({ title: `${chapterTitle} (${meta.title})`, passages: modelPassages(chunks, attempt) })
-  );
-  if (!plan) return { skipped: `${entry.key}: the model did not return a usable map` };
-
-  const body = tidy(normalizePlan(plan), entry.key);
-  if (body.concepts.length < 6 || body.examQuestions.length < 5) {
-    return { skipped: `${entry.key}: only ${body.concepts.length} complete concepts and ${body.examQuestions.length} questions` };
+  /*
+   * A thin map is a retry, not a skip.
+   *
+   * `tidy` drops any concept the model did not explain twice, and this model
+   * writes one explainer instead of six often enough that half the manifest
+   * was being abandoned on a first attempt that a second attempt then got
+   * right. The check therefore lives INSIDE the retry, where "the model came
+   * back with nothing usable" already lives — same outcome, same loop. What is
+   * still refused is a subject that stays thin across every attempt: shipping
+   * two concepts and calling it a subject is worse than not shipping it.
+   */
+  let thin = null;
+  const body = await withRetries(entry.key, async (attempt) => {
+    const plan = await planSubject({
+      title: `${chapterTitle} (${meta.title})`,
+      passages: modelPassages(chunks, attempt),
+    });
+    if (!plan) return null;
+    const candidate = tidy(normalizePlan(plan), entry.key);
+    if (candidate.concepts.length < 6 || candidate.examQuestions.length < 5) {
+      thin = `${candidate.concepts.length} complete concepts and ${candidate.examQuestions.length} questions`;
+      console.log(`    attempt ${attempt}: only ${thin} — asking again`);
+      return null;
+    }
+    return candidate;
+  });
+  if (!body) {
+    return { skipped: `${entry.key}: ${thin ? `only ${thin}` : "the model did not return a usable map"}` };
   }
 
   const course = {
@@ -411,6 +518,7 @@ async function withRetries(key, work, attempts = 3) {
   for (let i = 1; i <= attempts; i += 1) {
     const value = await work(i);
     if (value) return value;
+    if (exhausted) return null;
     if (i < attempts) {
       console.log(`    no map on attempt ${i} for ${key}; waiting out the provider's minute…`);
       await sleep(65_000);
@@ -510,6 +618,13 @@ async function main() {
       const line = `${entry.key}: ${error instanceof Error ? error.message : String(error)}`;
       skipped.push(line);
       console.log(`    FAILED — ${line}`);
+    }
+    if (exhausted) {
+      // Everything built so far is still written below; the rest of the
+      // manifest is a `--fill` run away on another credential or another day.
+      console.log(`\nSTOPPING — ${exhausted}`);
+      skipped.push(exhausted);
+      break;
     }
   }
 

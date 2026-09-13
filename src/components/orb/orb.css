@@ -7,6 +7,11 @@
  * box-shadow, `prefers-reduced-motion` honoured, and nothing here is ever
  * allowed to paint over text (the host sits at z-index 0 and only ever
  * occupies the empty box a page reserved for it).
+ *
+ * There are no @keyframes on the orb. Every moving part is driven by a custom
+ * property the host writes once per frame, so `getAnimations()` is 0 whether
+ * or not motion is reduced, and the host simply stops advancing the phase when
+ * it is.
  */
 
 /* ------------------------------------------------------------------ host */
@@ -26,44 +31,125 @@
   /* Only the transform changes per frame; opacity changes at route edges. */
   will-change: transform;
   transition: opacity 240ms var(--ease-out-soft, ease-out);
-  /* Layout containment only. `contain: strict` also clips paint, which cut the
-     halo into a visible lighter square around the orb — the box is 240px and
-     the halo deliberately bleeds past it. The host is absolutely positioned at
-     a fixed size, so it cannot dirty page layout anyway. */
-  contain: layout style;
+  /* Nothing bleeds outside the disc any more — the reference has no halo and
+     no rim — so paint containment is safe here as well as layout. */
+  contain: layout style paint;
 }
 
-/* A soft pool of light under the orb, brightening with the voice. The glow is
-   a sibling element rather than a filter on the canvas: a drop-shadow on a
-   240px canvas re-rasterises every frame, a static radial does not. */
-.orb-halo {
+/* --------------------------------------------------------------- the orb */
+
+/*
+ * A flat disc, not a lit sphere.
+ *
+ * Measured off the reference (.viva/orb-ref/orb-close.png, sampled 64x64 down
+ * the centre column): a crisp circular edge with no specular, no rim light and
+ * no limb; one pigment at falling density; the colour pooled in the crown and
+ * feathered at the shoulders; a soft irregular horizon a little past half way;
+ * layered mist below it. The reference's page is white, so its foot dissolves
+ * toward white. Ours is obsidian, so the same object dissolves toward the
+ * ground — what is preserved is the hierarchy (loud crown, weightless foot),
+ * not the literal luminance, which inverted would have made the mist the
+ * brightest thing on the page.
+ *
+ * Two gradients carry the whole colour field:
+ *
+ *   - the POOL, an ellipse of cognition lime whose centre sits above the
+ *     disc's, which is what makes the crown a cap that feathers at the
+ *     shoulders rather than a slab. A pure vertical ramp printed a hard band
+ *     across the middle; the reference has no such band.
+ *   - the WASH under it, a vertical ramp that carries the horizon down through
+ *     the mist and closes the circle with a faint tint at the foot, because
+ *     the reference's circle reads complete all the way round.
+ *
+ * Sampling the reference showed its chroma and its density fall together
+ * almost exactly (ratio 0.85 to 0.94 the whole way down) — it is one pigment
+ * thinning out, not a hue ramp — so both gradients stay on #b8ff5a and pale
+ * only slightly across the horizon, where an undiluted lime would otherwise
+ * pass through khaki on the way to black.
+ */
+.orb-disc {
   position: absolute;
-  inset: -22%;
+  inset: 0;
   border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgb(184 255 90 / 0.22) 0%,
-    rgb(184 255 90 / 0.07) 42%,
-    transparent 70%
-  );
-  opacity: calc(0.55 + var(--orb-level, 0) * 0.75);
-  transform: scale(calc(0.92 + var(--orb-low, 0) * 0.18));
-  will-change: transform, opacity;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      to bottom,
+      rgb(184 255 90 / 0.42) 0%,
+      rgb(184 255 90 / 0.40) 24%,
+      rgb(185 255 96 / 0.34) 36%,
+      rgb(189 254 112 / 0.265) 44%,
+      rgb(195 253 136 / 0.185) 51%,
+      rgb(200 252 152 / 0.128) 58%,
+      rgb(202 251 158 / 0.098) 65%,
+      rgb(200 250 154 / 0.088) 72%,
+      rgb(196 247 142 / 0.08) 80%,
+      rgb(191 243 124 / 0.074) 88%,
+      rgb(187 239 108 / 0.07) 96%,
+      rgb(185 237 100 / 0.068) 100%
+    ),
+    radial-gradient(
+      ellipse 78% 63% at 50% 12%,
+      rgb(184 255 90 / 0.99) 0%,
+      rgb(184 255 90 / 0.955) 32%,
+      rgb(185 255 96 / 0.855) 50%,
+      rgb(188 254 108 / 0.63) 65%,
+      rgb(192 253 126 / 0.31) 80%,
+      rgb(196 252 142 / 0.08) 92%,
+      rgb(198 252 148 / 0) 100%
+    );
 }
 
-/* ------------------------------------------------------------- fallback */
-
-.orb-svg {
-  display: block;
-  position: relative;
-  filter: drop-shadow(0 0 18px rgb(184 255 90 / 0.35));
-  transform: scale(calc(1 + var(--orb-low, 0) * 0.06));
+/*
+ * The mist. Two banks of the same cloud at different scales, drifting at
+ * different rates and in opposite directions so the pattern never visibly
+ * repeats.
+ *
+ * The texture is one feTurbulence rasterised once by the browser from a data
+ * URI — a few hundred bytes each, no library, no per-frame noise generation.
+ * The X frequency sits far below the Y frequency, which is what stretches the
+ * noise into the horizontal filaments the reference has; the colour matrix
+ * thresholds it so there are gaps between the wisps instead of a fog; and the
+ * blur is baked into the SVG rather than applied as a CSS filter, so nothing
+ * re-rasterises while the layer drifts.
+ *
+ * The outer span holds the mask, in disc coordinates. The inner <i> holds the
+ * texture and the transform and is deliberately much larger than the disc, so
+ * drifting it can never bring an edge into view.
+ */
+.orb-mist {
+  position: absolute;
+  inset: 0;
 }
 
-.orb-svg__core {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scale(calc(1 + var(--orb-level, 0) * 0.35));
+.orb-mist > i {
+  position: absolute;
+  inset: -42% -55%;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  will-change: transform;
+}
+
+.orb-mist--far {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 24%, #000 48%, #000 80%, transparent 99%);
+  mask-image: linear-gradient(to bottom, transparent 24%, #000 48%, #000 80%, transparent 99%);
+}
+
+.orb-mist--far > i {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='300'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0065 0.030' numOctaves='4' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.55  0 0 0 0 1  0 0 0 0 0.26  2.1 0 0 0 -0.98'/%3E%3CfeGaussianBlur stdDeviation='6.5'/%3E%3C/filter%3E%3Crect width='420' height='300' filter='url(%23f)'/%3E%3C/svg%3E");
+  opacity: calc(0.58 + var(--orb-level, 0) * 0.2);
+  transform: translate3d(calc(var(--orb-drift-a, 0) * 1%), calc(var(--orb-drift-a, 0) * 0.2%), 0);
+}
+
+.orb-mist--near {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 36%, #000 58%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 36%, #000 58%, #000 88%, transparent 100%);
+}
+
+.orb-mist--near > i {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='300'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011 0.050' numOctaves='4' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.70  0 0 0 0 1  0 0 0 0 0.42  2.5 0 0 0 -1.38'/%3E%3CfeGaussianBlur stdDeviation='3.4'/%3E%3C/filter%3E%3Crect width='420' height='300' filter='url(%23f)'/%3E%3C/svg%3E");
+  opacity: calc(0.46 + var(--orb-level, 0) * 0.26);
+  transform: translate3d(calc(var(--orb-drift-b, 0) * -1%), calc(var(--orb-drift-b, 0) * 0.13%), 0);
 }
 
 /* -------------------------------------------------------------- the slots */
@@ -170,13 +256,10 @@
   .orb-backdrop__pool--b {
     animation: none;
   }
-  .orb-halo,
-  .orb-svg,
-  .orb-svg__core {
-    transform: none;
-  }
-  .orb-halo {
-    opacity: 0.55;
+  /* The host stops advancing the drift phase, so these never move. Drop the
+     compositor hint with it rather than promoting a layer for nothing. */
+  .orb-mist > i {
+    will-change: auto;
   }
   .orb-host {
     transition: none;

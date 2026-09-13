@@ -164,6 +164,16 @@ export function MicButton({
   const typedRef = useRef<HTMLInputElement>(null);
   const typedLenRef = useRef(0);
   const [live, setLive] = useState<LiveState>(EMPTY_LIVE);
+  /**
+   * Why the live words stopped, when they do.
+   *
+   * Separate from `error` on purpose. `error` means the turn failed; this
+   * means only the live picture failed while the recording carries on to the
+   * buffered path, which is the transcript that actually counts. Showing
+   * VOICE_MESSAGES' "Try again in a moment" here would tell a learner to
+   * abandon a clip that is about to succeed.
+   */
+  const [liveNote, setLiveNote] = useState<string | null>(null);
   const captureRef = useRef<CaptureHandle | null>(null);
   const socketRef = useRef<TranscriptSocket | null>(null);
   const startingRef = useRef(false);
@@ -340,7 +350,17 @@ export function MicButton({
       // the renderer. Started from the gesture, never an effect, so
       // StrictMode cannot open two sockets on one mic.
       setLive(EMPTY_LIVE);
-      const socket = openTranscriptSocket({ language: languages, onState: setLive });
+      setLiveNote(null);
+      const socket = openTranscriptSocket({
+        language: languages,
+        onState: setLive,
+        // Without this the entire error path in stream.ts was unreachable from
+        // the UI: PROVIDER_BUSY, the terminal-not-retried policy for 1008, all
+        // of VOICE_MESSAGES. Verified against the deployment by filling the
+        // account's concurrency cap — the socket got a real 1008 and the
+        // screen said nothing at all.
+        onError: (message) => setLiveNote(message),
+      });
       socketRef.current = socket;
       const capture = await startCapture({
         onLevel: (l) => {
@@ -518,7 +538,14 @@ export function MicButton({
             the control 114 px down and out from under a held pointer, which
             fires onPointerLeave and stops the capture mid-sentence. */}
         {listening && (
-          <LiveTranscript committed={live.committed} words={live.words} listening className="w-full" />
+          <div className="w-full space-y-1">
+            <LiveTranscript committed={live.committed} words={live.words} listening className="w-full" />
+            {liveNote ? (
+              <p className="mono text-xs leading-relaxed" style={{ color: "var(--color-band-getting)" }}>
+                {liveNote} Keep talking — this clip is still recording, and it will be transcribed when you let go.
+              </p>
+            ) : null}
+          </div>
         )}
 
         <p className="mono" style={{ color: "var(--color-ash)" }}>

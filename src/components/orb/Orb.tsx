@@ -1,6 +1,5 @@
 "use client";
-import dynamic from "next/dynamic";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { GENTLE } from "@/lib/motion";
 import { advanceBands, orbBands } from "./orbState";
 import "./orb.css";
@@ -38,12 +37,18 @@ import "./orb.css";
  * It is fully interruptible — the spring retargets mid-flight — and because
  * the orb keeps its last target while the route gap is open, it is visible
  * and moving during the whole `mode="wait"` handover rather than blinking.
+ *
+ * The orb the host carries used to be a three.js canvas on desktops and a
+ * drawn SVG everywhere else. It is now one object for everyone: a disc built
+ * from two CSS gradients and two rasterised turbulence textures (see
+ * orb.css). The reference this was rebuilt against is a flat disc with a
+ * colour ramp and drifting cloud — a 2D problem — so three.js, its fiber
+ * binding, the WebGL probe, the hardware-concurrency tier and the mobile
+ * cutout all went with it, and the landing no longer downloads a 239 KB chunk
+ * on any device. Reduced motion, phones, saveData and machines without WebGL
+ * now get the same orb rather than a lesser one; the only thing reduced
+ * motion changes is that the drift phase stops advancing.
  */
-
-const VoiceOrb = dynamic(() => import("@/components/three/VoiceOrb"), {
-  ssr: false,
-  loading: () => null,
-});
 
 /** The host's intrinsic box. Slots are matched to it by scaling this. */
 const ORB_BASE_PX = 240;
@@ -106,41 +111,6 @@ export function OrbSlot({
 
 /* ------------------------------------------------------------------- host */
 
-function hasWebGL(): boolean {
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Whether this machine gets the canvas at all.
- *
- * Measured on the deployed landing before this guard existed: mobile
- * Lighthouse Performance 66, 1,110 ms total blocking time, 2.0 s of script
- * bootup, with a single 239 KB chunk — three.js — dominating a 430 KB payload.
- * Delaying the import does not help; the download and parse still land inside
- * the window the score measures. So phones get the drawn fallback, which is
- * about 700 bytes of SVG and travels between slots exactly the same way.
- */
-function canRunCanvas(): { run: boolean; detail: number } {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return { run: false, detail: 4 };
-  if (!hasWebGL()) return { run: false, detail: 4 };
-  if (window.matchMedia("(max-width: 767px)").matches) return { run: false, detail: 4 };
-
-  type NetworkInfo = { saveData?: boolean; effectiveType?: string };
-  const conn = (navigator as Navigator & { connection?: NetworkInfo }).connection;
-  if (conn?.saveData) return { run: false, detail: 4 };
-  if (conn?.effectiveType && /(^|-)(2g|3g)$/.test(conn.effectiveType)) return { run: false, detail: 4 };
-
-  // Four cores or fewer is a netbook or a cheap laptop; give it half the
-  // vertices rather than none of the orb.
-  const detail = (navigator.hardwareConcurrency ?? 8) <= 4 ? 4 : 5;
-  return { run: true, detail };
-}
-
 /* The host must be in the right place before the browser paints, but it must
  * not be running a loop while the page is still hydrating. useLayoutEffect
  * gives the first; the idle callback inside it gives the second. */
@@ -150,41 +120,31 @@ type Axis = { value: number; target: number; velocity: number };
 const axis = (v = 0): Axis => ({ value: v, target: v, velocity: 0 });
 
 /**
+ * How the two cloud banks drift, in cycles per second and in percent of their
+ * own (deliberately oversized) box.
+ *
+ * At rest the far bank takes about 22 s to come back to where it started —
+ * slow enough to read as weather rather than as an animation, which is the
+ * state a first-time visitor sees. A voice multiplies the rate rather than
+ * adding to it, so a spoken phrase makes the cloud travel instead of making
+ * the disc inflate; the disc's geometry never changes at all.
+ *
+ * The amplitudes are well inside the mist layer's overhang (55% horizontally,
+ * 42% vertically in orb.css), so no drift can ever pull an edge into the disc.
+ */
+const DRIFT = {
+  a: { rest: 0.045, voice: 0.28, amp: 9 },
+  b: { rest: 0.031, voice: 0.21, amp: 7 },
+} as const;
+
+const TAU = Math.PI * 2;
+
+/**
  * Mount once, in the root layout, as a sibling of `{children}` so it is
  * outside `template.tsx` and survives navigation.
  */
 export function OrbHost() {
   const host = useRef<HTMLDivElement>(null);
-  const [canvas, setCanvas] = useState<{ run: boolean; detail: number }>({ run: false, detail: 5 });
-  const [paused, setPaused] = useState(false);
-
-  /* Decide on the canvas once the main thread is genuinely idle, so the
-   * import can never compete with hydration or LCP. */
-  useEffect(() => {
-    const decision = canRunCanvas();
-    if (!decision.run) return;
-    const start = () => setCanvas(decision);
-    const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number })
-      .requestIdleCallback;
-    if (typeof ric === "function") {
-      const handle = ric(start, { timeout: 3000 });
-      return () => {
-        (window as Window & { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback?.(handle);
-      };
-    }
-    const id = window.setTimeout(start, 1200);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  /* Stop the render loop when the orb is off screen. `frameloop="never"` is
-   * free; an early return inside useFrame still clears and redraws. */
-  useEffect(() => {
-    const el = host.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([entry]) => setPaused(!entry.isIntersecting), { rootMargin: "80px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
 
   /* The follow loop: one rAF, one transform write, no React state. */
   useIsoLayoutEffect(() => {
@@ -196,6 +156,8 @@ export function OrbHost() {
     const y = axis();
     const scale = axis(1);
     const axes = [x, y, scale];
+    let phaseA = 0;
+    let phaseB = 0.37; // out of step with A from the first frame
 
     let placed = false;
     let lastFrame = performance.now();
@@ -245,8 +207,11 @@ export function OrbHost() {
     const paint = () => {
       el.style.transform = `translate3d(${x.value.toFixed(2)}px, ${y.value.toFixed(2)}px, 0) scale(${scale.value.toFixed(4)})`;
       el.style.opacity = activeSlot() ? "1" : "0";
+      // Only what orb.css actually reads. `low` still drives the drift rate,
+      // but it does that in here, not through a property nothing consumes.
       el.style.setProperty("--orb-level", orbBands.level.toFixed(3));
-      el.style.setProperty("--orb-low", orbBands.low.toFixed(3));
+      el.style.setProperty("--orb-drift-a", (Math.sin(phaseA * TAU) * DRIFT.a.amp).toFixed(3));
+      el.style.setProperty("--orb-drift-b", (Math.cos(phaseB * TAU) * DRIFT.b.amp).toFixed(3));
     };
 
     /* Place it before the first paint: one rect read and one transform write,
@@ -272,6 +237,14 @@ export function OrbHost() {
       lastFrame = now;
 
       advanceBands(dt);
+
+      // The cloud. Reduced motion leaves the phase where it is, so the mist is
+      // a still photograph and `getAnimations()` stays 0 — there are no CSS
+      // animations on the orb for it to have found anyway.
+      if (!reduced.matches) {
+        phaseA = (phaseA + dt * (DRIFT.a.rest + orbBands.low * DRIFT.a.voice)) % 1;
+        phaseB = (phaseB + dt * (DRIFT.b.rest + orbBands.low * DRIFT.b.voice)) % 1;
+      }
 
       // Re-measuring forces layout, so only do it every frame while the orb
       // is actually travelling. At rest, ten times a second is plenty to
@@ -344,44 +317,33 @@ export function OrbHost() {
 
   return (
     <div ref={host} className="orb-host" aria-hidden>
-      <span className="orb-halo" />
-      {canvas.run ? <VoiceOrb detail={canvas.detail} paused={paused} /> : <OrbSilhouette />}
+      <OrbDisc />
     </div>
   );
 }
 
 /**
- * The orb without WebGL: phones, reduced motion, and anything that cannot
- * answer for a GL context.
+ * The orb itself: a flat disc, everywhere, on every device.
  *
- * All 30 edges of a real icosahedron, orthographically projected and tilted
- * 18° / 12° so it reads as a solid, stroked in cognition lime over a soft
- * core. Vector, so it is crisp at 3× DPR, and about 700 bytes of markup
- * instead of a 239 KB chunk. It scales and travels between slots exactly like
- * the canvas does, so the shared-element move is not a desktop-only feature,
- * and `--orb-level` makes it breathe with the voice from CSS alone.
+ * Three empty elements and a stylesheet. The colour field is two CSS
+ * gradients; the cloud is two rasterised feTurbulence textures inside data
+ * URIs, masked to the lower two thirds and translated by a custom property the
+ * host writes each frame. It is resolution independent, it costs no JavaScript
+ * of its own, and it scales and travels between slots exactly as the canvas
+ * did — the host does that work, not the orb.
+ *
+ * The tuning lives in orb.css, next to the measurement it came from.
  */
-function OrbSilhouette() {
+function OrbDisc() {
   return (
-    <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden focusable="false" className="orb-svg">
-      <defs>
-        <radialGradient id="viva-orb-core" cx="50%" cy="42%" r="50%">
-          <stop offset="0%" stopColor="rgb(184 255 90 / 0.32)" />
-          <stop offset="55%" stopColor="rgb(184 255 90 / 0.09)" />
-          <stop offset="100%" stopColor="rgb(184 255 90 / 0)" />
-        </radialGradient>
-      </defs>
-      <circle className="orb-svg__core" cx="50" cy="50" r="20" fill="url(#viva-orb-core)" />
-      <path
-        d="M29.8 14.4L75 14.4M29.8 14.4L58.9 39.6M29.8 14.4L44.1 16.4M29.8 14.4L8.8 42.9M29.8 14.4L18 57.1M75 14.4L58.9 39.6M75 14.4L44.1 16.4M75 14.4L82 42.9M75 14.4L91.2 57.1M25 85.6L70.2 85.6M25 85.6L55.9 83.6M25 85.6L41.1 60.4M25 85.6L8.8 42.9M25 85.6L18 57.1M70.2 85.6L55.9 83.6M70.2 85.6L41.1 60.4M70.2 85.6L82 42.9M70.2 85.6L91.2 57.1M55.9 83.6L58.9 39.6M55.9 83.6L91.2 57.1M55.9 83.6L18 57.1M58.9 39.6L91.2 57.1M58.9 39.6L18 57.1M41.1 60.4L44.1 16.4M41.1 60.4L82 42.9M41.1 60.4L8.8 42.9M44.1 16.4L82 42.9M44.1 16.4L8.8 42.9M82 42.9L91.2 57.1M8.8 42.9L18 57.1"
-        fill="none"
-        stroke="var(--color-cognition)"
-        strokeWidth="1.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.8"
-      />
-    </svg>
+    <div className="orb-disc">
+      <span className="orb-mist orb-mist--far">
+        <i />
+      </span>
+      <span className="orb-mist orb-mist--near">
+        <i />
+      </span>
+    </div>
   );
 }
 

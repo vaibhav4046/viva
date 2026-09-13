@@ -37,3 +37,22 @@ export const VOICE_MESSAGES: Record<string, string> = {
 export function voiceMessage(code: string | undefined): string {
   return (code && VOICE_MESSAGES[code]) || "That clip did not come back. Try again.";
 }
+
+/**
+ * The same failures, said for the live-words socket instead of the clip.
+ *
+ * These cannot borrow VOICE_MESSAGES. Those sentences all end in some form of
+ * "try again", which is right when the turn is lost and wrong here: when the
+ * socket drops, the microphone is still recording and the buffered clip still
+ * goes to Dictation, so the learner should carry on talking. Telling them to
+ * try again would make them abandon a clip that is about to succeed.
+ */
+export const LIVE_MESSAGES: Record<string, string> = {
+  PROVIDER_BUSY: "Live words are not available right now — AssemblyAI has too many sessions open.",
+  TRANSCRIPTION_FAILED: "Live words stopped.",
+  NETWORK_DOWN: "Live words stopped — the connection dropped.",
+};
+
+export function liveMessage(code: string | undefined): string {
+  return (code && LIVE_MESSAGES[code]) || "Live words stopped.";
+}

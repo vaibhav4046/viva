@@ -43,8 +43,9 @@ audio: 16 kHz mono s16le PCM  # compressed formats are rejected with 415
 What that buys, and why each part is used:
 
 - **`keyterms_prompt`** carries the concept names of the subject you are
-  studying, so "positional encoding" comes back spelled correctly instead of
-  "positional and coding".
+  studying, so the endpoint has the vocabulary a textbook is full of before it
+  hears it. We send them on every clip; on our own reference clip we could not
+  measure a difference either way, and say so rather than claim one.
 - **`stt_prompt`** carries the last few turns of the conversation, so a
   follow-up like "explain it without the jargon" resolves to the right concept.
 - **`llm_instruction`** does the cleanup: filler words and false starts are
@@ -72,22 +73,27 @@ mic → AudioWorklet (one capture) ─┬→ buffered clip → /api/voice/transc
 One microphone feeds both. The browser opens the socket itself, because
 relaying every 64 ms frame through a server hop is the exact latency streaming
 exists to remove — it carries a short-lived token from `/api/voice/stream-token`
-and never the API key. Measured in a real browser, median of four runs: the
-first word paints **2.4 s** after the mic opens (that includes minting the
-token and the handshake), then the line updates about every **370 ms**, fifteen
-times across a ten-second sentence. Settled text is solid, in-flight words are
-dim, and the buffered transcript is still the one that gets marked. If the
+and never the API key. Measured in a real browser against production on 13
+September, median of four runs: the first word paints **1.6 s** after the mic
+opens (that includes minting the token and the handshake), then the line updates
+about every **355 ms**, twenty-five times across the 9.5 s clip. A reviewer
+running their own version of the same measurement the same day got 1.8 s, so
+read the first number as 1.5-2.0 s. Settled text is solid, in-flight words
+are dim, and the buffered transcript is still the one that gets marked. If the
 socket never opens you lose the animation and nothing else.
 
 Language is a picker, and **Automatic is the default on purpose**. Naming a
 single language pins the streaming model: `language_code=en` runs a model that
 holds every word unsettled until the end of the turn, so the transcript arrives
-in ~1.2 s lumps and the settle never happens word by word. Automatic runs the
-multilingual model, which finalises words as they land — measured on the same
-clip, 22 words settle individually against 2. Thirty-two codes are available
-for anyone who wants theirs pinned. Automatic is also confident and wrong on
-marginal audio (a degraded English clip came back as German), which is why the
-picker exists at all.
+in ~1.3 s lumps and the settle never happens word by word. Automatic runs the
+multilingual model, which finalises words as they land — on the same clip,
+**seventeen of its nineteen words settle before their turn closes, against none
+on `en`**, because only the last word of a turn has to wait. The picker is the
+override for anyone who wants their own language pinned: twenty entries, of
+which sixteen name a single language the socket serves. The socket accepts
+thirty-two codes in all, so sixteen of them cannot be reached from the UI, and
+the three entries it does not serve (Polish, Ukrainian, English + Hindi) fall
+back to Automatic rather than killing the session.
 
 ## Reproduce the transcription yourself
 
@@ -98,27 +104,31 @@ curl -s -X POST https://viva-five-murex.vercel.app/api/voice/transcribe \
   -F "mode=study"
 ```
 
-A real run against production, 12 September 2026:
+A real run against production, 13 September 2026 — six fields of the response,
+values exactly as returned, nothing rounded:
 
 ```json
 { "mode": "dictation",
-  "confidence": 0.988,
-  "sessionId": "e36868b6-b49f-417f-b4a9-1d53a7c26a14",
-  "requestTimeMs": 604,
+  "confidence": 0.9873139746014078,
+  "sessionId": "f7aaf149-c663-46a5-a192-53f002af2ed8",
+  "requestTimeMs": 586.6354600002524,
   "verbatim": "Um, I don't really understand why attention needs positional encoding. I think, maybe, it's about which words are important?",
   "clean":    "I don't really understand why attention needs positional encoding; I think maybe it's about which words are important." }
 ```
 
-That pair is the whole argument for using the Dictation API rather than a
-plain transcript: `Um,` is gone and `I think` / `maybe` are still there.
-Latency, measured against production on 13 September 2026 with the command
-above, five runs from a UK machine: **median 1310 ms** end to end, of which
-**571 ms** is AssemblyAI's own `request_time_ms`. The rest is our round trip.
+That pair is the whole argument for using the Dictation API rather than a plain
+transcript: `Um,` is gone and `I think` / `maybe` are still there. The
+confidence repeats exactly on this clip: twelve runs, same value, twelve ids.
 
-(Two earlier drafts said 853 ms, then 1166 ms. Both were real measurements
-that stopped reproducing as the app changed, and both were caught by a
-reviewer re-running the command rather than by us. Expect 1300-1530 ms end to
-end and 545-580 ms of provider time.)
+The latency does not. Twelve runs of the command above from a UK machine on 13
+September: **median 1178 ms** end to end (1098-1833), of which **566 ms** median
+(560-591) is AssemblyAI's own `request_time_ms`. Two reviewers ran the same
+command against the same deployment the same day and got medians of 1246 ms and
+1437 ms. Three drafts of this README have quoted a single number here — 853 ms,
+then 1166 ms, then 1310 ms — and each stopped reproducing within a day, so take
+the spread rather than a fourth: **twenty-seven runs by three harnesses put it
+at 1.1-2.1 s end to end, medians 1178, 1246 and 1437 ms, about 0.6 s of it the
+provider.** Where you enter the network moves it more than anything the app does.
 
 ---
 
@@ -206,10 +216,11 @@ mic → AudioWorklet (Int16 PCM 16 kHz) → /api/voice/transcribe
 
 Three rules the code actually enforces:
 
-- **No citation without a passage.** The tutor's reply schema requires a
-  `chunkId` that exists in the retrieved set; anything else is stripped. If
-  nothing survives, VIVA says it cannot find that in your source rather than
-  inventing one.
+- **No citation without a passage.** Every citation is filtered against the
+  passage ids actually retrieved for that turn, in `groundReply`; the reply
+  schema only asks for a string, so that check is what enforces it. If nothing
+  survives, VIVA says it cannot find that in your source rather than inventing
+  one.
 - **No model writes a score.** Mastery moves only through the reducer in
   `src/lib/mastery.ts`. The model emits a signal; the arithmetic is ours and
   every change carries a reason.
@@ -228,7 +239,7 @@ npm run dev
 ```
 
 ```bash
-npm run verify                 # typecheck + tests + build
+npm run verify                 # typecheck + copy lint + tests + extension checks + build
 npm run lint:copy              # fails on internal jargon in student-facing copy
 ```
 
@@ -238,7 +249,7 @@ Environment:
 |---|---|---|
 | `ASSEMBLYAI_API_KEY` | yes | Server-side only |
 | `ASSEMBLYAI_DICTATION_URL` | no | Defaults to the v1 live endpoint |
-| `ASSEMBLYAI_TRANSCRIPTION_MODE` | no | `dictation` (default) or `sync` |
+| `ASSEMBLYAI_TRANSCRIPTION_MODE` | no | `dictation` (default), `sync` or `async`; anything else falls back to `dictation` |
 | `DATABASE_URL` | no | Postgres. Without it, a per-instance file store |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | no | Without them the heuristic tutor answers |
 | `LLM_FALLBACKS` | no | Spare credentials, `baseUrl\|key\|model` separated by commas. Tried in order when the first is rate limited, and skipped for a minute after |
@@ -259,9 +270,11 @@ Stated plainly, because a demo that hides its edges is not worth trusting.
   transcript is real, but every clip measured here was English. Nobody has
   checked a Hindi or Mandarin transcript word by word, so no accuracy claim is
   made for them.
-- **Screen readers.** Automated checks pass with zero violations on every
-  route at two widths; a manual pass with a real screen reader has not been
-  done.
+- **Screen readers.** Automated checks report zero violations on seven routes
+  at two widths against production. They also return 253 results as "needs
+  review" rather than pass — 245 of them colour contrast, 101 on the study
+  screen alone — so contrast is unadjudicated by that pass, not verified good.
+  A manual pass with a real screen reader has not been done.
 - **Marking.** VIVA checks a claim against the passages in your subject. It
   will say it could not check something rather than guess, but a claim your
   source does not speak to is a claim it cannot mark.

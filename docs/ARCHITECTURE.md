@@ -51,30 +51,33 @@ the Dictation request from the learner's actual subject:
 | `language_codes` | the subject's languages; streaming accepts 32 codes plus automatic detection, and anything outside that set maps to auto rather than killing the session |
 
 Speaker labels are stripped from `stt_prompt` because a prompt beginning
-`Student:` produced a transcript beginning `Student:` — probed live, pinned by
-a test.
+`Student:` once produced a transcript beginning `Student:`. The strip is pinned
+by a test; the leak itself did not reproduce on re-probe (see API-FEEDBACK §9).
 
 Any WAV is accepted: `toPcm16kMono` downmixes and resamples server-side before
 declaring the format. Declaring 16 kHz over 48 kHz bytes made the endpoint read
 the clip at one sixth speed and return an empty transcript with HTTP 200.
 
 Dictation answers first. Sync is reached only through service faults
-(401/404/429/503/504/5xx), never audio faults (400/413/415), so a bad clip is
-not paid for twice. The response says which path served it.
+(401/404/429/503/504/5xx) or a missing dictation URL, never audio faults
+(400/413/415), so a bad clip is not paid for twice. The response says which
+path served it.
 
 ## The three guarantees
 
-**No citation without a passage.** The reply schema requires a `chunkId` that
-exists in the retrieved set; anything else is stripped. If nothing survives and
-the intent needed one, VIVA says it cannot find that in your source.
+**No citation without a passage.** `groundReply` filters every citation against
+the chunk ids actually retrieved for that turn and deletes the rest — the schema
+only asks for a string, so that check is what enforces this. If nothing survives
+and the intent needed one, VIVA says it cannot find that in your source.
 
 **No model writes a score.** Mastery moves only through the reducer in
 `src/lib/mastery.ts`. The model emits a direction (`up`/`down`/`flat`); the
 arithmetic is ours and every change carries a reason.
 
-**The key never reaches the browser.** All provider calls are server-side.
-`connect-src` is `'self'` plus Vercel insights — the browser has no provider
-origin to talk to, and `/api/voice/warm` exists so it never needs one.
+**The key never reaches the browser.** Every call that carries the key is
+server-side. `connect-src` is `'self'`, Vercel insights and
+`wss://streaming.assemblyai.com`: the browser reaches AssemblyAI on one origin,
+over a short-lived token `/api/voice/stream-token` mints, never with the key.
 
 ## Subjects
 

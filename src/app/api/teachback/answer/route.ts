@@ -126,6 +126,9 @@ export async function POST(req: NextRequest) {
     possibleMisconception: graded.possibleMisconception,
     nextQuestion: graded.nextQuestion,
     feedback: graded.feedback,
+    // As /api/study/turn and /api/exam/answer: the browser mirrors this beside
+    // the id it posted, so a teach-it-back survives the instance that graded it.
+    event: outcome.event,
     mastery: outcome.mastery,
     delta: outcome.delta,
     reason: outcome.reason,

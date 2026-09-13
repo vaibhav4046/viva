@@ -16,8 +16,9 @@ import {
   writeStoredCourse,
   type CourseMeta,
 } from "@/components/course/CoursePicker";
+import { rememberEvent, rememberMastery } from "@/components/mirror";
 import { CONCEPTS } from "@/lib/course";
-import type { ConceptMastery } from "@/lib/types";
+import type { ConceptMastery, LearningEvent } from "@/lib/types";
 
 type Mode = "exam" | "teach";
 type VoiceState = "idle" | "recording" | "working";
@@ -33,10 +34,17 @@ type ExamAssessment = {
   delta: number | null;
   reason: string | null;
 };
+/** What POST /api/exam/answer returns, of which this page reads a part. */
+type ExamAnswerBody = Partial<Omit<ExamAssessment, "verdict">> & {
+  verdict: ExamAssessment["verdict"];
+  feedback: string;
+  event: LearningEvent;
+  mastery: Record<string, ConceptMastery>;
+};
 type TeachPrompt = { conceptId: string; conceptName: string; prompt: string; hint: string };
 type TeachResult = {
   coverage: number; score: number; correctPoints: string[]; missingPoints: string[];
-  feedback: string; mastery: Record<string, ConceptMastery>;
+  feedback: string; event: LearningEvent; mastery: Record<string, ConceptMastery>;
   delta: number | null; reason: string | null;
 };
 type Failure = { message: string; retry: () => void };
@@ -145,19 +153,27 @@ export default function ExamPage() {
     if (!q || !courseId) return;
     setBusy("answer");
     setFailure(null);
+    const clientEventId = crypto.randomUUID();
     try {
       const res = await fetch("/api/exam/answer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: q.id, answer: transcript, clientEventId: crypto.randomUUID(), courseId }),
+        body: JSON.stringify({ questionId: q.id, answer: transcript, clientEventId, courseId }),
       });
       if (!res.ok) throw new Error("exam answer failed");
-      const d = await res.json();
+      const d = (await res.json()) as ExamAnswerBody;
       setResult({
         verdict: d.verdict, correctPoints: d.correctPoints ?? [], missingPoints: d.missingPoints ?? [],
         possibleMisconception: d.possibleMisconception ?? null, feedback: d.feedback,
         evidenceIds: d.evidenceIds ?? [], delta: d.delta ?? null, reason: d.reason ?? null,
       });
       setMastery(d.mastery);
+      // Written down here as well as on whichever instance graded it, carrying
+      // the id the replay dedupes on — the same two lines /study has. Without
+      // them a quiz answer is not in the browser's record, so when the server
+      // copy shrinks there is nothing to defend it with and the recall the
+      // student watched register goes back to "Not yet".
+      rememberEvent(d.event, clientEventId);
+      rememberMastery(d.mastery);
     } catch {
       setFailure({ message: "Couldn't score that answer — it may not have been recorded.", retry: () => void answer(transcript) });
     } finally {
@@ -191,15 +207,18 @@ export default function ExamPage() {
     if (!teach || !courseId) return;
     setBusy("answer");
     setFailure(null);
+    const clientEventId = crypto.randomUUID();
     try {
       const res = await fetch("/api/teachback/answer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conceptId: teach.conceptId, transcript, clientEventId: crypto.randomUUID(), courseId }),
+        body: JSON.stringify({ conceptId: teach.conceptId, transcript, clientEventId, courseId }),
       });
       if (!res.ok) throw new Error("teachback answer failed");
       const d = (await res.json()) as TeachResult;
       setTeachFb(d);
       setMastery(d.mastery);
+      rememberEvent(d.event, clientEventId);
+      rememberMastery(d.mastery);
     } catch {
       setFailure({ message: "Couldn't score that explanation — it may not have been recorded.", retry: () => void answerTeach(transcript) });
     } finally {

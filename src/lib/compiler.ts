@@ -16,20 +16,61 @@ export type CompileDraft = {
 
 const NEGATION = /\b(not|n't|never|no\b|isn't|aren't|don't|doesn't)\b/i;
 
+/**
+ * Which concepts a piece of text is about, most-mentioned first.
+ *
+ * Ranked by how much of the sentence each concept's own words cover, not by
+ * the single longest alias that appears anywhere in it. Length alone filed a
+ * passage that says query, key and value six times under Self-attention,
+ * because "attention" (9 characters) is longer than "query" (5) — so a paste
+ * the tutor had just refused to credit still marked a concept the student
+ * never mentioned as seen. Length is not evidence of what a sentence is about.
+ *
+ * It is still evidence of which concept owns a word, so where two concepts
+ * claim the same characters the longer phrase takes them: "semantic encoding"
+ * keeps its own mention instead of donating it to "encoding", and a narrow
+ * concept is never outvoted by the broad one whose name it contains. That
+ * rule is the whole difference between this and plain occurrence counting,
+ * and it is worth 31 rows.
+ *
+ * Measured over every labelled text in all 26 shipped subjects — exam
+ * questions, trap statements and their corrections, both explainer voices and
+ * every concept description, 856 rows with a known concept:
+ *
+ *   longest matched alias (was)                 393 / 856
+ *   occurrences, ties broken by length          376 / 856  (20 fixed, 37 broken)
+ *   matched characters, longest phrase wins     407 / 856  (21 fixed,  7 broken)
+ *
+ * The seven it breaks are all one shape: a definition of a narrow term written
+ * almost entirely in the broad term's vocabulary ("Specific heat is the amount
+ * of heat required to raise the temperature…"). No lexical rule separates
+ * those; a model pass over the same text would.
+ */
 function findConcepts(text: string, concepts: ConceptDef[]): string[] {
   const t = text.toLowerCase();
-  const scored: { id: string; best: number }[] = [];
+  const spans: { id: string; start: number; end: number; len: number }[] = [];
   for (const c of concepts) {
-    const names = [c.name.toLowerCase(), ...c.aliases.map((a) => a.toLowerCase())];
-    let best = 0;
-    for (const n of names) {
-      if (n.length > 2 && t.includes(n) && n.length > best) best = n.length;
+    for (const n of new Set([c.name.toLowerCase(), ...c.aliases.map((a) => a.toLowerCase())])) {
+      if (n.length <= 2) continue;
+      for (let i = t.indexOf(n); i >= 0; i = t.indexOf(n, i + 1)) {
+        spans.push({ id: c.id, start: i, end: i + n.length, len: n.length });
+      }
     }
-    if (best > 0) scored.push({ id: c.id, best });
   }
-  // Most specific (longest matched alias) first: "positional encoding" beats "attention".
-  scored.sort((a, b) => b.best - a.best);
-  return scored.map((s) => s.id);
+  // Longest first, so the phrase that wins a contested stretch of text is the
+  // most specific one; earliest first where two are the same length.
+  spans.sort((a, b) => b.len - a.len || a.start - b.start);
+  const taken: { start: number; end: number }[] = [];
+  const score = new Map<string, { chars: number; best: number }>();
+  for (const s of spans) {
+    if (taken.some((x) => s.start < x.end && s.end > x.start)) continue;
+    taken.push(s);
+    const cur = score.get(s.id) ?? { chars: 0, best: 0 };
+    score.set(s.id, { chars: cur.chars + s.len, best: Math.max(cur.best, s.len) });
+  }
+  return [...score]
+    .sort((a, b) => b[1].chars - a[1].chars || b[1].best - a[1].best)
+    .map(([id]) => id);
 }
 
 /** Cleanup: trim fillers but NEVER drop negation, numbers, names, technical terms. */

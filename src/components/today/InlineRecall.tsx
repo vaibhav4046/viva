@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MicButton } from "@/components/voice/MicButton";
+import { rememberEvent, rememberMastery } from "@/components/mirror";
 import { DEFAULT_COURSE_ID } from "@/components/course/CoursePicker";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -63,6 +64,7 @@ export function InlineRecall({
       if (!q || !value.trim()) return;
       setPhase("scoring");
       setError(null);
+      const clientEventId = crypto.randomUUID();
       try {
         const resolvedCourse = q.courseId ?? courseId;
         const res = await fetch("/api/exam/answer", {
@@ -71,13 +73,18 @@ export function InlineRecall({
           body: JSON.stringify({
             questionId: q.id,
             answer: value.trim(),
-            clientEventId: crypto.randomUUID(),
+            clientEventId,
             ...(resolvedCourse ? { courseId: resolvedCourse } : {}),
           }),
         });
         if (!res.ok) throw new Error("exam answer failed");
         const d = (await res.json()) as ExamAnswerResponse;
         setResult(d);
+        // The browser's own copy, beside the id the replay dedupes on — the
+        // same two lines /study has. A recall answered from Today used to
+        // exist only on the instance that graded it.
+        rememberEvent(d.event, clientEventId);
+        rememberMastery(d.mastery);
         onAnswered?.();
       } catch {
         setError({ message: "Couldn't score that answer — it may not have been recorded.", retry: () => void submit(value) });

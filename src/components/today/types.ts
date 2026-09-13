@@ -1,3 +1,5 @@
+import type { ConceptMastery, LearningEvent } from "@/lib/types";
+
 /**
  * Prop shape for one Daily Path step. The plan itself is folded on the page
  * from the learner snapshot (see ./snapshot.ts) with the planner in
@@ -25,6 +27,13 @@ export type ExamAnswerResponse = {
   delta?: number | null;
   reason?: string | null;
   evidenceIds?: string[];
+  /**
+   * The turn as it was recorded, and the map after it. Both are mirrored into
+   * the browser's own record (src/components/mirror.ts) so the recall can be
+   * replayed onto an instance that has forgotten it.
+   */
+  event: LearningEvent;
+  mastery: Record<string, ConceptMastery>;
 };
 
 /** Locale-free date slice — identical on server and client. */

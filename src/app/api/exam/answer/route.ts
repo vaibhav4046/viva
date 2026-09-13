@@ -123,6 +123,12 @@ export async function POST(req: NextRequest) {
 
   return done(Response.json({
     ...sealAnswerKey(a, closed),
+    // The turn itself, so the browser can write it down beside the id it
+    // posted and hand it back on the next load. Every other mutating route
+    // returns this (src/lib/sync.ts names the shape); this one did not, so a
+    // quiz answer lived only on whichever instance graded it and could not be
+    // replayed when that instance forgot.
+    event: outcome.event,
     mastery: outcome.mastery,
     learner: learnerDNA(outcome.mastery, events.filter((e) => e.intent === "confusion").map((e) => e.id), events.length),
     // The band is what the student is shown. The signed number stays here for

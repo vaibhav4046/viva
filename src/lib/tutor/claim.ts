@@ -560,7 +560,22 @@ export function checkClaim(input: {
     //     is the sentence of a student who has the distinction and is stating
     //     it ("backprop and gradient descent are two different steps") — the
     //     one case where firing here would be worse than any miss.
-    if (!contrasting && flattensSomething(claim)) {
+    // Narrowed to the unambiguous half after an audit measured the cost of the
+    // other one. `UNIFORM + REDUCTIVE` ("all the heads use the same X") fired
+    // on any passage line that merely contained a contrast word and a related
+    // term, without ever checking that the line addressed the property being
+    // flattened — so "All the heads read the same input embeddings" and "All
+    // the heads use the same scaling factor" were both contradicted by the
+    // same quote about heads specialising. Both are true. So was "So um the
+    // heads are all the same size I think", which is the register this product
+    // is built to receive.
+    //
+    // `REDUNDANT` ("redundant", "duplicates", "copies", "clones") is a claim
+    // that the copies are pointless, which the source does refute directly.
+    // That half stays; the other half costs a real recall point and is not
+    // worth what it was charging. A student told they are wrong when they are
+    // right stops trusting the one thing this product sells.
+    if (!contrasting && REDUNDANT.test(claim)) {
       for (const q of mentionsIn(claimToks, terms)) {
         // Any sentence of the retrieved passages, best-scoring first, rather
         // than only the closest three. The line that answers "the heads are
@@ -635,7 +650,16 @@ export function checkClaim(input: {
           // Same subject being talked about, or the two sentences are not
           // about the same thing at all.
           if (disjoint(src.head, said.head)) continue;
-          const clash = clashingOperation(src.verb, said.verb);
+          // The source must deny the operation, not merely name a different
+          // one. "Positional encodings are added to the token embeddings" and
+          // "positional encodings are scaled by a constant factor" are both
+          // true — a vector can be scaled and added — but a bare verb-class
+          // difference read them as a contradiction and produced a non
+          // sequitur. Require the claim and the source to be talking about the
+          // same object before a difference in verb means anything.
+          const srcObj = new Set(stemTokens(src.object));
+          const sameObject = stemTokens(said.object).some((t) => srcObj.has(t));
+          const clash = sameObject && clashingOperation(src.verb, said.verb);
           if (clash) {
             return caught(
               `Not quite — ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.verb} ${said.prep} ${said.object}.`,

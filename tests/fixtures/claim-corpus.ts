@@ -35,6 +35,43 @@ export function runClaim(course: Course, text: string): ClaimCheck {
   return checkClaim({ claim: draft.cleanedTranscript, chunks, course, conceptId: plan.primaryConceptId });
 }
 
+/**
+ * HELD OUT. Written by an auditor who did not write the checker, after the
+ * recall work was finished, precisely because everything else in this file was
+ * written alongside the code it tests.
+ *
+ * Every sentence is true, or at minimum not wrong, about the shipped
+ * Transformers subject. Six of them were contradicted when this set was first
+ * run — "All the heads read the same input embeddings" and "All the heads use
+ * the same scaling factor in the softmax" received the *same* quote about
+ * heads specialising, which is what a checker does when it is matching shapes
+ * rather than reading meaning.
+ *
+ * D2 and D3 are the register this product actually receives. A voice-first
+ * tool whose negative set contains no filler, no hedge and no self-correction
+ * has not been tested on its own input.
+ *
+ * Nothing may contradict any of these. A miss is a disappointment; telling a
+ * student they are wrong when they are right is the failure the product exists
+ * to prevent.
+ */
+export const HELD_OUT_TRUE: { id: string; text: string }[] = [
+  { id: "h01", text: "All the heads read the same input embeddings." },
+  { id: "h02", text: "Queries and keys are all computed from the same token embeddings." },
+  { id: "h03", text: "Self-attention compares every token with every other token." },
+  { id: "h04", text: "The softmax turns the scores into weights that sum to one." },
+  { id: "h05", text: "All the heads use the same scaling factor in the softmax." },
+  { id: "h06", text: "Positional encodings are scaled by a constant factor." },
+  { id: "h07", text: "Positional encodings are added to the token embeddings." },
+  { id: "h08", text: "Without positional information the model cannot tell word order." },
+  { id: "h09", text: "Attention weights say how much one token draws on another." },
+  { id: "h10", text: "Every query is compared against all the keys using the same dot product." },
+  { id: "h11", text: "The result is a weighted average of the value vectors." },
+  { id: "h12", text: "Backpropagation computes the gradients and gradient descent applies them." },
+  { id: "h13", text: "So um the heads are all the same size I think." },
+  { id: "h14", text: "I think, maybe, attention is about which words matter most?" },
+];
+
 /** The reviewer's ten. `caught` records what production did on 13 Sep. */
 export const WRONG: { id: string; text: string; wasCaught: boolean }[] = [
   { id: "w01-qk-same", text: "Queries and keys are the same vector in self-attention.", wasCaught: true },

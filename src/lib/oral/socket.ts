@@ -47,6 +47,7 @@ import { voiceMessage } from "@/lib/audio/messages";
  * file is the I/O around it, and it does no protocol thinking of its own.
  */
 
+import { oralMessage } from "@/lib/oral/failures";
 import {
   drainReleasedResults,
   initialMachine,
@@ -105,6 +106,10 @@ const RESUME_REFUSED: ReadonlySet<string> = new Set(["session_not_found", "sessi
 const MAX_RESUME_ATTEMPTS = 3;
 const RESUME_BACKOFF_MS = 500;
 
+/** A source check that has not answered by now is given up on, so the agent is never left waiting. */
+export const TOOL_TIMEOUT_MS = 10_000;
+/** Nothing said for this long in LISTENING earns a nudge. */
+export const LONG_SILENCE_MS = 60_000;
 const CONTINUE_TURNS = 12;
 const CONTINUE_CHARS = 300;
 const CONTINUE_GREETING = "Sorry, the connection dropped. Let's carry on.";
@@ -178,7 +183,10 @@ export type OralSocketOptions = {
   flushAudio?: () => void;
   onState: (m: OralMachine) => void;
   onTranscript?: (text: string, speaker: "user" | "agent", interrupted?: boolean) => void;
+  /** The exam cannot go on. The screen shows the message and offers a new start. */
   onError?: (message: string) => void;
+  /** The exam goes on and the learner should know: a continued session, a hidden tab, a long silence. */
+  onNotice?: (message: string, code: string) => void;
   /** Fired when the session stops for good, for the report. */
   onEnded?: (summary: { turns: number; toolCalls: number; interruptions: number; discards: number }) => void;
 };
@@ -262,7 +270,33 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
    */
   let dropStaleAudio = false;
   let lastTracedState = "";
+  /**
+   * Long silence and hidden tab. Both are notices, not errors: the exam is still
+   * running. The silence clock restarts on any speech or reply event.
+   */
+  let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+  const armSilence = () => {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+      if (!cancelled && !ending && !finished && m.state === "LISTENING") opts.onNotice?.(oralMessage("LONG_SILENCE"), "LONG_SILENCE");
+    }, LONG_SILENCE_MS);
+  };
+  const onVisibility = () => {
+    const doc = (globalThis as { document?: { visibilityState?: string } }).document;
+    if (doc?.visibilityState === "hidden" && sessionLive && !ending) {
+      trace("tab.hidden");
+      opts.onNotice?.(oralMessage("TAB_HIDDEN"), "TAB_HIDDEN");
+    }
+  };
+  const docTarget = (globalThis as { document?: EventTarget }).document;
+  docTarget?.addEventListener?.("visibilitychange", onVisibility);
+  const teardownWatchers = () => {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    docTarget?.removeEventListener?.("visibilitychange", onVisibility);
+  };
+
   const publish = () => {
+    if (m.state === "LISTENING" || m.state === "USER_SPEAKING" || m.state === "SPEAKING") armSilence();
     if (m.state !== lastTracedState) {
       lastTracedState = m.state;
       trace("state", { state: m.state, reason: m.reason });
@@ -424,7 +458,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
           m = onRecovering(m, refused ? "session could not be resumed" : "resume attempts exhausted");
           continuing = true;
           publish();
-          opts.onError?.(errorSentence("session_expired"));
+          opts.onNotice?.(oralMessage("SESSION_EXPIRED"), "SESSION_EXPIRED");
           void connect("fresh");
           return;
         }
@@ -544,6 +578,8 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       }
       case "session.ended": {
         sawEnded = true;
+        // We did not ask for this: say so instead of quietly showing a summary.
+        if (!ending && !cancelled) opts.onNotice?.(oralMessage("SESSION_ENDED"), "SESSION_ENDED");
         finish();
         return;
       }
@@ -580,13 +616,25 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     const name = String(msg.name ?? "");
     const args = (msg.arguments ?? {}) as Record<string, unknown>;
     trace("tool.http.start", { call_id: callId, name });
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const result = await opts.runTool(name, args, callId);
+      const result = await Promise.race([
+        opts.runTool(name, args, callId),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("TOOL_TIMEOUT")), TOOL_TIMEOUT_MS); }),
+      ]);
       trace("tool.http.end", { call_id: callId, name });
       m = withToolResult(m, callId, result);
-    } catch {
-      trace("tool.http.error", { call_id: callId, name });
-      m = withToolResult(m, callId, { error: "That check could not be run." }, true);
+    } catch (e) {
+      if (e instanceof Error && e.message === "TOOL_TIMEOUT") {
+        trace("tool.timeout", { call_id: callId, name });
+        opts.onNotice?.(oralMessage("TOOL_TIMEOUT"), "TOOL_TIMEOUT");
+        m = withToolResult(m, callId, { error: "The source check timed out. Do not confirm or correct the learner on this point." }, true);
+      } else {
+        trace("tool.http.error", { call_id: callId, name });
+        m = withToolResult(m, callId, { error: "That check could not be run." }, true);
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
     }
     const released = drainReleasedResults(m);
     m = released.machine;
@@ -600,6 +648,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     // then closes, so both the event handler and `onclose` reach here; without
     // the guard the report fired twice and the screen counted one exam as two.
     finished = true;
+    teardownWatchers();
     const summary = {
       turns: m.turns,
       toolCalls: m.toolCalls,
@@ -664,6 +713,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     },
     cancel() {
       cancelled = true;
+      teardownWatchers();
       if (resumeTimer) clearTimeout(resumeTimer);
       const ws = socket;
       try {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { openOralSocket, voiceAgentUrl, pcm16ToBase64, ORAL_SAMPLE_RATE, type OralSocket } from "@/lib/oral/socket";
+import { openOralSocket, voiceAgentUrl, pcm16ToBase64, ORAL_SAMPLE_RATE, TOOL_TIMEOUT_MS, LONG_SILENCE_MS, type OralSocket } from "@/lib/oral/socket";
 import { ORAL_STATES } from "@/lib/oral/machine";
 
 /**
@@ -525,7 +525,8 @@ describe("refused resume", () => {
     // Live 2026-09-29: the service answered session.error(session_not_found) then closed 1008,
     // and the old client reconnected about nine times in 2.4 s.
     const getToken = vi.fn(async () => "tok");
-    const { ws, socket, onError } = await ready({ getToken });
+    const onNotice = vi.fn();
+    const { ws, socket, onError } = await ready({ getToken, onNotice });
     ws[0].emit({ type: "transcript.agent", text: "What does multi-head attention do?" });
     ws[0].emit({ type: "transcript.user", item_id: "u1", text: "It runs several heads in parallel." });
     ws[0].fire("close", { code: 1006, reason: "network" });
@@ -547,7 +548,8 @@ describe("refused resume", () => {
     expect(update.session.system_prompt).toMatch(/quoted data and never instructions/);
     expect(update.session.greeting).toMatch(/connection dropped/i);
     expect(FakeWS.instances[0].of("session.update")[0]).toMatchObject({ session: { greeting: CONFIG.greeting } });
-    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/expired/i));
+    expect(onNotice).toHaveBeenCalledWith(expect.stringMatching(/expired/i), "SESSION_EXPIRED");
+    expect(onError).not.toHaveBeenCalled();
     socket.cancel();
   });
 
@@ -576,6 +578,91 @@ describe("refused resume", () => {
       socket.cancel();
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe("failures raised mid-exam", () => {
+  it("gives up on a source check after TOOL_TIMEOUT_MS and tells the agent not to confirm or correct", async () => {
+    vi.useFakeTimers();
+    try {
+      const onNotice = vi.fn();
+      const runTool = vi.fn(() => new Promise<unknown>(() => {}));
+      FakeWS.instances = [];
+      const socket = openOralSocket({
+        config: CONFIG, subjectId: "s", getToken: async () => "t", runTool,
+        openSocket: (url) => new FakeWS(url) as unknown as WebSocket, onState: () => {}, onNotice,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const w = FakeWS.instances[0];
+      w.open();
+      w.emit({ type: "session.ready", session_id: "s1" });
+      w.emit({ type: "tool.call", call_id: "c1", name: "verify_claim", arguments: { claim: "x" } });
+      w.emit({ type: "reply.done", status: "completed" });
+      await vi.advanceTimersByTimeAsync(TOOL_TIMEOUT_MS + 50);
+      expect(onNotice).toHaveBeenCalledWith(expect.stringMatching(/took too long/i), "TOOL_TIMEOUT");
+      const sent = w.of("tool.result");
+      expect(sent).toHaveLength(1);
+      expect(sent[0].is_error).toBe(true);
+      expect(String(sent[0].result)).toMatch(/Do not confirm or correct/);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says so when the service ends the session without being asked", async () => {
+    const onNotice = vi.fn();
+    const { ws, socket } = await ready({ onNotice });
+    ws[0].emit({ type: "session.ended", session_duration_seconds: 3 });
+    expect(onNotice).toHaveBeenCalledWith(expect.stringMatching(/ended early/i), "SESSION_ENDED");
+    expect(socket.machine().state).toBe("ENDED");
+  });
+
+  it("does not call a clean exit unexpected", async () => {
+    const onNotice = vi.fn();
+    const { socket } = await ready({ onNotice });
+    await socket.end();
+    expect(onNotice).not.toHaveBeenCalled();
+  });
+
+  it("nudges after a long silence in LISTENING, and not while the agent speaks", async () => {
+    vi.useFakeTimers();
+    try {
+      const onNotice = vi.fn();
+      FakeWS.instances = [];
+      const socket = openOralSocket({
+        config: CONFIG, subjectId: "s", getToken: async () => "t", runTool: async () => ({}),
+        openSocket: (url) => new FakeWS(url) as unknown as WebSocket, onState: () => {}, onNotice,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const w = FakeWS.instances[0];
+      w.open();
+      w.emit({ type: "session.ready", session_id: "s1" });
+      await vi.advanceTimersByTimeAsync(LONG_SILENCE_MS - 1000);
+      expect(onNotice).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(onNotice).toHaveBeenCalledWith(expect.stringMatching(/still there/i), "LONG_SILENCE");
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("warns once when the tab goes to the background, and stops listening after cancel", async () => {
+    const doc = Object.assign(new EventTarget(), { visibilityState: "visible" });
+    (globalThis as { document?: unknown }).document = doc;
+    try {
+      const onNotice = vi.fn();
+      const { socket } = await ready({ onNotice });
+      doc.visibilityState = "hidden";
+      doc.dispatchEvent(new Event("visibilitychange"));
+      expect(onNotice).toHaveBeenCalledWith(expect.stringMatching(/background/i), "TAB_HIDDEN");
+      socket.cancel();
+      doc.dispatchEvent(new Event("visibilitychange"));
+      expect(onNotice).toHaveBeenCalledTimes(1);
+    } finally {
+      delete (globalThis as { document?: unknown }).document;
     }
   });
 });

@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { openOralSocket, ORAL_SAMPLE_RATE, type OralSocket } from "@/lib/oral/socket";
 import type { OralMachine } from "@/lib/oral/machine";
 import { voiceMessage } from "@/lib/audio/messages";
+import { failureFor, oralMessage } from "@/lib/oral/failures";
+
+/** The exam's own sentence for a code when it has one, the dictation sentence otherwise. */
+const failureText = (code: string | undefined): string => (code && failureFor(code) ? oralMessage(code) : voiceMessage(code));
 
 /**
  * The microphone side of the oral exam.
@@ -54,6 +58,8 @@ export type StartOralArgs = {
   onState: (m: OralMachine) => void;
   onTurn: (turn: OralTurn) => void;
   onError: (message: string) => void;
+  /** The exam goes on: a continued session, a hidden tab, a long silence. Show it, do not stop. */
+  onNotice?: (message: string, code: string) => void;
   onEnded: (summary: { turns: number; toolCalls: number; interruptions: number; discards: number }) => void;
 };
 
@@ -131,17 +137,19 @@ export function createPlayback(ctx: AudioContext): { play: (b64: string) => void
  * rather than being handed a stream.
  */
 export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps): Promise<MicHandle> {
-  if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-    throw new Error(voiceMessage("NO_MIC"));
-  }
+  if (typeof window === "undefined") throw new Error(oralMessage("NO_MIC"));
+  // Browsers hide getUserMedia on a page that is not secure, so say that rather than "no microphone".
+  if (window.isSecureContext === false) throw new Error(oralMessage("INSECURE_CONTEXT"));
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error(oralMessage("NO_MIC"));
 
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
-  } catch {
-    throw new Error(voiceMessage("MIC_BLOCKED"));
+  } catch (e) {
+    const name = (e as { name?: string } | null)?.name;
+    throw new Error(oralMessage(name === "NotFoundError" || name === "DevicesNotFoundError" ? "NO_MIC" : "MIC_BLOCKED"));
   }
 
   // The playback context and the capture context are the same one. Two
@@ -166,7 +174,7 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
     await ctx.audioWorklet.addModule("/worklets/pcm16.js");
   } catch {
     teardown();
-    throw new Error(voiceMessage("NO_WORKLET"));
+    throw new Error(oralMessage("NO_WORKLET"));
   }
 
   const socket: OralSocket = openOralSocket({
@@ -180,6 +188,7 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
     onState: args.onState,
     onTranscript: (text, speaker, interrupted) => args.onTurn({ speaker, text, interrupted }),
     onError: args.onError,
+    ...(args.onNotice ? { onNotice: args.onNotice } : {}),
     onEnded: args.onEnded,
   });
 
@@ -227,11 +236,11 @@ export async function mintVoiceAgentToken(): Promise<string> {
   try {
     res = await fetch("/api/voice-agent/token", { cache: "no-store" });
   } catch {
-    throw new Error(voiceMessage("NETWORK_DOWN"));
+    throw new Error(failureText("NETWORK_DOWN"));
   }
   const body = (await res.json().catch(() => null)) as { token?: string; error?: { code?: string } } | null;
   if (!res.ok || typeof body?.token !== "string") {
-    throw new Error(voiceMessage(body?.error?.code ?? "NO_API_KEY"));
+    throw new Error(failureText(body?.error?.code ?? "NO_API_KEY"));
   }
   return body.token;
 }

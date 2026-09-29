@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const { id } = await params;
-  return handle(req, { limit: "default", needsSession: true, sessionId: id }, ({ userId }) =>
-    deleteSession(userId, id) ? Response.json({ ok: true }) : err("SESSION_NOT_FOUND", "That review is not here any more.", false, 404)
+  return handle(req, { limit: "default", needsSession: true, sessionId: id }, async ({ userId }) =>
+    (await deleteSession(userId, id)) ? Response.json({ ok: true }) : err("SESSION_NOT_FOUND", "That review is not here any more.", false, 404)
   );
 }

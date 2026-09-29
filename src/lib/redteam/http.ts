@@ -59,7 +59,7 @@ export async function handle(
   let session: RedteamSession | null = null;
   if (opts.needsSession) {
     const id = opts.sessionId ?? (body as { sessionId?: string }).sessionId ?? "";
-    session = getSession(identity.userId, id);
+    session = await getSession(identity.userId, id);
     // One answer for "not yours" and "not there": the id is not a probe.
     if (!session) return done(err("SESSION_NOT_FOUND", "That review is not here any more. Start a new one.", false, 404));
   }
@@ -84,6 +84,6 @@ function withNoStore(h: Headers): Headers {
   return out;
 }
 
-export function persist(s: RedteamSession): void {
-  saveSession(s);
+export async function persist(s: RedteamSession): Promise<void> {
+  await saveSession(s);
 }

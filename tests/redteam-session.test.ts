@@ -266,14 +266,14 @@ describe("interrupted tool behaviour is safe", () => {
 });
 
 describe("isolation between users and documents", () => {
-  it("another user cannot read, or even detect, a session", () => {
+  it("another user cannot read, or even detect, a session", async () => {
     const s = mk("alice");
-    saveSession(s);
-    expect(getSession("alice", s.id)?.id).toBe(s.id);
-    expect(getSession("bob", s.id)).toBeNull();
-    expect(getSession("bob", "not-a-session")).toBeNull();
-    expect(deleteSession("bob", s.id)).toBe(false);
-    expect(getSession("alice", s.id)).not.toBeNull();
+    await saveSession(s);
+    expect((await getSession("alice", s.id))?.id).toBe(s.id);
+    expect(await getSession("bob", s.id)).toBeNull();
+    expect(await getSession("bob", "not-a-session")).toBeNull();
+    expect(await deleteSession("bob", s.id)).toBe(false);
+    expect(await getSession("alice", s.id)).not.toBeNull();
   });
 
   it("evidence from document A cannot appear in document B's verdicts", () => {
@@ -285,12 +285,12 @@ describe("isolation between users and documents", () => {
     for (const id of [...out.claim.evidencePassageIds, ...out.claim.contradictionPassageIds]) expect(aIds.has(id)).toBe(false);
   });
 
-  it("recovers a session from disk after the process forgets it", () => {
+  it("recovers a session from disk after the process forgets it", async () => {
     const s = mk("u9");
     recordSpokenClaim(s, { spoken: "We manually fail over to a replica." });
-    saveSession(s);
+    await saveSession(s);
     __resetSessions();
-    const back = getSession("u9", s.id);
+    const back = await getSession("u9", s.id);
     expect(back?.claims[0].status).toBe("SUPPORTED");
     expect(back?.timeline.length).toBe(s.timeline.length);
   });

@@ -26,7 +26,7 @@ const Body = z
   .strict();
 
 export async function POST(req: Request): Promise<Response> {
-  return handle(req, { limit: "exam", schema: Body, needsSession: true }, ({ body, session }) => {
+  return handle(req, { limit: "exam", schema: Body, needsSession: true }, async ({ body, session }) => {
     const s = session!;
     if (s.status === "ended") return Response.json({ changed: false, session: publicView(s) });
     let changed = false;
@@ -45,7 +45,7 @@ export async function POST(req: Request): Promise<Response> {
         claimId = out.claim.id;
       }
     }
-    if (changed) persist(s);
+    if (changed) await persist(s);
     return Response.json({ changed, claimId, statusBefore, session: publicView(s) });
   });
 }

@@ -6,10 +6,10 @@ import { finish, publicView } from "@/lib/redteam/session";
 const Body = z.object({ sessionId: z.string().max(80) }).strict();
 
 export async function POST(req: Request): Promise<Response> {
-  return handle(req, { limit: "exam", schema: Body, needsSession: true }, ({ session }) => {
+  return handle(req, { limit: "exam", schema: Body, needsSession: true }, async ({ session }) => {
     const s = session!;
     const report = finish(s);
-    persist(s);
+    await persist(s);
     return Response.json({ report, session: publicView(s) });
   });
 }

@@ -22,7 +22,7 @@ const Body = z
   .strict();
 
 export async function POST(req: Request): Promise<Response> {
-  return handle(req, { limit: "upload", schema: Body }, ({ userId, body }) => {
+  return handle(req, { limit: "upload", schema: Body }, async ({ userId, body }) => {
     const useSample = body.sample === true || !body.text;
     const s = createSession({
       userId,
@@ -31,7 +31,7 @@ export async function POST(req: Request): Promise<Response> {
       text: useSample ? SAMPLE_TEXT : body.text,
       sample: useSample,
     });
-    persist(s);
+    await persist(s);
     return Response.json({ session: publicView(s), voice: buildVoiceConfig(s) }, { status: 201 });
   });
 }

@@ -21,10 +21,10 @@ const Body = z
   .strict();
 
 export async function POST(req: Request): Promise<Response> {
-  return handle(req, { limit: "exam", schema: Body, needsSession: true }, ({ body, session }) => {
+  return handle(req, { limit: "exam", schema: Body, needsSession: true }, async ({ body, session }) => {
     const s = session!;
     const out = runTool(s, body.name, body.arguments ?? {});
-    if (out.changed) persist(s);
+    if (out.changed) await persist(s);
     return Response.json({ result: out.result, isError: out.isError, session: publicView(s) });
   });
 }

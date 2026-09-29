@@ -21,7 +21,7 @@ const Body = z
   .strict();
 
 export async function POST(req: Request): Promise<Response> {
-  return handle(req, { limit: "exam", schema: Body, needsSession: true }, ({ body, session }) => {
+  return handle(req, { limit: "exam", schema: Body, needsSession: true }, async ({ body, session }) => {
     const s = session!;
     let claimId: string | null = null;
     let previous: string | null = null;
@@ -34,7 +34,7 @@ export async function POST(req: Request): Promise<Response> {
       corrected = out.corrected;
     }
     if (body.next) askNext(s);
-    persist(s);
+    await persist(s);
     return Response.json({ claimId, previousStatus: previous, corrected, session: publicView(s) });
   });
 }

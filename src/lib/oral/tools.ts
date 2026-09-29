@@ -4,6 +4,7 @@ import { checkClaim, composeClaimReply } from "@/lib/tutor/claim";
 import { assessAnswer, gradeAnswer } from "@/lib/tutor";
 import type { Course, Subject } from "@/lib/courses/types";
 import type { SourceChunk } from "@/lib/types";
+import { verifyClaim } from "./verify-claim";
 
 /**
  * The tools the oral exam gives the agent.
@@ -90,6 +91,7 @@ export const ORAL_TOOL_NAMES = [
   "search_my_material",
   "quote_my_material",
   "check_my_understanding",
+  "verify_claim",
   "grade_my_answer",
   "save_note",
 ] as const;
@@ -105,6 +107,11 @@ const quoteArgs = z.object({
 const checkArgs = z.object({
   claim: z.string().min(1).max(MAX_CLAIM).describe("The student's own sentence, copied rather than summarised."),
   conceptId: z.string().max(80).optional().describe("If the student named a concept, its id."),
+});
+
+const verifyArgs = z.object({
+  claim: z.string().min(1).max(MAX_CLAIM),
+  concept: z.string().max(80).optional(),
 });
 
 const gradeArgs = z.object({
@@ -271,6 +278,35 @@ const checkSpec: ToolSpec = {
   },
 };
 
+const verifySpec: ToolSpec = {
+  definition: {
+    type: "function",
+    name: "verify_claim",
+    description: "Semantically verify the learner's exact claim against their passages. A supported or contradicted verdict is returned only with a code-checked verbatim quote and page; lexical fallback never confirms or corrects.",
+    parameters: {
+      type: "object",
+      properties: {
+        claim: z.string().min(1).max(MAX_CLAIM).describe("The learner's exact claim."),
+        concept: z.string().max(80).optional(),
+      },
+      required: ["claim"],
+    },
+  },
+  async run(ctx, raw) {
+    const args = verifyArgs.safeParse(raw);
+    if (!args.success) return bad("I need the learner's exact claim to check.");
+    const result = await verifyClaim(args.data.claim, ctx.chunks);
+    return {
+      ...result,
+      say: result.verdict === "contradicted"
+        ? "Correct the learner using the exact quote, say the page aloud, and ask them to restate it."
+        : result.verdict === "supported"
+          ? "Confirm briefly using the exact quote and page."
+          : "The material did not settle this. Do not confirm or correct the learner.",
+    };
+  },
+};
+
 const gradeSpec: ToolSpec = {
   definition: {
     type: "function",
@@ -370,6 +406,7 @@ const SPECS: Record<OralToolName, ToolSpec> = {
   search_my_material: searchSpec,
   quote_my_material: quoteSpec,
   check_my_understanding: checkSpec,
+  verify_claim: verifySpec,
   grade_my_answer: gradeSpec,
   save_note: noteSpec,
 };
@@ -417,7 +454,11 @@ export function isOralTool(name: unknown): name is OralToolName {
  * student keeps talking through a source lookup.
  */
 export function toolDefsForWire(): (ToolDefinition & { execution_mode: "hold" })[] {
-  return toolDefinitions().map((d) => ({ ...d, execution_mode: "hold" as const }));
+  // Legacy lexical tools remain available to the written study loop and its
+  // tests, but the Voice Agent may use only the quote-checked verifier.
+  return toolDefinitions()
+    .filter((d) => d.name !== "quote_my_material" && d.name !== "check_my_understanding")
+    .map((d) => ({ ...d, execution_mode: "hold" as const }));
 }
 
 export async function runOralTool(

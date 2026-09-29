@@ -2,7 +2,10 @@
 
 DOGFOOD (`D:\project\dogfood-2026` on the original machine) is not in this repository and was not reachable from the cloud session that built VIVA RedTeam. **Nothing about DOGFOOD was verified, changed or frozen in that session.** The last state reported by the earlier OpenCode session (7/7 official acceptance, 101 tests, 28/28 route probe, 19/19 browser assertions) is that session's claim, not something re-run here.
 
-What is needed from you, in order:
+**Fastest path (deadline 2026-09-29 18:00 UTC):** in `D:\project\dogfood-2026` run
+`powershell -ExecutionPolicy Bypass -File <this folder>\freeze.ps1`. It runs every check, saves the logs to `freeze-evidence\`, adds the container workflow, commits, tags `submission-freeze` and pushes. Then fix the numbers in `SUBMISSION-DOGFOOD.md` to match the logs and submit it.
+
+The same steps by hand, in order:
 
 1. `cd D:\project\dogfood-2026; git status` — commit anything outstanding (the OpenCode session's last command was an auth-related commit; check it landed).
 2. Push the repository to GitHub (private is fine) and, if you want the cloud session to work on it, add it to the session's repository scope.

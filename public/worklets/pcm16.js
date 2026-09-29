@@ -24,14 +24,27 @@
  */
 
 const TARGET_RATE = 16000;
+/** The Voice Agent socket wants 24 kHz, not 16 k. It is a different product
+ *  with a different input contract, and resampling to 16 for it would throw
+ *  away the band the agent's own VAD and STT are tuned for. */
+const AGENT_RATE = 24000;
 /** ~64 ms at 16 kHz: big enough that postMessage is not the bottleneck, small
  *  enough that releasing the key feels instant. */
 const FRAME_SAMPLES = 1024;
 
 class Pcm16Processor extends AudioWorkletProcessor {
-  constructor() {
+  /**
+   * `targetRate` arrives through `processorOptions`. It is read here rather
+   * than hard-coded per processor so there is one resampler, not two copies
+   * of it: the fractional read position and the `tail` carry below are the
+   * part that is easy to get subtly wrong, and a second copy of that code is a
+   * second chance to get it wrong.
+   */
+  constructor(options) {
     super();
-    this.ratio = sampleRate / TARGET_RATE;
+    const requested = options?.processorOptions?.targetRate;
+    this.targetRate = requested === AGENT_RATE ? AGENT_RATE : TARGET_RATE;
+    this.ratio = sampleRate / this.targetRate;
     /** Fractional read index into the current quantum. -1 means "between the
      *  previous quantum's last sample and this one's first". */
     this.readPos = 0;
@@ -87,3 +100,8 @@ class Pcm16Processor extends AudioWorkletProcessor {
 }
 
 registerProcessor("pcm16", Pcm16Processor);
+
+// Same processor, 24 kHz out, for the Voice Agent socket. Registered under its
+// own name so a caller picks the rate in the AudioWorkletNode constructor and
+// there is no way to end up sending 16 kHz audio to a socket expecting 24.
+registerProcessor("pcm16-24k", Pcm16Processor);

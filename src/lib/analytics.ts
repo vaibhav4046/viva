@@ -6,7 +6,12 @@ export type AnalyticsEvent =
   | "dictation_started" | "dictation_completed" | "dictation_failed"
   | "thought_mark_created" | "tutor_response_completed"
   | "exam_started" | "exam_answered" | "teachback_completed"
-  | "source_uploaded" | "demo_started" | "demo_completed";
+  | "source_uploaded" | "demo_started" | "demo_completed"
+  // The oral exam's own lifecycle. `oral_discarded_results` exists because the
+  // number of stale tool results dropped on an interruption is the one figure
+  // that proves the protocol rule is actually being followed, and it is worth
+  // counting rather than eyeballing.
+  | "oral_started" | "oral_ended" | "oral_discarded_results";
 
 const counts = new Map<string, number>();
 const latencies: number[] = [];

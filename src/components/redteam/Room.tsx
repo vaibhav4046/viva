@@ -59,7 +59,7 @@ function SourcePane({ view, selected, markNumbers, askedIds, reduced }: { view: 
 
   const byId = useMemo(() => new Map(view.document.passages.map((p) => [p.id, p])), [view.document.passages]);
   return (
-    <section className="rt-pane rt-source" aria-label="Source document">
+    <section className="rt-pane rt-source" aria-label="Source document" tabIndex={0}>
       <div className="rt-pane__head">
         <h2>Source</h2>
         {view.document.sample ? <span className="rt-tag rt-tag--sample">Sample material</span> : <span className="rt-tag">Your document</span>}

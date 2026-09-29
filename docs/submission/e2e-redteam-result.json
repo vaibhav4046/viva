@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-29T13:39:27.618Z",
+  "at": "2026-09-29T13:45:59.101Z",
   "base": "http://localhost:3210",
   "results": [
     {
@@ -43,7 +43,7 @@
       "detail": "Automatic replica failover is not configured.1"
     },
     {
-      "name": "barge-in changes state: card awaits a correction",
+      "name": "interrupting marks the claim as awaiting a correction",
       "ok": true,
       "detail": ""
     },
@@ -103,6 +103,11 @@
       "detail": ""
     },
     {
+      "name": "report keeps the contradiction that was found and fixed",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "keyboard reaches the Begin button",
       "ok": true,
       "detail": ""
@@ -148,7 +153,7 @@
       "detail": ""
     },
     {
-      "name": "hostile document: an instruction inside it did not change a verdict",
+      "name": "hostile document: the instruction inside it did not change a verdict",
       "ok": true,
       "detail": ""
     },

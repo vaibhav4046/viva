@@ -256,6 +256,26 @@ describe("golden flow: contradiction, barge-in, correction, verdict change", () 
     expect(ws.of("tool.call")).toHaveLength(0);
   });
 
+  it("the map fills from the transcript alone, and the agent's tool call does not double it", async () => {
+    const { c, ws } = await boot();
+    say(ws, "We automatically fail over to a replica.");
+    await settle();
+    expect(c.state().session.claims).toHaveLength(1);
+    expect(c.state().session.claims[0].status).toBe("CONTRADICTED");
+    expect(ws.of("tool.call")).toHaveLength(0);
+
+    say(ws, "Can you repeat the question?", "u2");
+    await settle();
+    expect(c.state().session.claims).toHaveLength(1); // talk is not a claim
+
+    ws.emit({ type: "reply.started", reply_id: "r1" });
+    ws.emit({ type: "tool.call", call_id: "c1", name: "evaluate_spoken_claim", arguments: { spoken_text: "We automatically fail over to a replica." } });
+    await settle();
+    ws.emit({ type: "reply.done", reply_id: "fc-c1", status: "completed" });
+    expect(JSON.parse(ws.of("tool.result")[0].result).status).toBe("CONTRADICTED");
+    expect(c.state().session.claims).toHaveLength(1);
+  });
+
   it("an out-of-order pair of events (transcript before interruption marker) cannot drop the correction", async () => {
     const { c, ws } = await boot();
     say(ws, "We automatically fail over to a replica.");

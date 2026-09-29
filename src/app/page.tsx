@@ -89,6 +89,13 @@ export default async function Home() {
                 Bring your own subject
               </Link>
             </div>
+            <p className="mt-5 text-base" style={{ color: "var(--color-mist)" }}>
+              Defending a document instead?{" "}
+              <Link href="/redteam" className="underline underline-offset-4" style={{ color: "var(--color-paper)" }}>
+                Rehearse it with VIVA RedTeam
+              </Link>
+              .
+            </p>
           </div>
           <p className="vv-scroll-hint" aria-hidden>
             How it works
@@ -128,7 +135,7 @@ export default async function Home() {
 
       <footer className="border-t hairline">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-sm">
-          <p style={{ color: "var(--color-ash)" }}>Built with AssemblyAI Dictation API</p>
+          <p style={{ color: "var(--color-ash)" }}>Built with AssemblyAI Dictation, Universal-Streaming and Voice Agent</p>
           <a
             href="https://github.com/vaibhav4046/viva"
             target="_blank"

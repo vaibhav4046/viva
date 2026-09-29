@@ -124,7 +124,9 @@ export function createController(api: Api, initial: SessionView, opts: { now?: (
             const before = statusOf(s.session, s.interruptedClaimId);
             const r = await api.turn(sessionId, "user_final", text);
             const patch: Partial<ControllerState> = { session: r.session };
-            if (r.changed && r.claimId) {
+            // `statusBefore` is only set when the words were a correction of the
+            // interrupted claim; a fresh claim leaves that claim waiting.
+            if (r.changed && r.claimId && r.statusBefore) {
               const to = statusOf(r.session, r.claimId);
               const from = (r.statusBefore as ClaimStatus | null) ?? before;
               if (from && to) patch.lastChange = { claimId: r.claimId, from, to, cause: "correction", at: now() };

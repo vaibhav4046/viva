@@ -164,8 +164,17 @@ export function recordSpokenClaim(
     return applyCorrection(s, pending.id, spoken);
   }
 
-  s.turnCounter += 1;
   const normalized = faithfulNormalisation(spoken, input.normalized);
+
+  // The browser reports every finished user turn AND the agent calls the tool
+  // for the same words. That must be one claim, not two.
+  const recent = s.claims.at(-1);
+  if (recent && Date.now() - Date.parse(recent.createdAt) < 30_000 && sameClaim(recent, spoken, normalized)) {
+    s.activeClaimId = recent.id;
+    return { claim: recent, previousStatus: null, corrected: false };
+  }
+
+  s.turnCounter += 1;
   const v = verdictOf(s, normalized);
   const at = now();
   const claim: Claim = {
@@ -203,6 +212,59 @@ export function recordSpokenClaim(
     passageIds: [...v.evidencePassageIds, ...v.contradictionPassageIds],
   });
   return { claim, previousStatus: null, corrected: false };
+}
+
+function jaccard(a: string, b: string): number {
+  const x = new Set(contentStems(a));
+  const y = new Set(contentStems(b));
+  if (x.size === 0 || y.size === 0) return 0;
+  let both = 0;
+  for (const k of x) if (y.has(k)) both += 1;
+  return both / (x.size + y.size - both);
+}
+
+const figureKey = (s: string) => figures(s).map((f) => `${f.value}${f.unit}`).sort().join(",");
+
+/**
+ * The same words, not merely similar ones. A changed number or a flipped
+ * negation is a different claim however many other words it shares, and
+ * folding it into the previous one would report the earlier verdict for it.
+ */
+function sameClaim(c: Claim, spoken: string, normalized: string): boolean {
+  return [c.spokenText, c.normalizedClaim].some((existing) =>
+    [spoken, normalized].some(
+      (mine) => jaccard(existing, mine) >= 0.6 && figureKey(existing) === figureKey(mine) && NEGATION.test(existing) === NEGATION.test(mine)
+    )
+  );
+}
+
+const NOT_A_CLAIM_START = /^(?:what|why|how|when|where|who|which|can|could|would|should|do|does|did|is|are|will|please|ok|okay|yes|no|yeah|yep|sure|hello|hi|hey|thanks|thank|right|so|go|start|begin|next|stop|repeat|continue|finish|skip|again|let|lets|um|uh|hmm)\b/i;
+
+/** Is this utterance something to check against the document, or just talk? */
+export function looksLikeClaim(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 12 || t.endsWith("?") || NOT_A_CLAIM_START.test(t)) return false;
+  return t.split(/\s+/).length >= 3 && contentStems(t).length >= 2;
+}
+
+/**
+ * A finished user turn as the browser saw it on the socket.
+ *
+ * A correction after a barge-in re-checks the claim that was interrupted. A
+ * plain statement is recorded as a claim. Talk (a question, "okay", "repeat
+ * that") is left alone. The agent's own tool call for the same words lands on
+ * the claim this creates, so the map does not depend on the model choosing to
+ * call a tool, and a model that does call one does not double it.
+ */
+export function recordUtterance(s: RedteamSession, text: string): (ClaimOutcome & { recorded: boolean }) | null {
+  assertActive(s);
+  const spoken = cleanSpoken(text);
+  const pending = s.claims.find((c) => c.awaitingCorrection);
+  if (pending && CORRECTION_CUE.test(spoken)) return { ...applyCorrection(s, pending.id, spoken), recorded: true };
+  if (!looksLikeClaim(spoken)) return null;
+  const before = s.claims.length;
+  const out = recordSpokenClaim(s, { spoken });
+  return { ...out, recorded: s.claims.length > before };
 }
 
 /** Passage ids an agent names must be this document's. Anything else is refused whole. */

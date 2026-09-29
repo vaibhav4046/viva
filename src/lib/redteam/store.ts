@@ -62,7 +62,9 @@ function sweep(): void {
   if (Date.now() - lastSweep < 10 * 60_000) return;
   lastSweep = Date.now();
   try {
-    for (const name of fs.readdirSync(dir())) {
+    // The directory is the OS temp dir, never project files; without this
+    // comment Turbopack traces the whole project into the server bundle.
+    for (const name of fs.readdirSync(/*turbopackIgnore: true*/ dir())) {
       const f = path.join(dir(), name);
       if (Date.now() - fs.statSync(f).mtimeMs > TTL_MS) fs.rmSync(f, { force: true });
     }

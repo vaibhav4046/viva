@@ -339,3 +339,51 @@
 @media (prefers-reduced-motion: reduce) {
   .rt *, .rt *::before, .rt *::after { animation: none !important; transition: none !important; }
 }
+
+/* ------------------------------------------------- import a file or a link */
+
+/*
+ * The import controls inside "Paste your own": a file, or the address of a page.
+ *
+ * Appended after everything above and scoped to .rt-import, so it changes no
+ * rule that was already here. It keeps the form's warm paper, graphite ink,
+ * hairline borders and square inputs, and it adds no colour: ink and ink-2 on
+ * the two paper tones (which the contrast test holds to AA), the surface the
+ * form's own fields already sit on, and the existing note and error styles.
+ * The file input is the real, visible one, styled in place rather than hidden,
+ * so it keeps its own label, its focus ring and the keyboard. Progress is a
+ * sentence, not a spinner, so nothing here moves.
+ */
+
+.rt-import { display: block; min-width: 0; padding: 14px; border: 1px solid var(--rt-rule); }
+.rt-import .rt-note, .rt-import .rt-error { overflow-wrap: anywhere; }
+/* Help text sits close to the control it explains. */
+.rt-import > .rt-note { margin: 8px 0 0; }
+.rt-import > .rt-import__link { margin-top: 18px; }
+/* The status line is always in the page so a screen reader will announce it; empty, it takes no room. */
+.rt-import > .rt-import__status:empty { margin: 0; }
+.rt-import > .rt-import__status:not(:empty), .rt-import > .rt-error { margin-top: 14px; }
+
+.rt-import input[type="file"] {
+  width: 100%; min-width: 0; min-height: 44px; padding: 0; cursor: pointer;
+  background: #fbf8f0; color: var(--rt-ink); border: 1px solid var(--rt-rule); border-radius: 0; font-size: 15px;
+}
+.rt-import input[type="file"]::file-selector-button {
+  min-height: 44px; margin: 0 12px 0 0; padding: 8px 16px; cursor: pointer;
+  border: 0; border-right: 1px solid var(--rt-rule); border-radius: 0;
+  background: var(--rt-paper-2); color: var(--rt-ink); font: inherit; font-weight: 600;
+}
+.rt-import input:hover:not(:disabled) { border-color: var(--rt-ink); }
+.rt-import input:disabled { opacity: 0.6; cursor: not-allowed; }
+.rt-import input[type="file"]:disabled::file-selector-button { cursor: not-allowed; }
+
+/* The link field and its button, level with each other along both edges. */
+.rt-import__link > label { font-family: var(--rt-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rt-ink-2); }
+.rt-import__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.rt-setup__form .rt-import__go { min-width: 96px; background: transparent; color: var(--rt-ink); border-color: var(--rt-ink); }
+.rt-setup__form .rt-import__go:hover:not(:disabled) { background: var(--rt-paper-2); border-color: var(--rt-ink); }
+
+@media (max-width: 520px) {
+  .rt-import__row { grid-template-columns: minmax(0, 1fr); }
+  .rt-setup__form .rt-import__go { width: 100%; }
+}

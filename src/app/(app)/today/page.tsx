@@ -21,13 +21,13 @@ import {
 } from "@/components/course/CoursePicker";
 
 /**
- * /today — the daily 10-minute path.
+ * /today, the daily 10-minute path.
  *
  * ONE fetch. GET /api/learner returns this student's mastery, their recent
  * events and the subject's concepts; every section on the screen is folded out
  * of that single object in src/components/today/snapshot.ts, using the same
  * planner the routes use. Four calls used to produce four answers that argued
- * with each other on one screen — see the note in snapshot.ts.
+ * with each other on one screen, see the note in snapshot.ts.
  *
  * Nothing below the path renders until the snapshot lands, so the page only
  * ever grows downward. It used to paint a 329 px block of loading states and
@@ -61,7 +61,7 @@ export default function TodayPage() {
    * One call, and the browser's own record goes with it.
    *
    * The plan is folded from the events this returns, so an instance that has
-   * never seen this student composes nothing — which is how a page that had
+   * never seen this student composes nothing, which is how a page that had
    * just watched two answers land printed "Nothing yet". `syncRecord` replays
    * the mirror into whichever instance answers and takes the merged snapshot
    * back; `mergeLearner` then unions it with what the browser holds, so the
@@ -89,13 +89,13 @@ export default function TodayPage() {
     try {
       setSnapshot(await fetchSnapshot());
     } catch {
-      setError("Couldn't load your week. The server may be starting up — nothing was lost.");
+      setError("Couldn't load your week. The server may be starting up, nothing was lost.");
     } finally {
       setLoading(false);
     }
   }, [courseId, fetchSnapshot]);
 
-  /** After a 200 from an inline answer, refresh quietly — never a spinner. */
+  /** After a 200 from an inline answer, refresh quietly, never a spinner. */
   const quietRefresh = useCallback(async () => {
     try {
       setSnapshot(await fetchSnapshot());
@@ -127,7 +127,7 @@ export default function TodayPage() {
 
   /*
    * One recall open at a time. Each open panel mounts a mic, and a mic owns
-   * the Space key and the id on the typed box — two of them on one page is two
+   * the Space key and the id on the typed box, two of them on one page is two
    * things listening to the same keystroke. It also matches what the page is
    * for: a ten-minute path is done one segment at a time.
    */
@@ -173,7 +173,7 @@ export default function TodayPage() {
             {/*
               * Only once there is a path. It used to render whenever the
               * snapshot had landed, so a student with no history read "Your
-              * 10-minute path" with "0 min · updated just now" beside it — a
+              * 10-minute path" with "0 min · updated just now" beside it, a
               * zero-minute ten-minute path claiming to have been refreshed
               * when it had never been composed. Same condition as the meter
               * below, which already knew this.
@@ -215,7 +215,7 @@ export default function TodayPage() {
                   className="rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
                   style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
                 >
-                  The path couldn&apos;t be built right now. Use retry above — your history is intact.
+                  The path couldn&apos;t be built right now. Use retry above, your history is intact.
                 </div>
               )}
             </div>
@@ -227,7 +227,7 @@ export default function TodayPage() {
              * the screen below it was bare ground.
              *
              * So the box is sized to its content, and the width it gave up
-             * goes to the one honest thing there is to say on an empty Today —
+             * goes to the one honest thing there is to say on an empty Today, 
              * what this page turns into. Every row names a section that really
              * appears once there is history; nothing here is a placeholder for
              * data that does not exist.
@@ -316,7 +316,7 @@ export default function TodayPage() {
                     className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
                     style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
                   >
-                    Nothing due right now — everything you have said is in today&apos;s ten minutes.
+                    Nothing due right now, everything you have said is in today&apos;s ten minutes.
                   </p>
                 )}
               </section>
@@ -378,7 +378,7 @@ export default function TodayPage() {
                     <div className="surface-card mt-4 p-4">
                       <p className="heading text-base">{view.nameOf(view.improved.conceptId)}</p>
                       <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
-                        You got it right on {shortDate(view.improved.lastSuccessfulRecallAt)} — {view.improved.successfulRecallCount} time{view.improved.successfulRecallCount === 1 ? "" : "s"} in total.
+                        You got it right on {shortDate(view.improved.lastSuccessfulRecallAt)}, {view.improved.successfulRecallCount} time{view.improved.successfulRecallCount === 1 ? "" : "s"} in total.
                       </p>
                     </div>
                   ) : (
@@ -386,7 +386,7 @@ export default function TodayPage() {
                       className="mt-4 rounded-xl border border-dashed px-5 py-6 text-sm leading-relaxed"
                       style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
                     >
-                      Nothing here yet — your first right answer shows up here.
+                      Nothing here yet, your first right answer shows up here.
                     </p>
                   )}
                 </section>

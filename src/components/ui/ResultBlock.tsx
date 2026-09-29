@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
  * says something else: the chip reads `verdict`, this block renders whenever
  * the marker returned a misconception, and the two are independent. Invented
  * technobabble came back as a blue "Partly there" chip 51 px above a red
- * "MIXED UP" — two verdicts on one card, the friendlier one on top, and a
+ * "MIXED UP", two verdicts on one card, the friendlier one on top, and a
  * student skimming on a phone reads the chip. Each label was defensible alone;
  * together they contradicted.
  *

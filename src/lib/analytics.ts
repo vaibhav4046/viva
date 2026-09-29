@@ -1,6 +1,6 @@
 /**
  * Lightweight analytics: in-memory counters + console-safe log.
- * No PII, no raw transcripts in logs — only event names and latencies.
+ * No PII, no raw transcripts in logs, only event names and latencies.
  */
 export type AnalyticsEvent =
   | "dictation_started" | "dictation_completed" | "dictation_failed"

@@ -9,11 +9,11 @@ import type { RecordInput } from "@/lib/store/repo";
  * A read must not write.
  *
  * `load()` used to end in a bare catch that seeded a blank doc and saved it,
- * so every read path — listEvents, getMastery, listSubjects, getConcepts —
+ * so every read path, listEvents, getMastery, listSubjects, getConcepts, 
  * performed a write, and did it outside `withLock`, racing the locked writers
  * the mutex exists to serialise. Worse, the catch could not tell "no file yet"
- * from "this file did not parse", so a torn doc — exactly what the old shared
- * tmp path used to produce — was replaced by a blank one on a plain read. A
+ * from "this file did not parse", so a torn doc, exactly what the old shared
+ * tmp path used to produce, was replaced by a blank one on a plain read. A
  * student's whole history, deleted by looking at it.
  *
  * This is the degraded fallback for Postgres: it runs when things are already

@@ -3,7 +3,7 @@
  *
  * VIVA's own docs call the event store a "Misconception Graph" and a saved
  * utterance a "Thought Mark". Those are fine in the codebase and useless on
- * screen — a student should never have to learn our nouns to use the product.
+ * screen, a student should never have to learn our nouns to use the product.
  * Same for engineering vanity: latency percentiles, test counts and audit tool
  * names are not features, and a degraded-storage string is an internal state,
  * not a sentence anyone wants to read.
@@ -11,7 +11,7 @@
  * Scope: strings a student can see. Comments, imports and IDENTIFIERS are
  * exempt, so `src/lib/compiler.ts` can keep its name and a record field can
  * keep `interpretationConfidence`; it is the rendered text that matters.
- * Until now that exemption was only documented, never implemented — the check
+ * Until now that exemption was only documented, never implemented, the check
  * ran over whole lines, so a TypeScript field name and a SQL column tripped a
  * copy rule. It now runs over the text a reader can actually see: string
  * literals, template literals and JSX text. Nothing was removed from the ban
@@ -23,8 +23,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ACCOUNTING } from "./lint-copy-accounting.mjs";
+import { voiceHits } from "./lint-copy-voice.mjs";
 
 const ROOT = path.join(process.cwd(), "src");
+
+/*
+ * Voice rules (dashes, exclamation marks, banned words) are skipped for the two
+ * trees another branch is editing, so this branch does not conflict with it.
+ * After the branches merge, run `node scripts/strip-dashes.mjs --write
+ * --include-deferred`, reword what it lists, and set VOICE_STRICT=1 in the gate.
+ */
+const DEFERRED_VOICE = [/src[\\/]lib[\\/]oral[\\/]/, /src[\\/]app[\\/]api[\\/]/];
+const voiceDeferred = (rel) => process.env.VOICE_STRICT !== "1" && DEFERRED_VOICE.some((re) => re.test(rel));
 
 /** Each entry: the banned phrase, and why, so a failure explains itself. */
 const BANNED = [
@@ -54,7 +64,7 @@ const BANNED = [
  * Internal accounting readouts.
  *
  * These are patterns, not words, on purpose. A first pass banned the bare
- * words "chunks" and "evidence" and immediately flagged seventeen places —
+ * words "chunks" and "evidence" and immediately flagged seventeen places, 
  * including the Probability course's own prose ("given the evidence, how
  * should I update") and identifiers like SOURCE_CHUNKS.length. A lint that
  * cries wolf gets switched off, so each rule below matches the shape of the
@@ -116,7 +126,7 @@ function visibleText(src) {
 /**
  * SQL lives in template literals too, and a column name is not copy. A span
  * that reads as a statement is skipped for the phrase rules (the chunk-id rule
- * still applies — a query has no business quoting one at a reader).
+ * still applies, a query has no business quoting one at a reader).
  */
 const SQL_LIKE = /(select\s|insert\s+into|update\s+\w+\s+set|delete\s+from|create\s+table|alter\s+table|values\s*\(|on\s+conflict|returning\s)/i;
 
@@ -136,6 +146,9 @@ function scan(src, rel) {
         const m = re.exec(inner);
         if (!m) continue;
         hits.push({ rel, line: lineOf(innerStart + m.index), phrase: m[0].trim(), why, text: inner.trim().slice(0, 100) });
+      }
+      for (const v of voiceDeferred(rel) ? [] : voiceHits(inner)) {
+        hits.push({ rel, line: lineOf(innerStart + v.index), phrase: v.phrase, why: v.why, text: inner.trim().slice(0, 100) });
       }
       for (const [phrase, why] of BANNED) {
         const at = lower.indexOf(phrase.toLowerCase());
@@ -203,6 +216,11 @@ const SELF_TEST = [
   { src: '/* Thought Mark lives here */', hits: 0, note: "block comment" },
   { src: "await q(`insert into events (importance, interpretation_confidence) values ($1,$2)`);", hits: 0, note: "SQL column in a template literal" },
   { src: "const s = `Your interpretation was off`;", hits: 1, note: "prose in a template literal still fires" },
+  { src: 'const s = "Nice work!";', hits: 1, note: "voice: exclamation mark" },
+  { src: 'const s = "A seamless flow";', hits: 1, note: "voice: banned word" },
+  { src: 'const s = "We harness the model";', hits: 1, note: "voice: harness" },
+  { src: 'const s = "Save it " + String.fromCharCode(0x2014) + " done";', hits: 0, note: "a dash built from a char code is not a dash in copy" },
+  { src: 'const ok = a !== b;', hits: 0, note: "code with !== is not copy" },
 ];
 
 if (process.argv.includes("--self-test")) {
@@ -211,7 +229,7 @@ if (process.argv.includes("--self-test")) {
     const got = scan(c.src, "self-test").length;
     const ok = got === c.hits;
     if (!ok) failed++;
-    console.log(`${ok ? "pass" : "FAIL"}  ${c.note} — expected ${c.hits}, got ${got}`);
+    console.log(`${ok ? "pass" : "FAIL"}  ${c.note}, expected ${c.hits}, got ${got}`);
   }
   console.log(failed ? `\ncopy lint self-test: ${failed} failed` : "\ncopy lint self-test: all pass");
   process.exit(failed ? 1 : 0);
@@ -230,7 +248,7 @@ if (!hits.length) {
 console.error(`copy lint: ${hits.length} banned phrase(s) in student-facing copy\n`);
 for (const h of hits) {
   console.error(`  ${h.rel}:${h.line}`);
-  console.error(`    "${h.phrase}" — ${h.why}`);
+  console.error(`    "${h.phrase}", ${h.why}`);
   console.error(`    ${h.text}`);
 }
 console.error(`\nSee VIVA_MASTER_PROMPT.md §1.3 for the allowed vocabulary.`);

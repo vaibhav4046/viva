@@ -16,7 +16,7 @@ import { DEMO_USER_PREFIX, demoCookieName } from "@/lib/auth/identity";
  *
  * Both are the same construction: a 22-byte payload carrying the version, the
  * purpose, an expiry and the 128-bit device id, plus a 128-bit HMAC tag over
- * it. Nothing else is trusted — this module never reads a cookie, never reads
+ * it. Nothing else is trusted, this module never reads a cookie, never reads
  * a user id from a tool argument, and never takes a hint from the request
  * body. The old `resolveSubject` bug in this repo (an id from the caller
  * silently resolving to somebody else's material) is exactly the shape of
@@ -46,7 +46,7 @@ let ephemeralSecret: Buffer | null = null;
  * The signing key.
  *
  * ponytail: with no MCP_TOKEN_SECRET set the key is random per process, so
- * tokens stop working when the instance recycles or the app redeploys — the
+ * tokens stop working when the instance recycles or the app redeploys, the
  * same per-instance honesty the file store already ships with. Set
  * MCP_TOKEN_SECRET (32+ random characters) to make pairings outlive a deploy.
  * A shared secret is all this needs; there is no token table to add.
@@ -111,7 +111,7 @@ export function readToken(raw: unknown, purpose: TokenPurpose, now = Date.now())
 /**
  * The device id behind a tool call: the `Authorization: Bearer` header if the
  * student put the token in their client config, otherwise the `account_token`
- * argument the pairing tool handed back. Deliberately the whole list — no
+ * argument the pairing tool handed back. Deliberately the whole list, no
  * cookie, no user id, no subject-owner hint.
  */
 export function identityForCall(authorization: string | null, argToken: unknown, now = Date.now()): TokenCheck {

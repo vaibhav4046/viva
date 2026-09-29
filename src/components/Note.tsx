@@ -10,14 +10,14 @@ import type { LearningEvent } from "@/lib/types";
  * A note: one thing the student said, and what it moved.
  *
  * This replaces the "Thought Mark" card. Same data, none of the internal
- * vocabulary — a student never has to learn our nouns to read their own
+ * vocabulary, a student never has to learn our nouns to read their own
  * study history.
  */
 /*
  * These labels used to carry a colour each, drawn from the mastery bands:
  * "You said" in periwinkle, "Confused" in coral, "For the exam" in lime. What
  * a student did is a different axis from how well they know it, so the card
- * was printing the band palette over a fact that has no band — and the same
+ * was printing the band palette over a fact that has no band, and the same
  * screen shows the legend that teaches periwinkle as "Getting there".
  *
  * The word was always doing the work. Now it does it alone, in the ash every
@@ -38,7 +38,7 @@ const KIND_LABEL: Record<string, string> = {
   connection: "Linked two ideas",
   correction: "Corrected yourself",
   // `hint` is a real intent (src/lib/types.ts) and had no entry here, so asking
-  // for a nudge fell through to "Note" — the one label that says nothing about
+  // for a nudge fell through to "Note", the one label that says nothing about
   // what the student did.
   hint: "Asked for a hint",
   note: "Note",
@@ -59,7 +59,7 @@ export function Note({
    */
   facts?: TurnFacts | null;
   /**
-   * Where the concept sits now — never the signed move that got it there.
+   * Where the concept sits now, never the signed move that got it there.
    *
    * A note used to print "Moved down -8" under an admission of confusion, so
    * saying "I don't get this" cost the student eight of something they were
@@ -74,7 +74,7 @@ export function Note({
   const spoken = event.origin === "voice";
   /*
    * "Quiz me." and "Come back to this tomorrow." are instructions to the app,
-   * not claims about a passage — filing them under a page number sends the
+   * not claims about a passage, filing them under a page number sends the
    * student back to a paragraph that has nothing to do with what they said. No
    * source line is the honest answer for those.
    *

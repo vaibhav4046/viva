@@ -60,12 +60,12 @@ export class SubjectNotFoundError extends Error {
 }
 
 /**
- * Resolve an id to the caller's subject or a starter — and nothing else.
+ * Resolve an id to the caller's subject or a starter, and nothing else.
  *
  * This used to end `return starterSubject(getCourse(id))`, and `getCourse`
  * falls back to the default lab for any id it does not know. So three
- * different situations — no id at all, an id that is somebody else's, and an
- * id whose subject is gone — collapsed into one, and a student following their
+ * different situations, no id at all, an id that is somebody else's, and an
+ * id whose subject is gone, collapsed into one, and a student following their
  * own bookmark was confidently taught Transformers Week 4 with real citations
  * and no error anywhere. A bookmark, a second device or a deleted subject all
  * did it, with or without a database.
@@ -119,7 +119,7 @@ export type SubjectMeta = {
   /**
    * What the licences on this subject's sources oblige VIVA to show. Empty for
    * anything the student brought and for the labs VIVA wrote itself; one entry
-   * per borrowed source otherwise, and the screen has to render it — that is
+   * per borrowed source otherwise, and the screen has to render it, that is
    * the condition on using the material at all.
    */
   attribution: SourceLicence[];
@@ -161,7 +161,7 @@ export async function listSubjectsFor(store: EventStore, userId: string): Promis
 
 /**
  * Which subject owns a concept id. Used when a plan or a review queue names a
- * concept from a subject other than the one currently open — answering from
+ * concept from a subject other than the one currently open, answering from
  * the open subject would grade against the wrong material.
  */
 export async function findSubjectOwning(

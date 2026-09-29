@@ -67,7 +67,7 @@ type TranscribeResponse = {
   requestTimeMs: number | null;
   audioMs: number | null;
   sessionId: string | null;
-  /** "dictation" or "sync" — which endpoint actually answered. */
+  /** "dictation" or "sync", which endpoint actually answered. */
   mode: string;
   /** Set when Dictation failed and Sync answered instead, so a downgrade is
    *  visible on screen rather than only in the JSON. */
@@ -81,8 +81,8 @@ type TranscribeResponse = {
  * 1.5 s flat was a bet that the learner had already read the box, and on a long
  * clip it is not one: a 115 s hold came back as 1495 characters, which nobody
  * reads in a second and a half. The window is now the time it takes to skim
- * what is actually in the box — 50 ms a character, about 20 characters a second
- * or 240 words a minute — floored at the old 1.5 s so a one-line answer still
+ * what is actually in the box, 50 ms a character, about 20 characters a second
+ * or 240 words a minute, floored at the old 1.5 s so a one-line answer still
  * feels immediate, and past a point abandoned entirely: a clip that needs more
  * than twelve seconds of reading is one the learner should send themselves.
  */
@@ -123,7 +123,7 @@ type PathFacts = { fellBackFrom: string | null; requestTimeMs: number | null };
  * Polish and Ukrainian are not here. Neither endpoint's enumeration contains
  * them, so the picker would have been naming a language VIVA cannot produce:
  * the socket quietly swapped in detection while the recorded path posted `pl`
- * and got 400 Bad Request back — live words on screen, then a failure where
+ * and got 400 Bad Request back, live words on screen, then a failure where
  * the note should have been.
  */
 export const LANGUAGE_PRESETS: { value: string; label: string }[] = [
@@ -168,7 +168,7 @@ export function MicButton({
   /** Recent turns, newest last. Sent as recognition context, capped server-side. */
   context?: string[];
   onPhaseChange?: (phase: Phase | "thinking") => void;
-  /** Live RMS 0..1 while listening — for the orb on the page behind this. */
+  /** Live RMS 0..1 while listening, for the orb on the page behind this. */
   onLevel?: (level: number) => void;
   /**
    * The AnalyserNode this capture already runs for its own level meter, so a
@@ -213,7 +213,7 @@ export function MicButton({
   /**
    * The streamed words, offered back after the buffered clip failed.
    *
-   * Not the same transcript and never presented as one — see LIVE_ASR_MODE.
+   * Not the same transcript and never presented as one, see LIVE_ASR_MODE.
    * But the learner watched these words appear, and dropping them on the floor
    * because the POST died means re-saying a sentence that is already in hand.
    */
@@ -325,7 +325,7 @@ export function MicButton({
         // The round trip, not the clip length. This event is what any latency
         // claim is derived from, so it has to measure release-to-transcript;
         // it used to log durationMs, which is the length of whatever the
-        // learner said — 5 to 30 seconds of pure error in every figure.
+        // learner said, 5 to 30 seconds of pure error in every figure.
         const facts = {
           latencyMs: Math.round(performance.now() - startedAt),
           audioMs: data.audioMs ?? durationMs,
@@ -420,7 +420,7 @@ export function MicButton({
         // Without this the entire error path in stream.ts was unreachable from
         // the UI: PROVIDER_BUSY, the terminal-not-retried policy for 1008, all
         // of VOICE_MESSAGES. Verified against the deployment by filling the
-        // account's concurrency cap — the socket got a real 1008 and the
+        // account's concurrency cap, the socket got a real 1008 and the
         // screen said nothing at all.
         onError: (message) => setLiveNote(message),
       });
@@ -575,7 +575,7 @@ export function MicButton({
     : phase === "transcribing"
       ? "Cleaned by AssemblyAI…"
       : listening
-        ? holdToTalk ? "Listening — release" : "Listening — tap to stop"
+        ? holdToTalk ? "Listening, release" : "Listening, tap to stop"
         : holdToTalk ? "Hold to talk" : "Tap to talk";
 
   const holdProps = holdToTalk
@@ -655,8 +655,8 @@ export function MicButton({
         {/* Name the path at rest, not only after a clip lands.
             Measured across the deployed app: "AssemblyAI" appeared on the
             landing page and on no other screen, so anyone who declines the
-            microphone and types — which is most first-time visitors, and
-            every judge without a headset — never saw what transcribes them.
+            microphone and types, which is most first-time visitors, and
+            every judge without a headset, never saw what transcribes them.
             Before a clip it states what will handle the audio; after one it
             states what did, with the time the provider actually spent. */}
         {phase !== "review" && (
@@ -798,7 +798,7 @@ export function MicButton({
             Measured: killing /api/voice/** at t+3 s of a hold gave the right
             sentence and full recovery, and threw away a complete streamed
             transcript that was on screen at that moment. It is offered back
-            here — labelled as the live words, never as the Dictation
+            here, labelled as the live words, never as the Dictation
             transcript, and never auto-sent: this is a salvage, so the learner
             decides. */}
         <AnimatePresence initial={false}>
@@ -860,7 +860,7 @@ export function MicButton({
         </AnimatePresence>
       </div>
 
-      {/* HYDRATION INVARIANT — uncontrolled on purpose. This box is
+      {/* HYDRATION INVARIANT, uncontrolled on purpose. This box is
           server-rendered, so a student can type into it before React hydrates;
           a controlled `value` reconciles an empty string over the live DOM node
           and silently wipes what they wrote. The DOM owns the value and submit
@@ -869,7 +869,7 @@ export function MicButton({
       <div className="mt-3 flex gap-2">
         <label htmlFor="viva-type" className="sr-only">Type instead of speaking</label>
         {/* The long placeholder needed 241 px in a 224 px box and rendered as
-            "Or type — voice is never requir". The reassurance is the one line a
+            "Or type, voice is never requir". The reassurance is the one line a
             student in a library actually needs, so the full sentence moved under
             the row where it has room to be read; the font stays at 16 px. */}
         <input
@@ -891,7 +891,7 @@ export function MicButton({
         </button>
       </div>
       <p className="mono mt-2 text-xs" style={{ color: "var(--color-ash)" }}>
-        Voice is never required — typing works on every screen.
+        Voice is never required, typing works on every screen.
       </p>
     </div>
   );

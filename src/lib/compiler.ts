@@ -22,7 +22,7 @@ const NEGATION = /\b(not|n't|never|no\b|isn't|aren't|don't|doesn't)\b/i;
  * Ranked by how much of the sentence each concept's own words cover, not by
  * the single longest alias that appears anywhere in it. Length alone filed a
  * passage that says query, key and value six times under Self-attention,
- * because "attention" (9 characters) is longer than "query" (5) — so a paste
+ * because "attention" (9 characters) is longer than "query" (5), so a paste
  * the tutor had just refused to credit still marked a concept the student
  * never mentioned as seen. Length is not evidence of what a sentence is about.
  *
@@ -33,7 +33,7 @@ const NEGATION = /\b(not|n't|never|no\b|isn't|aren't|don't|doesn't)\b/i;
  * rule is the whole difference between this and plain occurrence counting,
  * and it is worth 31 rows.
  *
- * Measured over every labelled text in all 26 shipped subjects — exam
+ * Measured over every labelled text in all 26 shipped subjects, exam
  * questions, trap statements and their corrections, both explainer voices and
  * every concept description, 856 rows with a known concept:
  *
@@ -85,7 +85,7 @@ export function cleanTranscript(raw: string): string {
 }
 
 /**
- * HARNESS A — Semantic Compiler. Deterministic, rule-based; LLM-free so the
+ * HARNESS A, Semantic Compiler. Deterministic, rule-based; LLM-free so the
  * golden demo path cannot randomly fail. An LLM may re-rank later, but the
  * persisted event always validates against the schema.
  */

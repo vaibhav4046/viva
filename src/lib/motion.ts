@@ -8,14 +8,14 @@
  * Rules that go with these (see VIVA_MASTER_PROMPT.md §7.2):
  *  - animate `transform` and `opacity` only, so it stays on the compositor
  *  - never animate `box-shadow`; use `filter: drop-shadow(...)`
- *  - 30–50 ms stagger per item, one or two moving things per view
+ *  - 30-50 ms stagger per item, one or two moving things per view
  *  - `useReducedMotion()` swaps movement for a plain opacity change
  */
 
 /** Default for most UI: panels appearing, cards settling. */
 export const SPRING = { type: "spring", visualDuration: 0.3, bounce: 0.2 } as const;
 
-/** Buttons and anything under a finger — reacts immediately, settles fast. */
+/** Buttons and anything under a finger, reacts immediately, settles fast. */
 export const SNAPPY = { type: "spring", stiffness: 500, damping: 30, mass: 0.8 } as const;
 
 /** Larger surfaces: sheets, the subject map, graph nodes. */

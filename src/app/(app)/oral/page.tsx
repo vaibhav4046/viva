@@ -16,7 +16,7 @@ import { logEvent } from "@/lib/analytics";
 import { voiceMessage } from "@/lib/audio/messages";
 
 /**
- * /oral — the spoken exam.
+ * /oral, the spoken exam.
  *
  * "Give VIVA your material. Then close the notes and talk."
  *
@@ -295,7 +295,7 @@ export default function OralPage() {
       </section>
 
       <p className="text-xs leading-relaxed" style={{ color: "var(--color-ash)" }}>
-        This is a live conversation, not a recording. Interrupt the examiner whenever you have something to add — it
+        This is a live conversation, not a recording. Interrupt the examiner whenever you have something to add, it
         stops mid-sentence and keeps your context.
       </p>
     </div>
@@ -325,7 +325,7 @@ function formatClock(ms: number): string {
 /**
  * Not exported. A Next page may only export the default component plus a fixed
  * set of framework hooks, and `next build` rejects anything else at type-check
- * time — which is how `buildDiagnostics` and the trailing re-export both got
+ * time, which is how `buildDiagnostics` and the trailing re-export both got
  * caught here rather than in a browser.
  */
 function buildDiagnostics(
@@ -340,7 +340,7 @@ function buildDiagnostics(
     { label: "Uptime", value: `${(sinceStartMs / 1000).toFixed(1)} s` },
     { label: "Turns", value: String(m.turns) },
     { label: "Source checks", value: String(m.toolCalls) },
-    { label: "Checks per turn", value: m.turns > 0 ? `${(m.toolCalls / m.turns).toFixed(2)}` : "—" },
+    { label: "Checks per turn", value: m.turns > 0 ? `${(m.toolCalls / m.turns).toFixed(2)}` : ", " },
     { label: "Interruptions", value: String(m.interruptions) },
     // The number that proves the protocol rule is implemented: results
     // computed against a reply the student abandoned, and not delivered.

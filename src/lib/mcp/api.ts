@@ -9,7 +9,7 @@
  * the part that decides whose rows are read.
  *
  * So the tool layer is a client. The one thing it adds is the cookie, and the
- * cookie is rebuilt from a signed token — never from anything the caller said.
+ * cookie is rebuilt from a signed token, never from anything the caller said.
  */
 
 export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
@@ -86,7 +86,7 @@ export async function callViva<T>(
  * `/api/subjects/create` streams one sentence per step as newline-delimited
  * JSON and finishes with the built subject. An assistant has nothing to do
  * with a progress line, so this collects the stream and returns the last
- * useful object — the subject, or the refusal that ended it.
+ * useful object, the subject, or the refusal that ended it.
  */
 export async function callVivaStream<T>(
   ctx: ApiContext,

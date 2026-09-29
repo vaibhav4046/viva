@@ -16,7 +16,7 @@ export interface ReasoningProvider {
  *
  * Split finer than it used to be because the classes want different fixes and
  * looked identical from outside: a rate limit means slow down, a schema
- * mismatch means the prompt does not describe the shape (it did not — three
+ * mismatch means the prompt does not describe the shape (it did not, three
  * tutor turns in a row silently used the heuristic because the model was
  * answering with keys nobody had asked it for), and a timeout means the budget
  * is short. Readiness reports the class, never the message, so the difference
@@ -207,7 +207,7 @@ function tryParseSchema<T>(raw: string, schema: ZodType<T>): { ok: true; value: 
  * product a learner can hear.
  *
  * A entry that fails with a retryable class is skipped for COOLDOWN_MS rather
- * than retried on every turn — a rate limit does not clear in two seconds, and
+ * than retried on every turn, a rate limit does not clear in two seconds, and
  * paying a full round trip to rediscover that on each turn is the latency the
  * failover is supposed to hide. A non-retryable failure (bad key, schema
  * mismatch after repair) still falls through to the next entry, because a
@@ -394,7 +394,7 @@ export function providerStatus(): {
 /**
  * The provider a turn will actually use.
  *
- * Three filled-in LLM_* vars are enough — a deployment that has credentials
+ * Three filled-in LLM_* vars are enough, a deployment that has credentials
  * should not answer from the heuristic path because AI_PROVIDER was forgotten.
  * Setting AI_PROVIDER explicitly makes an incomplete set an error instead of a
  * silent downgrade.

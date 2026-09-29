@@ -51,7 +51,7 @@ const PCM = pcmFrom(".viva/audio/confusion-16k.wav");
  *
  * The threshold is a fraction of the LOUDEST window in the clip, not of a
  * leading "noise floor". An earlier version of this took the floor from the
- * first 200 ms — but this clip starts speaking at ~100 ms, so that window
+ * first 200 ms, but this clip starts speaking at ~100 ms, so that window
  * already contained speech, the floor came out at rms 1675, the 8x threshold
  * (13401) was above the clip's loudest window (7005), no window ever crossed
  * it, and the function silently returned 0. A detector that reports "0 ms"
@@ -68,7 +68,7 @@ function speechOnsetMs(pcm) {
   const peak = Math.max(...rms);
   const thresh = peak * 0.15;
   const idx = rms.findIndex((r) => r > thresh);
-  if (idx < 0) throw new Error(`no speech found (peak rms ${Math.round(peak)}) — check the clip`);
+  if (idx < 0) throw new Error(`no speech found (peak rms ${Math.round(peak)}), check the clip`);
   return { onsetMs: idx * 20, peak: Math.round(peak), thresh: Math.round(thresh) };
 }
 const ONSET = speechOnsetMs(PCM);
@@ -82,8 +82,8 @@ async function token(seconds = 180) {
 
 /**
  * Stream the clip in real time.
- * terminate: "after"  — send Terminate once the audio has drained and settled
- *            "midturn"— send Terminate while words are still arriving
+ * terminate: "after", send Terminate once the audio has drained and settled
+ *            "midturn", send Terminate while words are still arriving
  */
 async function run({ language_code, frameMs = 100, terminate = "after", quiet = false }) {
   const q = new URLSearchParams({

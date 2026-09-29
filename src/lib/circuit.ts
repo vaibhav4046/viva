@@ -3,7 +3,7 @@
  * Consecutive-failure breaker: after THRESHOLD failures, fail fast for
  * COOLDOWN_MS so we stop hammering a struggling service. Half-open probe
  * lets one request through to detect recovery.
- * NOTE: per-process state — correct on single-instance/serverless-per-invoke
+ * NOTE: per-process state, correct on single-instance/serverless-per-invoke
  * scale; a shared (Redis) breaker is the documented upgrade path.
  */
 

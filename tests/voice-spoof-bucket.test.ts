@@ -9,7 +9,7 @@ import { POST as telemetry } from "@/app/api/voice/telemetry/route";
  * platform wrote, not the one the caller sent.
  *
  * `src/lib/http.ts` was fixed to read the last entry of `x-forwarded-for`
- * rather than the first, and ten routes call it. These three did not — each
+ * rather than the first, and ten routes call it. These three did not, each
  * kept a local copy still reading `[0]`, which is the entry the caller gets to
  * choose. Rotating one header therefore handed out a fresh token bucket per
  * request on exactly the endpoints where a bypassed limit costs money.
@@ -55,7 +55,7 @@ const ROUTES = {
         method: "POST",
         headers: { "x-forwarded-for": chain },
         // Not a multipart body: the limiter runs before the audio is read, so
-        // the route refuses this at 415 — every status except 429 is a pass.
+        // the route refuses this at 415, every status except 429 is a pass.
         body: "not-a-form",
       })
     ),

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 /**
  * Naming and structure audit: every route has one h1, a title and a lang,
  * and every visible form control has a real accessible name (aria-label,
- * aria-labelledby, or an associated <label> — placeholders do not count).
+ * aria-labelledby, or an associated <label>, placeholders do not count).
  * Run: A11Y_BASE=http://127.0.0.1:3111 npx playwright test
  */
 const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map", "/demo", "/connect"];

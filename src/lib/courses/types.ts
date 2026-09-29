@@ -39,7 +39,7 @@ export type Trap = {
  *
  * Openly licensed does not mean unattributed. Every passage VIVA ships that
  * somebody else wrote carries the work's title, its authors, the licence and a
- * link to both the licence and the page the words are on — which is exactly
+ * link to both the licence and the page the words are on, which is exactly
  * what CC BY asks for, and it is shown to the student rather than buried in a
  * file. A source with no licence recorded is one VIVA wrote or the student
  * gave it, and carries nothing.
@@ -96,7 +96,7 @@ export type Course = {
    * has budget that day, so one file can hold maps written by two different
    * models. A single name at the top of `library.json` would then be wrong
    * about most of it, and "a model wrote this" is a claim the app makes to the
-   * student — the name of the one that did belongs with the subject it wrote,
+   * student, the name of the one that did belongs with the subject it wrote,
    * not with the file.
    */
   builtByModel?: string;
@@ -124,7 +124,7 @@ export type Course = {
 };
 
 /**
- * How a subject came to exist. `starter` is one VIVA ships — either a lab
+ * How a subject came to exist. `starter` is one VIVA ships, either a lab
  * written for this project or a chapter of an openly licensed textbook;
  * `url` is a page the student pointed VIVA at; `file` is a text, markdown or
  * Word document they uploaded.

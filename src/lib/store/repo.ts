@@ -2,7 +2,7 @@ import type { Subject } from "@/lib/courses/types";
 import type { ConceptMastery, LearningEvent, LearningIntent, SourceChunk } from "@/lib/types";
 
 /**
- * EventStore — the durable spine. Append-only events; derived mastery.
+ * EventStore, the durable spine. Append-only events; derived mastery.
  * Every method takes userId; implementations MUST scope all access (§15).
  */
 
@@ -63,7 +63,7 @@ export type ConceptDef = {
   related: string[];
 };
 
-/** Count-only product instrumentation — never transcripts, never PII. */
+/** Count-only product instrumentation, never transcripts, never PII. */
 export type ProductEventSummary = { name: string; count: number };
 
 export interface EventStore {

@@ -49,13 +49,13 @@ export const LEARNING_INTENT: Record<TurnIntent, LearningIntent> = {
   explain: "explain",
   quiz: "quiz_request",
   teach: "teachback",
-  // A graded answer folds as a claim with a verdict attached — that is the
+  // A graded answer folds as a claim with a verdict attached, that is the
   // path that moves mastery, and why a spoken answer must never land as a note.
   answer: "claim",
   // Asking for a nudge is not a wrong answer and must not cost anything: the
   // reducer has no case for `hint`, so it falls through unchanged. A product
   // built on students admitting they are stuck cannot charge them for saying
-  // so — and the note log labels it as the process turn it is rather than
+  // so, and the note log labels it as the process turn it is rather than
   // filing it against a passage as a claim.
   hint: "hint",
   note: "note",
@@ -94,7 +94,7 @@ export type OpenState = {
 /**
  * Is a question still open?
  *
- * A question opens when a turn asks one — "quiz me", or a caught claim — and
+ * A question opens when a turn asks one, "quiz me", or a caught claim, and
  * stays open until the learner clears it, says stop, or runs out of attempts.
  * It used to be "was the single previous turn a quiz request", which meant a
  * student got exactly one attempt ever: answer it wrong and the question froze
@@ -136,7 +136,7 @@ export function readHistory(events: LearningEvent[], course: Course): { memory: 
 
 /**
  * A verb whitelist used to stand here (is|are|means|…), which meant a sentence
- * built on any other verb — "multi-head attention USES one head per layer" —
+ * built on any other verb, "multi-head attention USES one head per layer", 
  * never reached the claim checker and was filed as a note instead. The general
  * rule runs the other way: a full sentence that is not asking for something is
  * a position the learner is taking, whatever verb it happens to use.
@@ -146,7 +146,7 @@ const DECLARATIVE = /[a-z]/i;
  * Anything that makes the sentence a request rather than a position.
  *
  * The bare question words are anchored to the start. Loose, they matched
- * mid-sentence — "attention weights already encode WHICH words are important"
+ * mid-sentence, "attention weights already encode WHICH words are important"
  * read as a question, so the subject's own listed misconception about order vs
  * importance was filed unchecked. A request phrase can appear anywhere; a
  * question word in the middle of a statement is just English.
@@ -210,12 +210,12 @@ export const INTENT_SYSTEM = [
  * With a question open there is nothing left for this call to decide, so it is
  * not made. The intent it returns is discarded two lines down (`plan.intent`
  * wins), and the only other thing it can do is replace the concept the open
- * question already fixed with a guess — worse on both counts. It also costs a
+ * question already fixed with a guess, worse on both counts. It also costs a
  * round trip on the one turn that needs its budget for grading the answer:
  * the live provider allows 8,000 tokens a minute (measured), one turn spends
  * roughly a thousand per model call, and every turn was making two. When that
  * ceiling is hit the provider answers 429 and the learner silently gets the
- * heuristic — so a call that cannot change the outcome is not free, it is a
+ * heuristic, so a call that cannot change the outcome is not free, it is a
  * call that pushes a later real one over the line.
  */
 export async function confirmPlan(plan: TurnPlan, opts: { text: string; course: Course; history: TurnMemory[] }): Promise<TurnPlan> {
@@ -254,8 +254,8 @@ function historyBlock(history: TurnMemory[]): string {
  * tell a model what the schema IS.
  *
  * Measured against the live provider (Groq, openai/gpt-oss-120b): the old
- * prompt came back `{"wrong":…,"correction":…,"citation":[…],"question":…}` —
- * sensible content under invented key names — which failed the parse, failed
+ * prompt came back `{"wrong":…,"correction":…,"citation":[…],"question":…}`, 
+ * sensible content under invented key names, which failed the parse, failed
  * the one repair retry, and dropped every tutor turn to the heuristic path.
  * Three model turns in a row, three silent downgrades. The two prompts that
  * already listed their keys (intent, assessment) were the two that worked, so
@@ -269,7 +269,7 @@ export const TUTOR_SYSTEM = [
   ' "citations": [{"chunkId": string, "quote": string}],',
   ' "misconception": string or null, "masterySignal": "up" | "down" | "flat",',
   ' "strategy": "probe" | "contrast" | "analogy" | "recall" | "teachback"}',
-  "right = what they got right, or null. Put something there ONLY if they actually said it — never credit them for a thing you inferred they must know. \"Explain it simply\" is a request, not an answer, so right is null.",
+  "right = what they got right, or null. Put something there ONLY if they actually said it, never credit them for a thing you inferred they must know. \"Explain it simply\" is a request, not an answer, so right is null.",
   "wrong = what is wrong or missing, one line, or null. question = the single question you ask them.",
   "citations = at most 2, each chunkId copied exactly from the passage ids given, each quote at most 160 characters taken from that passage.",
   "misconception = the mistaken belief in one line, or null. masterySignal = up if they showed they know it, down if they got it wrong, flat if you could not tell.",
@@ -277,7 +277,7 @@ export const TUTOR_SYSTEM = [
   "ask exactly one question that makes the learner do the thinking (never answer it yourself); speak TO the learner as \"you\", never about them as \"they\"; plain English, no course codes, no praise words like \"great job\";",
   // A student who has just said something true and reads "You didn't mention"
   // has been told they are wrong. The gap is the same gap either way round.
-  "when they got part of it right, say that part first and the gap after it; never open wrong with \"You didn't mention\", \"You omitted\" or \"You failed to\" — name the next piece to add instead;",
+  "when they got part of it right, say that part first and the gap after it; never open wrong with \"You didn't mention\", \"You omitted\" or \"You failed to\", name the next piece to add instead;",
   "if the passages do not support a correction, set wrong to null and ask a question that would reveal the gap. Never invent citations: every chunkId must be one of the ids given.",
 ].join(" ");
 
@@ -341,13 +341,13 @@ export async function tutorReply(opts: {
 
 /**
  * Master prompt 5.2: a citation survives only if its id is in the retrieved
- * set. If a correction loses its last citation, the correction goes with it —
+ * set. If a correction loses its last citation, the correction goes with it, 
  * VIVA says it cannot find it rather than asserting it anyway.
  *
  * `right` is deleted unless the caller says something actually verified the
  * learner's sentence, and nothing on this path does: the only check that can
  * confirm a claim is `checkClaim`, and it never reaches the model. Left in, the
- * field is the model echoing the learner's own words back as VIVA's line —
+ * field is the model echoing the learner's own words back as VIVA's line, 
  * measured, and on a false claim about the learner's own module that is the
  * app teaching them the wrong thing in its own voice.
  *
@@ -366,7 +366,7 @@ export function groundReply(
   const right = opts.mayAffirm ? reply.right : null;
   const asked = askForTheRest(reply.wrong);
   // A correction that says nothing the learner did not already say is the
-  // learner's own sentence in VIVA's voice — and when the sentence was false,
+  // learner's own sentence in VIVA's voice, and when the sentence was false,
   // that is the product asserting the misconception. See `echoesClaim`.
   const echoed = Boolean(opts.said && echoesClaim(asked, opts.said));
   const wrong = echoed ? null : asked;
@@ -377,7 +377,7 @@ export function groundReply(
 
 /**
  * "You didn't mention X" reads as a mark against a student who has just said
- * something true — two of the four true claims a judge typed came back led by
+ * something true, two of the four true claims a judge typed came back led by
  * exactly that shape. The gap is the same gap; asking for it is not an
  * accusation. `TUTOR_SYSTEM` tells the model not to write it and this is what
  * happens when it writes it anyway.

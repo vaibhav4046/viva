@@ -31,7 +31,7 @@ const { GET: learnerGet } = await import("@/app/api/learner/route");
  *
  * The degradation latch sends every call to the ephemeral file store once the
  * durable backend has failed once. For reads and writes that is the whole
- * point — the demo keeps working. For a deletion it is the one thing the store
+ * point, the demo keeps working. For a deletion it is the one thing the store
  * must never do: unlink a /tmp file, return 200, and leave every Postgres row
  * where it was, while the student is told they were forgotten.
  */
@@ -93,7 +93,7 @@ describe("deleting a learner's data once the store has degraded", () => {
     const { store } = flaky({ deleteFails: true });
     await expect(store.deleteUserData("u_first")).rejects.toThrow(/ECONNREFUSED/);
     // A refused deletion is not evidence that the whole instance should go
-    // ephemeral — it is evidence that this deletion did not happen.
+    // ephemeral, it is evidence that this deletion did not happen.
     expect(storeDegradation().degraded).toBe(false);
   });
 });
@@ -105,7 +105,7 @@ describe("deleting a learner's data once the store has degraded", () => {
  * the route let that rejection out as a bare 500 with no body. Loud was right;
  * unreadable was not. Every other route in this app answers a failure with
  * {error:{code,message,retryable}} and one plain sentence, so this one does
- * too — and the sentence says what actually happened, without naming a
+ * too, and the sentence says what actually happened, without naming a
  * backend the student has never heard of.
  */
 describe("GET /api/learner?reset=1 when the deletion does not happen", () => {

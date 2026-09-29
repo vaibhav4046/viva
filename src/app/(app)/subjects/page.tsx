@@ -12,7 +12,7 @@ import { mergeSubjectList, rememberSubject, syncRecord } from "@/components/mirr
 import type { SourceLicence, Subject } from "@/lib/courses/types";
 
 /*
- * /subjects — pick what you're studying, or bring your own.
+ * /subjects, pick what you're studying, or bring your own.
  *
  * "Bring your own" posts to /api/subjects/create and reads the reply as it
  * arrives: the route streams one sentence per step, so the page shows the work
@@ -25,7 +25,7 @@ import type { SourceLicence, Subject } from "@/lib/courses/types";
  *
  * It also says whose work it is. Most of what VIVA ships now is a chapter of an
  * openly licensed textbook, and showing the credit is the condition on using it
- * — so the credit is part of the card, not a page in a footer somewhere.
+ *, so the credit is part of the card, not a page in a footer somewhere.
  */
 
 type Tab = "paste" | "link" | "files" | "name";
@@ -54,7 +54,7 @@ type SubjectCard = {
  * the browser kept into whichever instance answers, so the list that comes back
  * contains it; `mergeSubjectList` then adds anything the browser holds that the
  * reply still missed. A plain read is the fallback, and the mirror alone is the
- * fallback after that — a subject the student built is never not on this page.
+ * fallback after that, a subject the student built is never not on this page.
  */
 async function loadSubjects(): Promise<{ cards: SubjectCard[]; storageNote: string | null }> {
   const synced = await syncRecord();
@@ -87,7 +87,7 @@ type Built = {
 
 /**
  * Mirrors `PDF_MAX_BYTES` in src/lib/intake/pdf.ts and `MAX_DOCS` in
- * src/lib/intake/sources.ts, neither of which can be imported here — the first
+ * src/lib/intake/sources.ts, neither of which can be imported here, the first
  * pulls the parser into the bundle. The page refused at 15 MB while the route
  * refused at 4, so the student picked a lecture deck, waited for the upload and
  * was turned away after committing to the flow.
@@ -99,7 +99,7 @@ const MAX_DOCS = 4;
 /**
  * How many shipped subjects the shelf shows before it asks.
  *
- * Six is two full rows on a laptop and six phone-lengths of scrolling — enough
+ * Six is two full rows on a laptop and six phone-lengths of scrolling, enough
  * to see what kind of thing is on offer. Thirteen is a wall you scroll past to
  * reach the box where you add your own, which is the thing most people came
  * for the second time.
@@ -117,13 +117,13 @@ const SHELF_PREVIEW = 6;
 const CREATE_ERROR: Record<string, string> = {
   BAD_URL: "That does not look like a web address. Paste the whole link, starting with https://.",
   BLOCKED_HOST: "VIVA only reads pages on the open web, and that address is not one of them.",
-  HTTP_ERROR: "That page would not open. It may want a sign-in, or it may be gone — paste the text instead.",
+  HTTP_ERROR: "That page would not open. It may want a sign-in, or it may be gone, paste the text instead.",
   UNSUPPORTED_TYPE: "That link is not a page VIVA can read. Upload the file itself, or paste the text.",
   TOO_LARGE: "That page is too long to read in one go. Try a single article, or paste the part you are studying.",
   NO_READABLE_TEXT:
-    "There was too little to read on that page — it may be mostly video, pictures or a sign-in wall. VIVA will not guess at what it said, so paste the text and it will read that.",
+    "There was too little to read on that page, it may be mostly video, pictures or a sign-in wall. VIVA will not guess at what it said, so paste the text and it will read that.",
   NO_TEXT_IN_FILE: "There is no readable text in that file. Paste the text instead and VIVA will read that.",
-  BAD_FILE: "VIVA reads PDFs, Word documents and plain text. That file is something else — paste the text instead.",
+  BAD_FILE: "VIVA reads PDFs, Word documents and plain text. That file is something else, paste the text instead.",
 };
 
 function phrase(code: string | null | undefined, message: string | null | undefined): string {
@@ -133,14 +133,14 @@ function phrase(code: string | null | undefined, message: string | null | undefi
 /** One plain sentence per build path. No jargon, no hedging. */
 function builtByLine(builtBy: string | null | undefined): string | null {
   if (builtBy === "model") return "A language model read this and wrote the map.";
-  if (builtBy === "reading") return "VIVA read these notes itself — no model helped.";
+  if (builtBy === "reading") return "VIVA read these notes itself, no model helped.";
   return null;
 }
 
 /**
  * What the two hand-written labs say instead of a credit.
  *
- * They borrow nothing, so there is nothing to attribute — but a card that ends
+ * They borrow nothing, so there is nothing to attribute, but a card that ends
  * where the others carry a credit reads as a card that lost something. The
  * truthful sentence costs one line and the shelf stops looking broken.
  */
@@ -204,7 +204,7 @@ export default function SubjectsPage() {
       if (urls.length > MAX_DOCS) { setError(`VIVA reads up to ${MAX_DOCS} pages at once. Keep the ones that matter most.`); return; }
       body = JSON.stringify({ kind: "url", urls, ...(title.trim() ? { title: title.trim() } : {}) });
     } else if (tab === "paste") {
-      if (text.trim().length < 200) { setError("Paste a bit more — a few paragraphs is enough."); return; }
+      if (text.trim().length < 200) { setError("Paste a bit more, a few paragraphs is enough."); return; }
       body = JSON.stringify({ kind: "paste", title: title.trim() || "Your notes", text });
     } else {
       if (title.trim().length < 3) { setError("Give the topic a name first."); return; }
@@ -268,7 +268,7 @@ export default function SubjectsPage() {
        */
       if (subject && !failed) open(subject.id);
     } catch {
-      setError("The connection dropped while VIVA was reading. Nothing was saved — try again.");
+      setError("The connection dropped while VIVA was reading. Nothing was saved, try again.");
     } finally {
       setBusy(false);
       reload();
@@ -286,14 +286,14 @@ export default function SubjectsPage() {
    * Thirteen shipped subjects and however many the student built read as one
    * undifferentiated wall in a single list, and the two kinds are not the same
    * thing: one is a shelf, the other is their own work. Two groups, in the
-   * order the page's own sentence promises — ours, then yours.
+   * order the page's own sentence promises, ours, then yours.
    */
   const shipped = (subjects ?? []).filter((s) => s.demo);
   const own = (subjects ?? []).filter((s) => !s.demo);
   const visible = showAll ? shipped : shipped.slice(0, SHELF_PREVIEW);
 
   /*
-   * The card is the surface and the button is what fills it — the credit
+   * The card is the surface and the button is what fills it, the credit
    * carries links, and a link inside a button is not a thing a browser can
    * render. So the button stops above the hairline and the credit sits under
    * it, still inside the same card.
@@ -301,7 +301,7 @@ export default function SubjectsPage() {
    * There is no pill on the card any more. Six paper pills on a shelf plus the
    * lime one under the form is seven things shouting the same volume, and only
    * one of them is the thing this page is for. The card was always the control
-   * — the pill was a second copy of it — so the card keeps the words and gives
+   *, the pill was a second copy of it, so the card keeps the words and gives
    * them the weight of a caption instead of a button.
    */
   function card(s: SubjectCard) {
@@ -341,7 +341,7 @@ export default function SubjectsPage() {
           </span>
         </button>
         {/* Every card ends the same way: a rule, then one sentence about whose
-            words these are — and the card pushes it down to its own foot
+            words these are, and the card pushes it down to its own foot
             rather than directly under the title.
 
             The row is `items-stretch`, so a card whose credit is one line is
@@ -350,11 +350,11 @@ export default function SubjectsPage() {
             323 px side by side and the row left a 140 px notch of bare ground
             under the short ones. Equal height was rejected once because it
             left empty card below the credit; anchoring the credit to the foot
-            is what that attempt was missing — the slack now falls between the
+            is what that attempt was missing, the slack now falls between the
             title and the rule, where a card is supposed to breathe.
 
             The slack is taken by `grow` on the button above, not by `mt-auto`
-            here: with no slack to take — one column at 390 — `auto` resolves
+            here: with no slack to take, one column at 390, `auto` resolves
             to 0, and the rule ended up hard against the counts row. */}
         {credit || licences.length ? (
           <div className="hairline mt-4 border-t pt-3">
@@ -564,7 +564,7 @@ export default function SubjectsPage() {
                 </span>
               ) : null}
               <span className="text-xs leading-relaxed" style={{ color: "var(--color-ash)" }}>
-                A scanned PDF has no text in it. If that is what you have, paste the words instead — VIVA will not guess
+                A scanned PDF has no text in it. If that is what you have, paste the words instead, VIVA will not guess
                 at pages it cannot read.
               </span>
             </label>
@@ -615,7 +615,7 @@ export default function SubjectsPage() {
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
               {builtByLine(built.builtBy) ?? ""}
               {built.builtBy === "reading"
-                ? " That means plainer questions and no worked analogies — everything you see comes straight out of your own words. It also means that when you say something wrong here, VIVA will more often tell you it could not check than catch it. It still quotes your own lines back when it can, and it will not agree with you to be nice."
+                ? " That means plainer questions and no worked analogies, everything you see comes straight out of your own words. It also means that when you say something wrong here, VIVA will more often tell you it could not check than catch it. It still quotes your own lines back when it can, and it will not agree with you to be nice."
                 : ""}
             </p>
             {/* The route says whether this landed somewhere durable and supplies

@@ -3,14 +3,14 @@ import { useState } from "react";
 import type { WeekDay } from "@/lib/planner";
 
 /**
- * "Your week" — seven days projected from the learner's current review state.
+ * "Your week", seven days projected from the learner's current review state.
  * Today's count mirrors the path above because it is the same object: both come
  * out of one projectWeek() call over one snapshot. Clicking a day with
  * something in it scrolls back to the plan.
  *
  * A day with nothing due is a one-line row, not a card. The strip used to give
  * every day the same 107 px card, and on a cold account five of the seven read
- * "0 / Nothing projected" — 546 px of null data that pushed the ten-minute
+ * "0 / Nothing projected", 546 px of null data that pushed the ten-minute
  * path, the reason the page exists, below the fold on a phone. Weight now goes
  * to the days that have something in them.
  *

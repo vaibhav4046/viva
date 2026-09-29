@@ -14,7 +14,7 @@ import type { ConceptMastery } from "@/lib/types";
  * What may move a learner's record, measured against the session that broke it.
  *
  * A student judge pasted two passages off the screen word for word. VIVA
- * answered "That matches p.7" — true, and the right thing to say — and then
+ * answered "That matches p.7", true, and the right thing to say, and then
  * wrote two SUCCESSFUL RECALLS into the map against Self-attention, a concept
  * neither passage is about and the student never mentioned. /today read it
  * back as "You recalled Self-attention correctly 2 times" and pushed the
@@ -25,7 +25,7 @@ import type { ConceptMastery } from "@/lib/types";
  *   1. reading the source back is not recall. `supportedBy` recognises the
  *      passage's own sentence, which is exactly what a paste is;
  *   2. the concept came from `findConcepts`, which ranks by longest matched
- *      alias — so "attention" (9 characters, in nearly every passage of this
+ *      alias, so "attention" (9 characters, in nearly every passage of this
  *      subject) beat "query"/"key"/"value" on a passage about queries, keys
  *      and values. A got-it may only be written on a concept the line that
  *      verified it actually names;
@@ -71,7 +71,7 @@ describe("reading the source back is not recall", () => {
 
   it("marks a quote of two consecutive passage lines as recited", () => {
     // The shape `claim-recall.test.ts` requires to stay `supported`: the
-    // parentheticals dropped, so the first sentence is not one unbroken run —
+    // parentheticals dropped, so the first sentence is not one unbroken run, 
     // but the second is the line word for word, and one copied line is enough.
     const check = runClaim(
       TRANSFORMERS,
@@ -143,7 +143,7 @@ describe("the reducer only writes a got-it for something that was recalled", () 
  * with one got-it; the next turn lands on a cold instance whose /tmp is empty,
  * so it folds that one turn alone and answers with exposureCount 1 and no
  * got-it. `mergeMastery` compared exposure counts, found a tie, and handed it
- * to the server — a record built out of strictly less of the session.
+ * to the server, a record built out of strictly less of the session.
  */
 function row(over: Partial<ConceptMastery>): ConceptMastery {
   return { ...blankMastery("c_sa", "2026-09-13T12:00:00.000Z"), ...over };
@@ -224,7 +224,7 @@ type TurnBody = {
   claim: { status: string } | null;
 };
 
-describe("POST /api/study/turn — pasting the passage back", () => {
+describe("POST /api/study/turn, pasting the passage back", () => {
   it("logs no successful recall, on any concept", async () => {
     currentUser = "u_credit_paste";
     const first = (await (await studyTurn(say(PASSAGE_3))).json()) as TurnBody;

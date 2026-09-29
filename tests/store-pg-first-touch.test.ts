@@ -12,7 +12,7 @@ import type { RecordInput } from "@/lib/store/repo";
  * first event for a concept the SELECT matches nothing, locks nothing, and both
  * transactions start from a blank state. The second write then replaces the
  * first with values computed from that same blank state, so one graded event
- * disappears — its counts and its delta with it.
+ * disappears, its counts and its delta with it.
  *
  * No database here, and none needed: the defect is in the order of the
  * statements, not in Postgres. The fake models exactly the two rules that decide
@@ -21,11 +21,11 @@ import type { RecordInput } from "@/lib/store/repo";
  *   1. `SELECT ... FOR UPDATE` on a key with no row takes no lock, so it cannot
  *      make a second transaction wait.
  *   2. An INSERT whose key collides with another transaction's uncommitted row
- *      waits for that transaction to finish before deciding what to do — true of
+ *      waits for that transaction to finish before deciding what to do, true of
  *      `ON CONFLICT DO NOTHING` and of `DO UPDATE` alike.
  *
  * Its ceiling: it shows the statement order serialises under those two rules. It
- * is not a claim about Postgres itself — snapshots, real lock queues and
+ * is not a claim about Postgres itself, snapshots, real lock queues and
  * deadlock detection are all out of scope, and only a live database proves
  * those. What it does catch is the lost update, which is the whole of what this
  * file is for.
@@ -137,7 +137,7 @@ vi.mock("pg", () => {
       }
 
       if (/SELECT \* FROM mastery_state WHERE user_id=\$1 AND concept_id=\$2 FOR UPDATE/i.test(s)) {
-        // Rule 1: no row, no lock — this statement cannot make anybody wait.
+        // Rule 1: no row, no lock, this statement cannot make anybody wait.
         const row = this.visible(key(params[0], params[1]));
         return { rows: row ? [row] : [] };
       }

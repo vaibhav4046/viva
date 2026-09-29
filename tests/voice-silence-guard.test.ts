@@ -15,8 +15,8 @@ import { VOICE_MESSAGES } from "@/lib/audio/messages";
  *
  * Two guards, and they catch different things:
  *
- *  1. A clip with no variation in it at all — a muted headset, a dead virtual
- *     input, an automated browser feeding digital silence — never reaches
+ *  1. A clip with no variation in it at all, a muted headset, a dead virtual
+ *     input, an automated browser feeding digital silence, never reaches
  *     AssemblyAI. Deterministic, and it does not depend on what the provider
  *     feels like returning for silence that day.
  *  2. Anything the provider is not sure about is not "exactly what you said".
@@ -33,16 +33,16 @@ import { VOICE_MESSAGES } from "@/lib/audio/messages";
  *                                           into vector of concentrations…")
  *   confusion    clean            0.9873    correct
  *   confusion    noise 25%        0.9688    correct
- *   confusion    noise 100%          —      empty -> NO_SPEECH already
+ *   confusion    noise 100%, empty -> NO_SPEECH already
  *   claim        clean            0.9977    correct
  *   claim        noise 25%        0.9914    correct
- *   claim        noise 100%          —      empty -> NO_SPEECH already
+ *   claim        noise 100%, empty -> NO_SPEECH already
  *   spoken       attenuated x1000 0.9809    correct
  *
  * …and seven more held through the real capture path (Chromium fake device ->
  * getUserMedia -> AudioWorklet -> browser-built WAV), which scores lower
  * because a hold that starts a syllable late scores that syllable badly:
- * 0.9061, 0.9546, 0.9892, 0.9506, 0.9895, 0.9896, 0.9466 — all correct.
+ * 0.9061, 0.9546, 0.9892, 0.9506, 0.9895, 0.9896, 0.9466, all correct.
  *
  * Correct transcripts bottom out at 0.9061, across sixteen readings, including
  * speech buried in equal-amplitude white noise and speech attenuated to a peak
@@ -139,7 +139,7 @@ describe("a clip with no signal in it", () => {
     expect(validateWavInput(wav(3000, 0, -1200), "audio/wav")).toMatchObject({ ok: false, code: "NO_AUDIO" });
   });
 
-  it("does not refuse very quiet audio — a whisper is still speech", () => {
+  it("does not refuse very quiet audio, a whisper is still speech", () => {
     // `.viva/fixtures/spoken-sentence.wav` attenuated 1000x has a peak of 17
     // and still came back correct at 0.9809, so amplitude is not the test:
     // having any variation at all is.
@@ -180,7 +180,7 @@ describe("the confidence floor", () => {
   it("passes the lowest confidence a correct transcript actually scored", async () => {
     // 0.9061 is the worst reading from a correct transcript in sixteen: a real
     // 6.5 s hold through the capture path whose first word was clipped off.
-    // That is the binding case — rejecting it would cost a learner a right
+    // That is the binding case, rejecting it would cost a learner a right
     // answer for pressing the button a syllable late, which everyone does.
     mockDictation({
       text: "Michaelis constant is the substrate concentration at which the reaction rate reaches half of vmax.",
@@ -200,7 +200,7 @@ describe("the confidence floor", () => {
   });
 
   it("sits between every invented transcript and every correct one seen so far", () => {
-    // The bound is the measurement, not a preference — if someone retunes it
+    // The bound is the measurement, not a preference, if someone retunes it
     // past either edge of the measured gap, this fails. 0.85 is the highest
     // confidence panel-D was shown for an invented sentence; 0.9061 is the
     // lowest a correct transcript has scored across sixteen readings.

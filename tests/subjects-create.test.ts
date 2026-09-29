@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
  * A judge pasted 1,500 words, read "Saving it to your subjects…", got a
  * success screen counting 10 concepts / 8 questions / 12 passages, and then
  * found the subject missing from all eleven reads that followed. The storage
- * needs a DATABASE_URL this route cannot conjure — but promising durability it
+ * needs a DATABASE_URL this route cannot conjure, but promising durability it
  * does not have is a separate defect, and it is this one.
  */
 
@@ -48,7 +48,7 @@ async function lines(res: Response): Promise<Record<string, unknown>[]> {
   return body.split("\n").filter(Boolean).map((l) => JSON.parse(l) as Record<string, unknown>);
 }
 
-describe("POST /api/subjects/create — storage honesty", () => {
+describe("POST /api/subjects/create, storage honesty", () => {
   it("says where the subject actually lives when nothing durable is behind it", async () => {
     durable.value = false;
     const out = await lines(await POST(paste(NOTES)));
@@ -86,13 +86,13 @@ describe("POST /api/subjects/create — storage honesty", () => {
     const done = out.find((l) => l.subject) as { subject: Record<string, unknown>; record?: Record<string, unknown> } | undefined;
     expect(done?.subject.durable).toBe(true);
     expect(done?.subject.storageNote).toBeNull();
-    // The browser gets its copy either way — a durable write is not a reason to
+    // The browser gets its copy either way, a durable write is not a reason to
     // make the client fetch back what it just built.
     expect(done?.record?.id).toBe(done?.subject.id);
   });
 });
 
-describe("POST /api/subjects/create — the real upload ceiling", () => {
+describe("POST /api/subjects/create, the real upload ceiling", () => {
   it("refuses an oversize body before reading it, naming the limit it enforces", async () => {
     const { PDF_MAX_BYTES } = await import("@/lib/intake/pdf");
     const req = new Request("http://localhost/api/subjects/create", {

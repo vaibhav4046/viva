@@ -10,8 +10,8 @@ import type { SourceChunk } from "@/lib/types";
  *
  *   - the check contradicted students who were RIGHT. `overlapRatio` counted
  *     the trap's words appearing in the claim, so "mutually exclusive events
- *     cannot be independent" — a correct refutation, which necessarily reuses
- *     every noun in the misconception — scored as having made it;
+ *     cannot be independent", a correct refutation, which necessarily reuses
+ *     every noun in the misconception, scored as having made it;
  *   - the check missed almost everything else, because the only thing it could
  *     recognise was a trap the course author had written out by hand.
  *
@@ -24,22 +24,22 @@ import type { SourceChunk } from "@/lib/types";
  * model-free, so the verdict is the same every time:
  *
  *   0. is the learner DENYING a mistake rather than making one? then nothing
- *      below may assert a contradiction — this is the guard that protects the
+ *      below may assert a contradiction, this is the guard that protects the
  *      student who understands the material. Denying is not the same as
  *      drawing a contrast: "backprop and gradient descent are two different
  *      steps" believes its own sentence, and gating it here cost recall for
  *      nothing (`CONTRAST`);
- *   0b. does a passage already say the whole claim? then it is `supported` —
+ *   0b. does a passage already say the whole claim? then it is `supported`, 
  *      the one status that may tell a learner they are right, because a line
  *      of their own source says the same thing in the same polarity;
  *   1. a trap the subject ships (the author wrote why it is wrong);
- *   2. conflation — "X and Y are the same" where the source separates them;
- *   2b. the same with one term — "the heads all learn the same thing" where
+ *   2. conflation, "X and Y are the same" where the source separates them;
+ *   2b. the same with one term, "the heads all learn the same thing" where
  *      the source says they specialise;
  *   3. the source rules it out in its own words ("…, not X", "instead of X",
  *      "has no X");
- *   4. term substitution — the source puts a different named thing in that slot;
- *   5. relation mismatch — X is <done> to Y, the source says Z, and a wrong
+ *   4. term substitution, the source puts a different named thing in that slot;
+ *   5. relation mismatch, X is <done> to Y, the source says Z, and a wrong
  *      operation counts as well as a wrong destination;
  *   6. nothing in the passages goes near it, so VIVA says so rather than guessing.
  *
@@ -49,7 +49,7 @@ import type { SourceChunk } from "@/lib/types";
  *
  * ponytail: every check is lexical, so a claim phrased entirely in the
  * student's own words can still slip past. That is the honest failure
- * direction — a miss says "I could not check that", it never asserts a false
+ * direction, a miss says "I could not check that", it never asserts a false
  * correction. A model pass over the same passages is the upgrade if precision
  * ever needs to go higher.
  */
@@ -73,7 +73,7 @@ export type ClaimCheck = {
    */
   recited: boolean;
   /**
-   * `supported`, and this is the concept the line that verified it NAMES —
+   * `supported`, and this is the concept the line that verified it NAMES, 
    * which is the only concept a got-it earned here may be written against.
    * Null on every other status: nothing checked anything, so nothing may
    * override the concept the words were routed to.
@@ -83,7 +83,7 @@ export type ClaimCheck = {
 
 /**
  * The learner is denying, correcting or contrasting rather than asserting.
- * `\bnot\b` was the whole guard before, which cannot match inside "cannot" —
+ * `\bnot\b` was the whole guard before, which cannot match inside "cannot", 
  * so the one spelling a confident student actually uses got them marked wrong.
  *
  * Contrast words are here bare rather than only as "different FROM". A student
@@ -97,19 +97,19 @@ const NEGATED =
   /\b(not|never|no|isn['’]?t|aren['’]?t|can\s?not|cannot|can['’]t|won['’]?t|will\s+not|does\s?n['’]?t|do\s?n['’]?t|did\s?n['’]?t|wrong|false|myth|misconception|differs?|different(?:ly)?|distinct|separate(?:ly)?|unlike|rather\s+than|instead\s+of|as\s+opposed\s+to)\b/i;
 
 /**
- * Contrast only — the other half of `NEGATED`. A student writing "backprop and
+ * Contrast only, the other half of `NEGATED`. A student writing "backprop and
  * gradient descent are two different steps" is drawing a distinction inside a
  * sentence they believe, not denying it, and gating the passage checks on this
  * half cost recall for nothing: measured on the twenty-sentence corpus in
  * `tests/fixtures/claim-corpus.ts`, the wide gate blocked ONE of the ten wrong
  * sentences (a real "not") and nine of the ten correct contrast sentences. So
- * the gate below reads `DENIAL`, and contrast reaches the passage checks —
+ * the gate below reads `DENIAL`, and contrast reaches the passage checks, 
  * where the checks that could fire on it carry their own contrast guard.
  */
 const CONTRAST = /\b(differs?|different(?:ly)?|distinct|separate(?:ly)?|unlike|rather\s+than|instead\s+of|as\s+opposed\s+to|whereas)\b/i;
 
 /**
- * Denial only — the half of `NEGATED` that flips a sentence's truth rather
+ * Denial only, the half of `NEGATED` that flips a sentence's truth rather
  * than drawing a contrast within it.
  *
  * The wide pattern cannot decide polarity: a passage line ending "produce
@@ -214,7 +214,7 @@ function related(a: string, b: string): boolean {
 }
 
 /**
- * The same word, two spellings — but only when one grows out of the front of
+ * The same word, two spellings, but only when one grows out of the front of
  * the other. "backprop"/"backpropagation" yes; "dependent"/"independent" no,
  * which is a pair of opposites that a plain substring test calls identical.
  */
@@ -229,7 +229,7 @@ function sameWord(a: string, b: string): boolean {
  * This is the mechanism the round-2 fix missed. A trap statement is mostly
  * topic nouns, and a correct sentence about the same topic necessarily reuses
  * every one of them, so "does the claim contain the trap's words" fires on
- * agreement and disagreement alike — the co-occurrence bug, once as
+ * agreement and disagreement alike, the co-occurrence bug, once as
  * `overlapRatio` measuring the trap inside the claim, and again here as a
  * ratio compared against a correction with a different-sized vocabulary.
  *
@@ -313,8 +313,8 @@ function rankLines(chunks: SourceChunk[], claim: string): Line[] {
  *     inside a passage line word for word and understands nothing.
  *
  * And every sentence of the claim, not the claim as one lump. A student who
- * quotes two consecutive lines of their own passage — the shape a judge hit
- * on the very first try — had each half of what they said matched against a
+ * quotes two consecutive lines of their own passage, the shape a judge hit
+ * on the very first try, had each half of what they said matched against a
  * single line, so neither half could ever cover eight tenths of the whole.
  * The measured score for exactly that sentence was 0.75 against a bar of 0.80
  * while the passage it came out of was open beside it. Each part now finds its
@@ -327,7 +327,7 @@ const SUPPORT_MIN_WORDS = 6;
  * Tokens with the hyphen read as a space, for the support check only.
  *
  * `tokens` keeps it, so "self-attention" is one word that never matches a
- * student typing "self attention" — and the passages here are written with the
+ * student typing "self attention", and the passages here are written with the
  * hyphens in. Splitting it everywhere was measured and rejected: it made
  * strategy 4 read "query-key-value" as the three terms it names and contradict
  * "Multi-head attention runs several heads in parallel", which is true and is
@@ -348,7 +348,7 @@ function looseTerms(terms: Term[]): Term[] {
 
 /**
  * How much of `want` the line carries. `also` is a second set that counts as
- * carried — the other words the subject declares for the things this line
+ * carried, the other words the subject declares for the things this line
  * names, so an acronym is not read as a word the line is missing.
  */
 function covered(want: Set<string>, have: Set<string>, also?: Set<string>): number {
@@ -369,7 +369,7 @@ function claimParts(text: string): string[] {
 /**
  * Numbers, with the word that follows them. `tokens` drops anything under
  * three characters, so "70 mL" contributes nothing at all while "70 litres"
- * contributes one word — and one word is exactly what a 0.8 coverage bar can
+ * contributes one word, and one word is exactly what a 0.8 coverage bar can
  * afford to lose. Measured on a local server before this rule existed:
  * "each of the major pumping chambers ejects about 70 litres of blood per
  * contraction" came back *"That matches 19.1 Heart Anatomy"* over a line
@@ -445,7 +445,7 @@ function negative(s: string): boolean {
  * source is allowed to spell it differently: the notes write "the invariant is
  * about whole subtrees RATHER THAN immediate children" where the student
  * writes "…, NOT immediate children", and that is the same sentence. Skipping
- * them cannot open a polarity hole — a claim that denies what the line asserts
+ * them cannot open a polarity hole, a claim that denies what the line asserts
  * fails `negative(part) !== negative(line)` before the order test runs.
  */
 const POLARITY_WORD =
@@ -455,7 +455,7 @@ const POLARITY_WORD =
  * Every word the line is allowed to be spelling differently: the subject's own
  * names for the things the line mentions, plus the claim's own wording of the
  * terms `knownAs` has already accepted. Nothing here invents a synonym, and
- * `saysInOrder` still refuses any of them that the line does in fact use —
+ * `saysInOrder` still refuses any of them that the line does in fact use, 
  * a word in the line but in the wrong place is a reordering, not a synonym.
  */
 function spellings(says: Names, named: Mention[]): Set<string> {
@@ -467,8 +467,8 @@ function spellings(says: Names, named: Mention[]): Set<string> {
 /**
  * The line says the claim's words, in the claim's order.
  *
- * Coverage was one-directional and set-shaped — how much of the claim's
- * vocabulary the line repeats — so ONE word swapped for its opposite inside a
+ * Coverage was one-directional and set-shaped, how much of the claim's
+ * vocabulary the line repeats, so ONE word swapped for its opposite inside a
  * long sentence kept nine tenths of the vocabulary and four fifths of the
  * adjacent pairs, cleared both bars, and came back "That matches". Measured on
  * a running server against the shipped library, that confirmed thirteen of
@@ -506,7 +506,7 @@ function saysInOrder(claimToks: string[], lineToks: string[], inLine: Set<string
       // A name the SUBJECT declares for something this line names is not a
       // word the line is missing, it is one the line spells differently:
       // the notes say "the turnover number" where the student says "kcat".
-      // Only when the line does not use the word at all — a word that IS in
+      // Only when the line does not use the word at all, a word that IS in
       // the line but in the wrong place is a reordering, not a synonym.
       if (!inLine.has(w) && also.has(w)) continue;
       return false;
@@ -529,8 +529,8 @@ type Support = {
  * The claim is not the learner's sentence. It is the line, copied.
  *
  * A student judge pasted two passages off the screen word for word and the map
- * wrote two SUCCESSFUL RECALLS. The reply was right — "That matches p.7" is
- * true and worth saying — but a tally of what somebody knows may not count a
+ * wrote two SUCCESSFUL RECALLS. The reply was right, "That matches p.7" is
+ * true and worth saying, but a tally of what somebody knows may not count a
  * sentence they read out of the box beside it. `supportedBy` recognises the
  * source's own sentence by design, so it cannot be the thing that decides.
  *
@@ -538,8 +538,8 @@ type Support = {
  * claim to be a SUBSEQUENCE of one line, so the only room a learner has to put
  * anything of their own in is the gaps: a word dropped, a clause skipped, a
  * term the subject spells another way. Copying leaves no gaps. Measured over
- * every passage sentence the library ships — 3,421 sentences across 26
- * subjects, of which 2,844 come back `supported` when typed back verbatim —
+ * every passage sentence the library ships, 3,421 sentences across 26
+ * subjects, of which 2,844 come back `supported` when typed back verbatim, 
  * 2,841 of those 2,844 are one unbroken run of their line, and NOTHING sits
  * between 0.83 and 1.0. The two sentences a judge-facing corpus has in the
  * learner's own words score 0.82 and 0.75. So the bar goes in the gap.
@@ -572,7 +572,7 @@ function recites(claimToks: string[], lineToks: string[]): boolean {
   return longestRun(claimToks, lineToks) / claimToks.length >= RECITED_RUN;
 }
 
-/** The last word of a term — "ordering invariant" is a kind of invariant. */
+/** The last word of a term, "ordering invariant" is a kind of invariant. */
 function head(key: string): string {
   const w = key.split(" ");
   return w[w.length - 1];
@@ -614,12 +614,12 @@ function supportsSentence(part: string, chunks: SourceChunk[], terms: Term[]): S
   if (want.size < SUPPORT_MIN_WORDS) return null;
   const denied = negative(part);
   // Every term the subject names in this sentence, which the line has to name
-  // too — the same term, or a recognisable form of it.
+  // too, the same term, or a recognisable form of it.
   //
   // Demanding the identical phrase was too strict in two ways. The source
   // writes "a query (what this token is looking for), a key …, and a value …",
   // so the concept "queries, keys, values" never sits together in it, and the
-  // line that said the claim word for word was thrown away — that is the
+  // line that said the claim word for word was thrown away, that is the
   // every-word-of-it fallback. And a source that writes "the invariant" is
   // naming the same thing as a claim that says "ordering invariant": better
   // concept names out of a student's own notes made more phrases into terms
@@ -664,14 +664,14 @@ function knownAs(m: Mention, says: Names, inLine: Set<string>): boolean {
   if (parts.every((w) => says.keys.has(w))) return true;
   // NOT "the line names the same concept". Measured, and it confirmed two
   // false sentences: a subject may file two contrasting things under one
-  // concept — "Policy vs value iteration" lists both as aliases, and
-  // "Backpropagation" lists "gradient descent" — so same-concept read
+  // concept, "Policy vs value iteration" lists both as aliases, and
+  // "Backpropagation" lists "gradient descent", so same-concept read
   // "Value iteration alternates policy evaluation and policy improvement" and
   // "Gradient descent applies the chain rule…" as matching the lines that say
   // the opposite. Sameness of concept is not sameness of thing.
   //
   // Its head noun, unless the line puts a different named thing of the same
-  // kind there — "policy iteration" is what stops "value iteration".
+  // kind there, "policy iteration" is what stops "value iteration".
   const h = head(m.key);
   if (!inLine.has(h)) return false;
   for (const k of says.keys) if (k !== m.key && head(k) === h) return false;
@@ -680,7 +680,7 @@ function knownAs(m: Mention, says: Names, inLine: Set<string>): boolean {
 
 function supportedBy(claim: string, chunks: SourceChunk[], terms: Term[]): Support | null {
   const loose = looseTerms(terms);
-  // One dense line can say the whole thing at once — that was the only shape
+  // One dense line can say the whole thing at once, that was the only shape
   // this check ever recognised, and it stays first because it is the cheapest.
   const whole = supportsSentence(claim, chunks, loose);
   if (whole) return whole;
@@ -711,12 +711,12 @@ function supportedBy(claim: string, chunks: SourceChunk[], terms: Term[]): Suppo
  * The words alone are not good enough, and that is measured. `findConcepts`
  * ranks by longest matched alias, so on the shipped Transformers subject the
  * alias "attention" (nine characters, in nearly every passage) beats "query",
- * "key" and "value" on a passage about queries, keys and values — and two
+ * "key" and "value" on a passage about queries, keys and values, and two
  * pastes off the screen landed as two successful recalls of Self-attention,
  * with three quotes underneath it that were about three other things.
  *
  * The line names what it names, so the concept is whichever of them it names
- * MOST — a line saying "query" and "key" four times between them is about
+ * MOST, a line saying "query" and "key" four times between them is about
  * queries and keys, whatever one occurrence of "attention" in it suggests. The
  * routed concept only breaks a tie, and never reaches a concept the line is
  * silent about.
@@ -734,7 +734,7 @@ function creditedConcept(order: string[], routed: string | null): string | null 
  * Why the model does not get to do this half.
  *
  * The obvious next move is to let the model NOMINATE the line it says states
- * the learner's sentence and have the server check the nomination — the same
+ * the learner's sentence and have the server check the nomination, the same
  * split the product uses for citations. It was built and measured, and the
  * checks a server can actually run on a nominated line are: the quote is in
  * that passage word for word, the id is one that was retrieved, the line and
@@ -745,7 +745,7 @@ function creditedConcept(order: string[], routed: string | null): string | null 
  *   "Demand is the total quantity of a good that PRODUCERS are willing to
  *   SELL at each price" was confirmed by the line "We defined demand as the
  *   amount of some product a CONSUMER is willing and able to PURCHASE at each
- *   price" — the definition it inverts, in the retrieved set, quoted verbatim.
+ *   price", the definition it inverts, in the retrieved set, quoted verbatim.
  *   "In a relation, the domain is the set of the SECOND components" was
  *   confirmed by the line saying the domain is the FIRST components and the
  *   range the second. Seven shapes in all, including a rhetorical question in
@@ -753,7 +753,7 @@ function creditedConcept(order: string[], routed: string | null): string | null 
  *   second sentence invented.
  *
  * Tightening the gate until those fail means requiring most of the claim's own
- * words in the line, which is `supportsSentence` again — and at those bars the
+ * words in the line, which is `supportsSentence` again, and at those bars the
  * paraphrases the whole idea existed to catch ("positional encodings are added
  * to the token embeddings so the model can tell which token came first" covers
  * 0.55 of its line) fail too. There is no bar between the two.
@@ -761,18 +761,18 @@ function creditedConcept(order: string[], routed: string | null): string | null 
  * So a paraphrase gets "I could not check that against your source", which is
  * true, and the confirmation stays with the lexical check below, which can
  * show the line it rests on. Anything better needs a check that reads meaning
- * — a model asked to judge entailment is the model agreeing with itself, so it
+ *, a model asked to judge entailment is the model agreeing with itself, so it
  * is not that either.
  * ------------------------------------------------------------------ */
 
 /**
  * The two sentences VIVA says when a line of the learner's own source says
- * their sentence back. One spelling for both paths — the lexical check and the
- * model nomination — because a student must not be able to tell which one
+ * their sentence back. One spelling for both paths, the lexical check and the
+ * model nomination, because a student must not be able to tell which one
  * answered them.
  */
 export function matchesLead(chunk: SourceChunk): string {
-  return `That matches ${where(chunk)} —`;
+  return `That matches ${where(chunk)}, `;
 }
 
 export function passageSays(line: string): string {
@@ -792,7 +792,7 @@ function bestLine(chunks: SourceChunk[], reference: string): { chunk: SourceChun
 }
 
 /**
- * "X is/are <verb>ed <prep> Y" — the shape of a claim that puts something in
+ * "X is/are <verb>ed <prep> Y", the shape of a claim that puts something in
  * the wrong place. Returns the head, the verb phrase and the complement.
  */
 const RELATION = /\b([a-z][\w' -]{2,60}?)\s+(?:is|are|gets?|get)\s+([a-z]+(?:ed|en))\s+(to|into|onto|from|by|with|after|before|through)\s+([^.;]{3,90})/i;
@@ -861,7 +861,7 @@ function disjoint(a: string, b: string): boolean {
   return true;
 }
 
-/** The bank question for a concept — the Socratic move after a correction. */
+/** The bank question for a concept, the Socratic move after a correction. */
 function probeFor(course: Course, conceptId: string | null): ExamQuestion | null {
   return course.examQuestions.find((q) => q.conceptId === conceptId) ?? null;
 }
@@ -878,7 +878,7 @@ const CONSISTENT: ClaimCheck = {
 };
 
 /**
- * "A and B are the same thing" / "A is just B" — an equation of two things.
+ * "A and B are the same thing" / "A is just B", an equation of two things.
  *
  * `HEDGE` is the reason "the query and the value are ALWAYS identical vectors"
  * was invisible: one adverb between the verb and the equator, and the whole
@@ -891,7 +891,7 @@ const EQUATES: RegExp[] = [
 ];
 
 /**
- * The claim says instances of ONE thing do not differ — "the heads all learn
+ * The claim says instances of ONE thing do not differ, "the heads all learn
  * the same thing", "multi-head attention just runs the same attention twice".
  *
  * `EQUATES` needs two named things to conflate and these sentences name one,
@@ -936,7 +936,7 @@ const DISTINCT = /\b(different|differs|differ|separate|distinct|two|three|four|b
 const RULES_OUT = /(?:,\s*not\s+|\binstead\s+of\s+|\brather\s+than\s+)([^.;:,]{2,60})/gi;
 
 /**
- * The source denying something outright — "a standard Transformer HAS NO
+ * The source denying something outright, "a standard Transformer HAS NO
  * recurrence". There is no affirmed alternative in this shape, only the
  * denial, so it is read separately: treating the words in front of it as the
  * affirmed side made the subject of the sentence ("Transformer") count as
@@ -969,7 +969,7 @@ export function checkClaim(input: {
   // 0. A sentence the source already states cannot be contradicted by the
   //    source. This guard, and the polarity checks below it, are what protect
   //    the student who is right; skipping them is how "mutually exclusive
-  //    events cannot be independent" got answered with "Not quite —".
+  //    events cannot be independent" got answered with "Not quite, ".
   const support = supportedBy(claim, chunks, terms);
 
   if (support) {
@@ -996,7 +996,7 @@ export function checkClaim(input: {
     // 1. A trap the subject's author already wrote down. Four ways out of it,
     //    all of them the same question: is the learner making this mistake, or
     //    naming it? The claim must be on the trap's topic, say the words that
-    //    make the mistake a mistake (`trapTell` — the guard the co-occurrence
+    //    make the mistake a mistake (`trapTell`, the guard the co-occurrence
     //    bug kept getting past), read more like the mistake than like the
     //    correction, and not flip the trap's own polarity.
     const scoped = course.traps.filter((t) => t.conceptId === conceptId);
@@ -1017,14 +1017,14 @@ export function checkClaim(input: {
       // No passage backs the correction: say we cannot place it rather than
       // asserting a contradiction with nothing to show for it.
       if (!line) break;
-      return caught(`Not quite — ${firstSentence(trap.whyWrong)}`, line);
+      return caught(`Not quite, ${firstSentence(trap.whyWrong)}`, line);
     }
   }
 
   // Denying something is not asserting it. The passage-shaped checks below
   // have no authored correction to compare against, so a claim carrying a
   // denial is left for the honest "I could not check that" reply. Contrast is
-  // not denial and no longer gates here — see `CONTRAST`.
+  // not denial and no longer gates here, see `CONTRAST`.
   const asserting = !DENIAL.test(claim);
   const contrasting = CONTRAST.test(claim);
 
@@ -1041,19 +1041,19 @@ export function checkClaim(input: {
       // Quote the line that does the separating if there is one; a line whose
       // chunk says it elsewhere still shows the two treated as two.
       const hit = names.find((l) => DISTINCT.test(l.line)) ?? names.find((l) => DISTINCT.test(l.chunk.text));
-      if (hit) return caught(`Not quite — ${where(hit.chunk)} treats ${a.text} and ${b.text} as different things.`, hit);
+      if (hit) return caught(`Not quite, ${where(hit.chunk)} treats ${a.text} and ${b.text} as different things.`, hit);
     }
 
     // 2b. The same move with one term: the claim flattens a thing the source
     //     says varies. Skipped when the claim itself draws a contrast, which
     //     is the sentence of a student who has the distinction and is stating
-    //     it ("backprop and gradient descent are two different steps") — the
+    //     it ("backprop and gradient descent are two different steps"), the
     //     one case where firing here would be worse than any miss.
     // Narrowed to the unambiguous half after an audit measured the cost of the
     // other one. `UNIFORM + REDUCTIVE` ("all the heads use the same X") fired
     // on any passage line that merely contained a contrast word and a related
     // term, without ever checking that the line addressed the property being
-    // flattened — so "All the heads read the same input embeddings" and "All
+    // flattened, so "All the heads read the same input embeddings" and "All
     // the heads use the same scaling factor" were both contradicted by the
     // same quote about heads specialising. Both are true. So was "So um the
     // heads are all the same size I think", which is the register this product
@@ -1069,10 +1069,10 @@ export function checkClaim(input: {
         // Any sentence of the retrieved passages, best-scoring first, rather
         // than only the closest three. The line that answers "the heads are
         // all the same" is "different heads specialise", which shares almost
-        // no words with it and scored zero — the sentence that refutes you is
+        // no words with it and scored zero, the sentence that refutes you is
         // not the sentence that repeats you.
         const hit = lines.find((l) => DISTINCT.test(l.line) && mentionsIn(l.toks, terms).some((p) => related(p.key, q.key)));
-        if (hit) return caught(`Not quite — ${where(hit.chunk)} treats them as different.`, hit);
+        if (hit) return caught(`Not quite, ${where(hit.chunk)} treats them as different.`, hit);
       }
     }
 
@@ -1102,7 +1102,7 @@ export function checkClaim(input: {
       const lineSet = new Set(l.toks);
       let context = 0;
       claimSet.forEach((w) => { if (!ruled.out.has(w) && lineSet.has(w)) context += 1; });
-      if (context >= 2) return caught(`Not quite — ${where(l.chunk)} rules that out.`, l);
+      if (context >= 2) return caught(`Not quite, ${where(l.chunk)} rules that out.`, l);
     }
 
     // 4. Term substitution: same frame, a different thing in the slot. The
@@ -1124,7 +1124,7 @@ export function checkClaim(input: {
           if (Math.max(left, right) < 2) continue;
           // Quoted, because on a subject VIVA read itself the terms are the
           // learner's own words and read oddly in a bare sentence.
-          return caught(`Not quite — ${where(l.chunk)} puts “${p.text}” there, not “${q.text}”.`, l);
+          return caught(`Not quite, ${where(l.chunk)} puts “${p.text}” there, not “${q.text}”.`, l);
         }
       }
     }
@@ -1142,7 +1142,7 @@ export function checkClaim(input: {
           // The source must deny the operation, not merely name a different
           // one. "Positional encodings are added to the token embeddings" and
           // "positional encodings are scaled by a constant factor" are both
-          // true — a vector can be scaled and added — but a bare verb-class
+          // true, a vector can be scaled and added, but a bare verb-class
           // difference read them as a contradiction and produced a non
           // sequitur. Require the claim and the source to be talking about the
           // same object before a difference in verb means anything.
@@ -1151,7 +1151,7 @@ export function checkClaim(input: {
           const clash = sameObject && clashingOperation(src.verb, said.verb);
           if (clash) {
             return caught(
-              `Not quite — ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.verb} ${said.prep} ${said.object}.`,
+              `Not quite, ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.verb} ${said.prep} ${said.object}.`,
               { chunk, line }
             );
           }
@@ -1161,7 +1161,7 @@ export function checkClaim(input: {
           if (!sameOperation(src.verb, said.verb) || src.prep !== said.prep) continue;
           if (!disjoint(src.object, said.object)) continue;
           return caught(
-            `Not quite — ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.object}.`,
+            `Not quite, ${where(chunk)} says ${src.head} are ${src.verb} ${src.prep} ${src.object}, not ${said.object}.`,
             { chunk, line }
           );
         }
@@ -1186,7 +1186,7 @@ export function checkClaim(input: {
         // Any sentence that is not a question now reaches this check, so this
         // line also answers a stray note. It says both true things: VIVA did
         // not check it, and it did not throw it away.
-        lead: "That is not in this subject — I can only check what your passages cover, so it is kept as a note, unchecked.",
+        lead: "That is not in this subject, I can only check what your passages cover, so it is kept as a note, unchecked.",
       });
     }
   }
@@ -1240,7 +1240,7 @@ function clausesOf(s: string): string[] {
 /**
  * Is the part of `text` that talks about `reference` a denial?
  *
- * The blunt version of this — "the sentence contains the word not" — is why a
+ * The blunt version of this, "the sentence contains the word not", is why a
  * misconception that ends "…so the order does not matter" escaped its own
  * trap, and comparing polarity against the trap's own wording is what lets
  * both that and "mutually exclusive events cannot be independent" come out
@@ -1262,7 +1262,7 @@ function negatedAbout(text: string, reference: string): boolean {
  *
  * Measured against the live provider on 13 Sep, three cold runs out of three:
  * "Multi-head attention just runs the same attention twice to make it faster"
- * — which is false, and which the lexical checks are recorded as missing —
+ *, which is false, and which the lexical checks are recorded as missing, 
  * came back *"It runs the same attention twice to make it faster."* as the
  * correction, and the map moved down. So the reply asserted the misconception
  * in VIVA's own voice while filing the learner as wrong about it.
@@ -1274,8 +1274,8 @@ function negatedAbout(text: string, reference: string): boolean {
  * The test is deliberately absolute rather than a ratio: a correction that
  * introduces no word the learner did not already use cannot be correcting
  * anything. One new word ("in parallel" for "twice") is a real correction and
- * survives. A denial is the exception a ratio would get wrong — "…does NOT run
- * the same attention twice" reuses every content word on purpose — so polarity
+ * survives. A denial is the exception a ratio would get wrong, "…does NOT run
+ * the same attention twice" reuses every content word on purpose, so polarity
  * is read first.
  */
 export function echoesClaim(correction: string | null, claim: string): boolean {
@@ -1305,9 +1305,9 @@ const FALLBACK_PROBE = "What would you change in your sentence so it matches tha
  * the question is still there afterwards, so neither turn costs the other.
  */
 export function composeInterruptReply(check: ClaimCheck, openQuestion: string): string {
-  const lead = (check.lead ?? "").replace(/^Not quite\s*—\s*/, "");
+  const lead = (check.lead ?? "").replace(/^Not quite,\s*/, "");
   return [
-    lead ? `Before that — ${lead}` : "Before that —",
+    lead ? `Before that, ${lead}` : "Before that, ",
     check.quote ? passageSays(check.quote) : null,
     `The question still stands: ${openQuestion}`,
   ]
@@ -1324,7 +1324,7 @@ export function composeClaimReply(check: ClaimCheck, conceptName: string | null)
   else if (check.status === "supported") parts.push("Say the next step of it and I will check that line too.");
   if (parts.length === 0) {
     parts.push(
-      `That is your position on ${conceptName ?? "this"} — let's test it rather than file it.`,
+      `That is your position on ${conceptName ?? "this"}, let's test it rather than file it.`,
       "Say it back with the reason attached and I will check it line by line."
     );
   }

@@ -5,7 +5,7 @@ import { serverLog } from "@/lib/observe";
  * Managed Postgres pool. Lazy singleton; created ONLY when DATABASE_URL is set.
  * - Bounded pool (max 10), statement + connect timeouts (§22).
  * - Verified TLS in production. No raw secrets in logs, and none in the
- *   readiness payload either — see `describeFailure`.
+ *   readiness payload either, see `describeFailure`.
  */
 
 let pool: Pool | null = null;
@@ -95,7 +95,7 @@ export async function dbStatus(): Promise<DbStatus> {
     durable: !process.env.VERCEL,
     backend: "file",
     detail: process.env.VERCEL
-      ? "ephemeral per-instance file store (/tmp) — data does not survive a redeploy"
-      : "DATABASE_URL unset — local file store (dev only, ephemeral on serverless)",
+      ? "ephemeral per-instance file store (/tmp), data does not survive a redeploy"
+      : "DATABASE_URL unset, local file store (dev only, ephemeral on serverless)",
   };
 }

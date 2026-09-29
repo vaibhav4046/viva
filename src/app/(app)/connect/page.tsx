@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 /*
- * /connect — hand this browser's study account to the assistant you already
+ * /connect, hand this browser's study account to the assistant you already
  * work in.
  *
  * VIVA has no sign-in, so there is no password to type into Claude, ChatGPT or
@@ -174,7 +174,7 @@ export default function ConnectPage() {
         >
           <KeyRound size={14} aria-hidden className="mt-0.5 shrink-0" />
           <span>
-            Your assistant gets a key that can read and add to this account, and nothing else — no other student is
+            Your assistant gets a key that can read and add to this account, and nothing else, no other student is
             reachable with it. Pairing again from this page is the way to hand it to a second assistant; there is no way
             to point a key at somebody else&apos;s subjects.
           </span>

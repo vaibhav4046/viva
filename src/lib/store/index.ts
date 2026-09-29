@@ -45,7 +45,7 @@ export function resetStoreDegradation(): void {
  * Calls the latch is not allowed to answer for.
  *
  * Everything else degrades usefully: a read served from /tmp is a worse read,
- * not a false one. A deletion is different — routing it to the ephemeral store
+ * not a false one. A deletion is different, routing it to the ephemeral store
  * unlinks a file, returns 200, and leaves every durable row in place, so the
  * student who asked to be forgotten is told they were and is not. This module
  * promises nobody is told a lie about durability, and that is the loudest one
@@ -70,7 +70,7 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
     get(target, prop, receiver) {
       const original = Reflect.get(target, prop, receiver);
       // Data properties were returned straight off the durable target, and
-      // `backend` is exactly that — so after the latch flipped, every call went
+      // `backend` is exactly that, so after the latch flipped, every call went
       // to the file store while `store.backend` kept saying "postgres", and
       // /api/learner shipped that to the browser. This module's own docstring
       // promises nobody is told a lie about durability; this is that promise.
@@ -81,8 +81,8 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
 
       return async (...args: unknown[]) => {
         if (DESTRUCTIVE.has(String(prop))) {
-          // Clear the ephemeral copy first — while this instance is degraded
-          // that is where the data actually is — then go to the durable
+          // Clear the ephemeral copy first, while this instance is degraded
+          // that is where the data actually is, then go to the durable
           // backend anyway and let a rejection reach the caller.
           if (degradation.degraded && typeof onFallback === "function") {
             await (onFallback as (...a: unknown[]) => unknown).apply(fallback, args);
@@ -118,7 +118,7 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
             degradation.reason = (error as Error)?.message?.slice(0, 180) ?? "unknown";
             degradation.since = new Date().toISOString();
             console.error(
-              `[store] ${kind} backend failed on ${String(prop)} — falling back to the ephemeral file store for this instance:`,
+              `[store] ${kind} backend failed on ${String(prop)}, falling back to the ephemeral file store for this instance:`,
               error
             );
           }
@@ -132,7 +132,7 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
 /**
  * Will a write survive the next request?
  *
- * Asked in two places now — the readiness probe and the subject builder — and
+ * Asked in two places now, the readiness probe and the subject builder, and
  * they must not answer it differently. "Ready" and "durable" are separate
  * questions: this app is always ready (the file store is in-process) and is
  * only durable when a reachable database is behind it.
@@ -144,8 +144,8 @@ export async function storeDurability(
    * Accepts the caller's existing probe so a caller that already asked the
    * database how it is does not get a second, independent sample.
    *
-   * This existed to answer the same question in two places — the readiness
-   * probe and the subject builder — and each used to run its own `dbStatus()`.
+   * This existed to answer the same question in two places, the readiness
+   * probe and the subject builder, and each used to run its own `dbStatus()`.
    * Against a flapping pool the two disagreed, and /api/health/ready published
    * both: `database.durable: false` beside a top-level `durable: true`. The
    * endpoint whose only job is honest disclosure was the one place that could
@@ -157,7 +157,7 @@ export async function storeDurability(
     return {
       durable: false,
       backend: "file",
-      detail: `${degraded.from} backend failed here — writes are going to this instance only`,
+      detail: `${degraded.from} backend failed here, writes are going to this instance only`,
     };
   }
   return { durable: db.durable, backend: db.backend, detail: db.detail };
@@ -181,7 +181,7 @@ export function learnerDNA(mastery: Record<string, { mastery: number; misconcept
     recallPatterns: { totalEvents },
     interactionPreference: "spoken_recall",
     weak: entries.filter(([, m]) => m.mastery < 0.45).map(([id]) => id),
-    note: "Based on your VIVA sessions — interaction preferences and learning history, not neuroscience.",
+    note: "Based on your VIVA sessions, interaction preferences and learning history, not neuroscience.",
   };
 }
 

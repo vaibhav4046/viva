@@ -1,4 +1,4 @@
-# BASELINE — VIVA
+# BASELINE, VIVA
 
 Audit date: 2026-09-28. Every claim below is backed by a command, a file path,
 or a live HTTP response captured at audit time. Nothing here is estimated.
@@ -11,7 +11,7 @@ is `cineverse`, a Vite app). Each subproject carries its own git history.
 | Product | Path | Git | State |
 |---|---|---|---|
 | VIVA | `D:\project\viva` | own repo, branch `main`, remote `github.com/vaibhav4046/viva` | exists, mature, deployed |
-| DOGFOOD | — | — | **does not exist anywhere on this machine** |
+| DOGFOOD |, |, | **does not exist anywhere on this machine** |
 
 ## 2. VIVA architecture map (verified)
 
@@ -24,7 +24,7 @@ is `cineverse`, a Vite app). Each subproject carries its own git history.
 | Auth | None. HttpOnly cookie identity, per-browser learner | `tests/auth-cookie.test.ts` |
 | Motion | `motion` (Framer Motion) v13 + `three` types | `package.json` |
 | Deployment | Vercel, `https://viva-five-murex.vercel.app` | live probe |
-| Deps | 9 runtime, 14 dev — a genuinely small surface | `package.json` |
+| Deps | 9 runtime, 14 dev, a genuinely small surface | `package.json` |
 
 ### Routes (23 API routes, 7 pages)
 
@@ -34,7 +34,7 @@ API groups: `voice` (`stream-token`, `transcribe`, `telemetry`, `warm`),
 `study/turn`, `subjects/create`, `exam/*`, `teachback/*`, `learner/*`,
 `mcp/*`, `sources`, `courses`, `health`, `health/ready`, `events/compile`.
 
-### AssemblyAI integration — what is actually wired
+### AssemblyAI integration, what is actually wired
 
 This is the most important finding in the audit, and it is **not** what the
 brief assumed.
@@ -66,18 +66,18 @@ npm test            → 63 files, 967 passed, 1 skipped, 968 total, 10.31s
 ```
 
 No test failures. The suite is unusually well-targeted for its size: it
-includes genuine adversarial tests, not just coverage —
+includes genuine adversarial tests, not just coverage, 
 
 - `tests/idor.test.ts`, `tests/security-hardening.test.ts`, `tests/security-ssrf.test.ts`, `tests/security-delete.test.ts`
-- `tests/claim-recall.test.ts` (51 tests) — proves the model contradicts itself
+- `tests/claim-recall.test.ts` (51 tests), proves the model contradicts itself
   under 0.8% of its own true sentences
 - `tests/voice-silence-guard.test.ts`, `tests/voice-spoof-bucket.test.ts`
-- `tests/claim-check.test.ts` — enforces "no citation without a passage"
+- `tests/claim-check.test.ts`, enforces "no citation without a passage"
 - `tests/provider-failover.test.ts`, `tests/provider-health.test.ts`
 - `tests/store-pg-isolation.test.ts`, `tests/store-degradation.test.ts`
 
 Note: `tests/assemblyai-live.test.ts` requires a real key and is not part of the
-default run — the 1 skip is expected.
+default run, the 1 skip is expected.
 
 **Honest weakness:** there is no test that exercises a *live* AssemblyAI
 connection in CI. The live-path evidence in the README is from manual probes
@@ -91,7 +91,7 @@ probes were run first). `next build` output exists from prior sessions
 (`.next/`, `.next-live/`), indicating it has built successfully before. **A
 clean build is not yet re-verified today and must not be claimed.**
 
-## 5. Deployment state — DEFECTIVE (P0)
+## 5. Deployment state, DEFECTIVE (P0)
 
 Live probe, 2026-09-28T18:20:21Z:
 
@@ -112,8 +112,8 @@ bug, not a stale deployment:
 **Root cause.** `src/app/api/health/ready/route.ts` probes the database
 **twice**:
 
-1. line 22 — `const database = await dbStatus();`
-2. line 43 — `const { durable } = await storeDurability();`, and
+1. line 22, `const database = await dbStatus();`
+2. line 43, `const { durable } = await storeDurability();`, and
    `storeDurability()` internally calls `dbStatus()` **again**
    (`src/lib/store/index.ts:140`)
 
@@ -123,9 +123,9 @@ The operator-visible `database` block and the top-level `durable` flag are
 therefore derived from *different* samples and can disagree. The endpoint whose
 entire job is honest disclosure is the one place that cannot be trusted.
 
-**Why this is P0 and not cosmetic:** the README's headline durability claim —
+**Why this is P0 and not cosmetic:** the README's headline durability claim, 
 "The deployment above runs on Postgres and `GET /api/health/ready` reports
-`durable: true`, so a map survives a redeploy" (`README.md:263-264`) — is
+`durable: true`, so a map survives a redeploy" (`README.md:263-264`), is
 **false against production right now.** The database is unreachable, so a
 learner map does *not* survive a redeploy. A judge who checks the documented
 durability claim finds it broken.
@@ -148,29 +148,29 @@ durability claim finds it broken.
   *unadjudicated* rather than verified.
 
 ### Fake / overstated
-- `README.md:263-264` durability claim — false in production today (§5).
-- **Screen-reader accessibility** — `README.md:269-278` states this correctly
+- `README.md:263-264` durability claim, false in production today (§5).
+- **Screen-reader accessibility**, `README.md:269-278` states this correctly
   itself: axe reports 0 serious violations but returns **189 "needs review"**
   results, 185 of them colour contrast. Contrast is *unadjudicated*, not
   passing. Any claim of "accessible" is unsupported.
-- Non-English accuracy — two synthesised clips only; the live Hindi line was
+- Non-English accuracy, two synthesised clips only; the live Hindi line was
   "badly wrong" (`README.md:266-272`).
 
 ### Broken
 - Database unreachable in production (§5).
 - `.env.local` contains **live secrets** (AssemblyAI key, 10 LLM fallback
   credentials, a 149-char `DATABASE_URL`, an ElevenLabs key, `MCP_TOKEN_SECRET`).
-  It is gitignored — **verify** with `git check-ignore` before any push, and
+  It is gitignored, **verify** with `git check-ignore` before any push, and
   never let it reach a public repo.
 - `scripts/e2e-golden.py` is modified and uncommitted in the working tree.
 
 ## 7. Dead code / vibe-code debt
-- `ELEVENLABS_API_KEY` in `.env.local` is unreferenced in `src/` — a
+- `ELEVENLABS_API_KEY` in `.env.local` is unreferenced in `src/`, a
   half-wired spoken-output path.
 - `.data/` holds **470** `demo_*.json` session files, 3 distinct sizes
   (229 / 991 / 6397 bytes) suggesting repeated identical seeding runs.
 - `.viva/` holds multiple overlapping QA screenshot rounds
-  (`round-1/2/3`, `shots/`, `ui/shots/`, `_judgeshots/`) — accumulated debris
+  (`round-1/2/3`, `shots/`, `ui/shots/`, `_judgeshots/`), accumulated debris
   that inflates the repo.
 - `VIVA_MASTER_PROMPT.md` is 49 KB of instruction text at the repo root.
 
@@ -179,7 +179,7 @@ durability claim finds it broken.
 1. **Fix the readiness double-probe** (§5). Small, provable, restores trust in
    the single endpoint a judge is most likely to check.
 2. **Fix or retract the durability claim** in the README so it matches reality.
-3. **Re-verify a clean build** — it has not been re-run today.
+3. **Re-verify a clean build**, it has not been re-run today.
 4. **Adjudicate contrast**, or state the limit honestly. 185 unresolved contrast
    results is the largest a11y liability and it is cheap to measure and fix.
 5. **Do not** begin a Voice Agent API / barge-in / tools rebuild on this
@@ -187,15 +187,15 @@ durability claim finds it broken.
 
 ## 9. Scope reality check (the decisive finding)
 
-The AssemblyAI Voice Agent Hackathon runs **Sep 1–30, 2026** (lablab.ai,
-$10,000 pool: $5k cash + $5k AAI credits). **Today is 2026-09-28 — the window
+The AssemblyAI Voice Agent Hackathon runs **Sep 1-30, 2026** (lablab.ai,
+$10,000 pool: $5k cash + $5k AAI credits). **Today is 2026-09-28, the window
 closes in roughly 48 hours.**
 
 The brief asks for, on VIVA: Voice Agent API session state machine, barge-in
 with flushed output, typed tool registry, verification layer, layered persistent
 memory, self-improving harness, model routing, a premium GSAP UI rebuild, a
 landing page, mobile, a11y, instrumentation and benchmarks, 6 test directories,
-a 90–150 s golden demo, a recorded fallback, a video package, and submission
+a 90-150 s golden demo, a recorded fallback, a video package, and submission
 artifacts.
 
 None of that exists. Barge-in, native turn detection, agent speech and tool
@@ -205,7 +205,7 @@ calls are all greenfield. This is a multi-week build, not a 48-hour one.
 and spend the remaining window on (1) credibility repairs, (2) the acceptance
 and submission artifacts, and (3) a *small* number of high-signal additions
 that use the Voice Agent API if time genuinely permits. Do not start a rewrite
-that cannot finish — a broken half-migration is strictly worse than a working
+that cannot finish, a broken half-migration is strictly worse than a working
 product with documented limits.
 
 ## 10. Reproduction commands for this baseline

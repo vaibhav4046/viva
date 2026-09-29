@@ -16,8 +16,8 @@ import type { ConceptMastery } from "@/lib/types";
  * One font-size can be right for one of those, never all three.
  *
  * So the drawing is measured instead of scaled. The viewBox is set to the
- * container's own pixel width, which makes one user unit one CSS pixel — 12 is
- * 12 everywhere — and the ring geometry is derived from that width. Below the
+ * container's own pixel width, which makes one user unit one CSS pixel, 12 is
+ * 12 everywhere, and the ring geometry is derived from that width. Below the
  * width where a ring can hold a name and a band word without collapsing them
  * into each other, there is no honest ring to draw, so the same data renders as
  * a list of rows: the dot keeps the colour, the row keeps the word, and both
@@ -61,7 +61,7 @@ function labelLines(name: string, max: number): string[] {
 
 /*
  * Edges are drawn before the nodes, so a label is already on top of a line in
- * z-order — but the line still shows through the gaps inside and between the
+ * z-order, but the line still shows through the gaps inside and between the
  * glyphs, and with the labels wrapping to two lines every one of the four edges
  * crossed a word. A stroke painted *under* the fill in the card colour knocks
  * the line out around each glyph, which costs two attributes instead of a
@@ -132,7 +132,7 @@ export function Graph({
    * Measured in a ref callback rather than an effect, so the first paint
    * already has the real width and the map does not swap shape under the
    * student. null is the server's answer, and it draws the ring at its widest
-   * sensible size — the same markup hydration expects.
+   * sensible size, the same markup hydration expects.
    */
   const [width, setWidth] = useState<number | null>(null);
   const observer = useRef<ResizeObserver | null>(null);
@@ -231,7 +231,7 @@ function Ring({
 
   /*
    * The box is the drawing's own extent, not the ellipse's. Six nodes never
-   * reach the top or bottom of the ellipse — the first one sits 30° round — and
+   * reach the top or bottom of the ellipse, the first one sits 30° round, and
    * padding to the ellipse instead of to the ink left a 90 px dead band under
    * the map.
    */

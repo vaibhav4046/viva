@@ -92,7 +92,7 @@ describe("external-dictation burst detection", () => {
     expect(s.origin).toBe("typed");
   });
 
-  it("exactly the threshold is not enough — it must be more than 40", () => {
+  it("exactly the threshold is not enough, it must be more than 40", () => {
     expect(foldBurst(emptyBurst(), BURST_CHARS, 1000).origin).toBe("typed");
     expect(foldBurst(emptyBurst(), BURST_CHARS + 1, 1000).origin).toBe("external-dictation");
   });
@@ -186,7 +186,7 @@ describe("Space belongs to the focused control, not the mic", () => {
 describe("the recorder's own cap sits under the server's", () => {
   it("stopping ourselves cannot produce a clip the server refuses", () => {
     // These were equal, so a ~122 s clip came back 413 with a message blaming
-    // the learner. Everything after the timer — flush, WAV assembly, upload —
+    // the learner. Everything after the timer, flush, WAV assembly, upload, 
     // has to fit in the gap.
     expect(MAX_CLIP_MS).toBeLessThan(MAX_MS);
     expect(MAX_MS - MAX_CLIP_MS).toBeGreaterThanOrEqual(5_000);
@@ -254,7 +254,7 @@ describe("MicButton refuses to park the learner in a dead review panel", () => {
  * The Clean/Verbatim toggle, the path chip and the real request_time_ms all
  * lived in the review panel, which auto-sends after 1.5 s; measured on live,
  * the conversation that remained contained no ms figure and no path name at
- * all. This is the line that survives, so what it says has to be exact — and
+ * all. This is the line that survives, so what it says has to be exact, and
  * the number it prints is AssemblyAI's own, never our round trip.
  */
 describe("turnFactsLine", () => {
@@ -304,7 +304,7 @@ describe("turnFactsLine", () => {
     expect(String(line).toLowerCase()).toContain("pasted");
   });
 
-  it("renders nothing for typed text — the Note already says Typed", () => {
+  it("renders nothing for typed text, the Note already says Typed", () => {
     expect(turnFactsLine({ origin: "typed", asrMode: null, requestTimeMs: null, confidence: null })).toBeNull();
   });
 
@@ -362,7 +362,7 @@ describe("the review box only commits itself on what could have been read", () =
 
 /**
  * R3-1. Killing /api/voice/** mid-capture gave the right sentence and full
- * recovery — and threw away a complete streamed transcript that was on screen
+ * recovery, and threw away a complete streamed transcript that was on screen
  * at the moment of failure. The learner watched their sentence appear and then
  * watched it vanish.
  *
@@ -392,7 +392,7 @@ describe("the streamed words survive a clip that does not", () => {
     expect(send).toMatch(/sessionId: null/);
   });
 
-  it("never commits them on its own — a salvage is the learner's call", () => {
+  it("never commits them on its own, a salvage is the learner's call", () => {
     // The autosend effect is gated on the review phase, which a failed clip
     // never reaches; nothing else may start a timer for the recovered panel.
     expect(SRC).not.toMatch(/autosendRef\.current = setTimeout\([\s\S]{0,200}sendRecovered/);

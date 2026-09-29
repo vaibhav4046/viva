@@ -9,8 +9,8 @@ import { DELETE, GET, POST } from "@/app/api/mcp/route";
 /**
  * The wire must answer, never crash.
  *
- * Every shape a client can POST — malformed JSON-RPC, nested arrays,
- * oversized batches, missing/garbage/expired/mis-purposed credentials —
+ * Every shape a client can POST, malformed JSON-RPC, nested arrays,
+ * oversized batches, missing/garbage/expired/mis-purposed credentials, 
  * gets a well-formed JSON-RPC answer or a 4xx. An oversized batch of real
  * tool calls fans out to nothing. Callers without a readable key share one
  * bucket and are refused before anything is spent.

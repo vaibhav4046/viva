@@ -77,12 +77,12 @@ describe("per-event outcome persistence (replay fix)", () => {
         })
       );
       expect(r.delta).toBe(-0.12);
-      expect(r.reason).toBe("unsupported claim — possible misconception");
+      expect(r.reason).toBe("unsupported claim, possible misconception");
       const stored = (await s.listEvents(u, 10)).find((e) => e.id === r.event.id);
       expect(stored).toBeDefined();
       expect(stored?.assessment).toBe("incorrect");
       expect(stored?.delta).toBe(-0.12);
-      expect(stored?.reason).toBe("unsupported claim — possible misconception");
+      expect(stored?.reason).toBe("unsupported claim, possible misconception");
       expect(stored?.hint).toContain("P(A and B)");
     } finally {
       await s.deleteUserData(u);
@@ -110,7 +110,7 @@ describe("per-event outcome persistence (replay fix)", () => {
       ...validEvent(),
       assessment: "partial",
       delta: 0.02,
-      reason: "partially correct — one piece missing",
+      reason: "partially correct, one piece missing",
       hint: "Name the prior, the likelihood and the posterior.",
     });
     expect(withOutcome.success).toBe(true);

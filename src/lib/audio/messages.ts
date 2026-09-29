@@ -8,8 +8,8 @@
  */
 
 export const VOICE_MESSAGES: Record<string, string> = {
-  NO_API_KEY: "Voice is not switched on for this deployment. Type instead — nothing is faked.",
-  NO_DICTATION_URL: "Voice is not switched on for this deployment. Type instead — nothing is faked.",
+  NO_API_KEY: "Voice is not switched on for this deployment. Type instead, nothing is faked.",
+  NO_DICTATION_URL: "Voice is not switched on for this deployment. Type instead, nothing is faked.",
   MIC_BLOCKED: "Microphone access is blocked. Allow it in the browser bar, or type instead.",
   NO_MIC: "This browser will not give VIVA a microphone. Type instead.",
   NO_WORKLET: "This browser could not start the microphone. Type instead.",
@@ -17,15 +17,15 @@ export const VOICE_MESSAGES: Record<string, string> = {
   // muted at the operating system, a dead virtual input, a headset that never
   // finished connecting. Naming the microphone matters because the old
   // sentence for this state was AUDIO_TOO_SHORT's "hold a little longer",
-  // which is false and cannot be fixed by doing it — see `shortClipCode` in
+  // which is false and cannot be fixed by doing it, see `shortClipCode` in
   // src/lib/audio/worklet.ts.
-  NO_AUDIO: "Your microphone sent no sound. Check it is not muted, or pick a different input — or type instead.",
+  NO_AUDIO: "Your microphone sent no sound. Check it is not muted, or pick a different input, or type instead.",
   NETWORK_DOWN: "You look offline. Reconnect and hold the mic again, or type instead.",
   EMPTY_AUDIO: "No audio came through. Hold the mic and speak.",
   // A clip that recorded silence: the commonest real failure (muted headset,
   // wrong input device) and the one that used to park the learner in a review
   // box that promised to send and never did.
-  NO_SPEECH: "I did not catch anything — hold the mic and try again, or type instead.",
+  NO_SPEECH: "I did not catch anything, hold the mic and try again, or type instead.",
   AUDIO_TOO_SHORT: "That was too short. Hold a little longer and speak.",
   AUDIO_TOO_LONG: "That was over two minutes. Say it in a shorter burst.",
   AUDIO_TOO_LARGE: "That clip was too big. Say it in a shorter burst.",
@@ -33,7 +33,7 @@ export const VOICE_MESSAGES: Record<string, string> = {
   BAD_AUDIO: "That recording could not be read. Try again.",
   DICTATION_BAD_REQUEST: "That recording could not be read. Try again.",
   BAD_RESPONSE: "Nothing came back for that clip. Try again.",
-  AUTH_FAILED: "Voice is not switched on for this deployment. Type instead — nothing is faked.",
+  AUTH_FAILED: "Voice is not switched on for this deployment. Type instead, nothing is faked.",
   RATE_LIMITED: "Too many clips at once. Wait a few seconds and try again.",
   PROVIDER_BUSY: "AssemblyAI is busy. Try again in a moment.",
   PROVIDER_TIMEOUT: "That took too long. A shorter clip usually goes through.",
@@ -47,8 +47,8 @@ export function voiceMessage(code: string | undefined): string {
 /**
  * The rewrite came back too short to be a tidy-up of the words it was tidying,
  * so the route sent the raw words instead. Written into `llmError` in place of
- * the provider's own, because from the learner's side it is the same fact — no
- * usable cleaned version — and the review panel already checks that one field.
+ * the provider's own, because from the learner's side it is the same fact, no
+ * usable cleaned version, and the review panel already checks that one field.
  * See `isCleanup` in src/app/api/voice/transcribe/route.ts for the bound.
  */
 export const CLEANUP_DROPPED = "cleanup_dropped_the_clip";
@@ -74,7 +74,7 @@ export function cleanupNote(llmError: string | null | undefined): string | null 
  * goes to Dictation, so the learner should carry on talking. Telling them to
  * try again would make them abandon a clip that is about to succeed.
  */
-const STILL_RECORDING = "Keep talking — this clip is still recording, and it will be transcribed when you let go.";
+const STILL_RECORDING = "Keep talking, this clip is still recording, and it will be transcribed when you let go.";
 
 export const LIVE_MESSAGES: Record<string, string> = {
   PROVIDER_BUSY: `Live words are not available right now: AssemblyAI has too many sessions open. ${STILL_RECORDING}`,
@@ -99,8 +99,8 @@ const VOICE_OFF = new Set(["NO_API_KEY", "AUTH_FAILED", "NO_DICTATION_URL"]);
  * mid-hold put "You look offline. Reconnect and hold the mic again, or type
  * instead." on screen while the microphone was still recording, and the clip
  * then went to Dictation and came back fine. That is the exact failure the
- * LIVE_MESSAGES note above exists to prevent — the learner is told to abandon a
- * clip that is about to succeed — and it arrived through the token path, which
+ * LIVE_MESSAGES note above exists to prevent, the learner is told to abandon a
+ * clip that is about to succeed, and it arrived through the token path, which
  * was throwing VOICE_MESSAGES sentences. A token failure that means voice is
  * off keeps its sentence, because then it is true; everything else keeps them
  * talking.

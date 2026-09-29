@@ -5,7 +5,7 @@ between 9 and 13 September 2026. **Every section names the script that produced
 it**, all of them committed under `scripts/api-probes/`, and the numbers quoted
 are the output of a run on 13 September. Each reads `ASSEMBLYAI_API_KEY` from
 `.env.local` at runtime and none embeds a credential; the ones that send audio
-need a 16 kHz mono WAV, which the repo does not ship — any recording of someone
+need a 16 kHz mono WAV, which the repo does not ship, any recording of someone
 reading a sentence aloud will do:
 
 | script | what it establishes |
@@ -31,7 +31,7 @@ vendor cannot act on a report whose errors are hidden:
 - `Begin` echoes no sample rate (section 4);
 - the concurrency close is *not* indistinguishable from a validation close (§5);
 - the part-order 400 does name its cause (section 7);
-- **the `Bearer` complaint in section 7 was simply wrong** — a prefixed key is
+- **the `Bearer` complaint in section 7 was simply wrong**, a prefixed key is
   accepted, and we had told you otherwise;
 - the speaker-label leak in section 9 no longer reproduces at all;
 - `keyterms_prompt` changed nothing we can measure on our own clip, on either
@@ -64,7 +64,7 @@ This is worth correcting in the announcement, because it undersells the API by
 almost half. It also matters the other way round: **Polish and Ukrainian are
 not on that list**, and a reasonable person building an "18 languages" language
 picker would put them in. We had `pl` and `uk` as presets, and both close the
-socket on connect. So does `en,hi` — streaming takes one code, not a list, even
+socket on connect. So does `en,hi`, streaming takes one code, not a list, even
 though the batch Dictation API takes `language_codes` plural. One socket per
 code, `scripts/api-probes/probe-streaming-shape.mjs`:
 
@@ -79,8 +79,8 @@ code, `scripts/api-probes/probe-streaming-shape.mjs`:
 
 A one-line list of accepted codes in the streaming docs would have saved us
 three bad entries in a twenty-option picker: `pl`, `uk` and `en,hi`. Polish and
-Ukrainian are gone from it now — no endpoint of yours transcribes them, so
-offering them named a language we cannot produce — and `en,hi` is clamped to
+Ukrainian are gone from it now, no endpoint of yours transcribes them, so
+offering them named a language we cannot produce, and `en,hi` is clamped to
 `multi` before it reaches the socket. A clamp is a workaround for a list we
 could only get by feeding the endpoint garbage.
 
@@ -114,7 +114,7 @@ clip, said: "मुझे समझ नहीं आ रहा कि अटे�
 ```
 
 Two things in that table are worth documenting. `language_codes` does not gate
-detection — `["en"]` over Hindi audio still came back in Devanagari — so it is
+detection, `["en"]` over Hindi audio still came back in Devanagari, so it is
 a hint, not a constraint. It is not inert either: `["hi"]` over a Spanish clip
 returned the Spanish sentence transliterated into Devanagari, "नो एंटी एंडो
 पोर्के एल मेकानिज्मो…", where omitting the field returned it correctly in
@@ -138,7 +138,7 @@ row says otherwise.
 
 | | `universal-3-5-pro` (`en`) | multilingual (`multi`) |
 |---|---|---|
-| `word_is_final` during a turn | never — every word stays `false`, all flip together at `end_of_turn` | words finalise one at a time |
+| `word_is_final` during a turn | never, every word stays `false`, all flip together at `end_of_turn` | words finalise one at a time |
 | words settled before their turn closed *(6 runs)* | **0 of 19**, every run | **17 of 19**, every run |
 | partial cadence, median gap between updates | 971-1342 ms | 438-680 ms |
 | updates across the clip | 8-12 | 19, every run |
@@ -157,7 +157,7 @@ every one of them wrong:
   this probe are therefore 120 ms high on this row and are not quoted here.
 - **The cadence is a median of the gaps between updates, and the gaps are very
   uneven**: 38-1290 ms on multilingual within a single run. Take the shape of
-  it — several partials per second against roughly one — and not a band. An
+  it, several partials per second against roughly one, and not a band. An
   earlier draft quoted "313-377 ms" for multilingual, which is outside every
   median we can now measure; the honest figure is around half a second.
 - **The turn count is not a function of frame size.** An earlier draft said "4
@@ -179,19 +179,19 @@ multi  "Um, I don't really understand why attention needs positional encoding. I
 ```
 
 Sentence splits, commas and the final mark all move. Anything that diffs a
-transcript across a language change — a cache key, a golden test, a
-"did the student say the same thing twice" check — will see a difference that
+transcript across a language change, a cache key, a golden test, a
+"did the student say the same thing twice" check, will see a difference that
 has nothing to do with what was said.
 
 Both are reasonable models. The problem is that the choice is made by a
 parameter that looks like it only selects a language, and the difference decides
 whether a progressive-transcript UI is possible at all. We built a settle
 animation against `word_is_final`, shipped `en` as the default, and the
-animation never fired for anyone — the transcript arrived in lumps about a
+animation never fired for anyone, the transcript arrived in lumps about a
 second apart. We
 only found it by diffing socket frames between two language settings.
 
-Suggestion: report the model in `Begin` (you already do — thank you, that is how
+Suggestion: report the model in `Begin` (you already do, thank you, that is how
 we found it) **and** say in the docs that `language_code` selects a model
 family, with a note on which ones progress `word_is_final` mid-turn.
 
@@ -206,19 +206,19 @@ gets you one more `Turn`:
 
 Our first parser read `words[words.length - 1].text` and crashed on it. This
 document previously said that was simply what a terminated session does. It is
-not — on `universal-3-5-pro` that frame never appears, and terminating mid-turn
+not, on `universal-3-5-pro` that frame never appears, and terminating mid-turn
 produces something different again. Four cells, from
 `scripts/api-probes/probe-stream-timing.mjs`, identical across three independent runs:
 
 | model | `Terminate` sent | `Turn` frames after it |
 |---|---|---|
 | `universal-3-5-pro` | after the last turn closed | **none** |
-| `universal-3-5-pro` | mid-turn | **one, fully populated** — `{end_of_turn:true, transcript:"I don't really understand why attention needs", words:7}` |
-| multilingual | after the last turn closed | **one, empty** — `{end_of_turn:true, transcript:"", words:0}` |
+| `universal-3-5-pro` | mid-turn | **one, fully populated**, `{end_of_turn:true, transcript:"I don't really understand why attention needs", words:7}` |
+| multilingual | after the last turn closed | **one, empty**, `{end_of_turn:true, transcript:"", words:0}` |
 | multilingual | mid-turn | **four**: two more partials, then the populated flush, then the empty one |
 
 The multilingual mid-turn cell in full, because "the flush and then the empty
-one" undersold it — the partials keep coming after `Terminate` has been sent:
+one" undersold it, the partials keep coming after `Terminate` has been sent:
 
 ```
 {end_of_turn:false, transcript:"Um, I don't really understand why", words:7}
@@ -237,7 +237,7 @@ model breaks on the other, and ours was.
 
 ## 4. `keyterms_prompt` on the streaming socket: parsed, but shape-sensitive and silent
 
-It is a real parameter — a malformed shape is rejected, which is how we know it
+It is a real parameter, a malformed shape is rejected, which is how we know it
 is parsed rather than ignored. `scripts/api-probes/keyterms-probe.mjs`:
 
 | form | result |
@@ -247,7 +247,7 @@ is parsed rather than ignored. `scripts/api-probes/keyterms-probe.mjs`:
 | `keyterms_prompt=a,b` (CSV) | closed, `3006` |
 | a parameter name that does not exist at all | ignored, session opens |
 
-Both rejections carry the same `Error` frame, and it is a good error — it names
+Both rejections carry the same `Error` frame, and it is a good error, it names
 the parameter and the expected shape:
 
 ```json
@@ -278,7 +278,7 @@ we had confused it with the query parameters we sent.)
 We ran the socket A/B on identical audio with and without five terms
 (`scripts/api-probes/keyterms-ab.mjs`): the same number of in-flight partials both times and
 the same settled text, with the partials landing on slightly different word
-boundaries — ordinary streaming jitter, not an effect we can attribute to the
+boundaries, ordinary streaming jitter, not an effect we can attribute to the
 terms. So we cannot tell whether the terms did not help on that clip or were
 never applied, and we did not ship it. Echoing the value back in `Begin` would
 settle that in one frame.
@@ -321,7 +321,7 @@ The mistake was ours and it is worth describing, because it is an easy one. A
 language-support probe of ours (`scripts/api-probes/api-feedback-probe.mjs`) opened 44
 sockets in sequence and recorded 22 languages as "refused". Its own saved output
 in `.viva/api-feedback-evidence.json` has `1008` against those 22 and `3006`
-against the 11 genuinely invalid ones — the API had told us plainly and the
+against the 11 genuinely invalid ones, the API had told us plainly and the
 probe collapsed both into one bucket. We nearly filed the resulting nonsense as
 feedback.
 
@@ -336,7 +336,7 @@ question either.)*
 
 ## 6. `/v3/token` clamps sensibly, and says so clearly
 
-Not a complaint — a note that this is well done. `expires_in_seconds` is bounded
+Not a complaint, a note that this is well done. `expires_in_seconds` is bounded
 to 1..600 and the 422 names the bound (`scripts/api-probes/api-feedback-probe.mjs`):
 
 ```
@@ -366,7 +366,7 @@ audio first   -> 400 {"error":"the `config` part must be sent before the `audio`
 That names the cause and the fix in one line, and the complaint is withdrawn.
 What is left is a documentation ask: a multipart form is not usually
 order-sensitive, so nobody writing the client thinks to check, and the ordering
-requirement is not in the docs — it is only in the 400 you get after guessing.
+requirement is not in the docs, it is only in the 400 you get after guessing.
 
 **A correction we owe you.** This section previously said `Authorization` takes
 the raw key with **no** `Bearer` prefix, "unlike most APIs". That is false. The
@@ -395,7 +395,7 @@ body is one of the better errors in the API:
   audio/mpeg  -> 415 {"status":415,"title":"Unsupported Media Type","detail":"'audio/mpeg' cannot be decoded incrementally; send it to the buffered /v1/transcribe endpoint instead"}
 ```
 
-The constraint is reasonable and the error names the way out — but
+The constraint is reasonable and the error names the way out, but
 `MediaRecorder` in a browser only emits WebM or Opus, so a browser client cannot
 use the live endpoint without an AudioWorklet that produces PCM itself, and that
 is the single biggest piece of work in integrating this API from a browser. It
@@ -407,7 +407,7 @@ belongs in the docs, not only in a 415.
 September and we did not keep the response.* We declared 48 kHz stereo audio as
 16 kHz mono. Declaring half the channels and a third of the rate means the byte
 stream is read at one sixth speed, so the clip was read as six times its length
-and billed accordingly — an overcharge caused entirely by us. The 6× is
+and billed accordingly, an overcharge caused entirely by us. The 6× is
 arithmetic and certain; the clip length is the part we are quoting from memory,
 and elsewhere in this codebase it is recorded against the 9.55 s reference clip,
 which would have been read as roughly 57 s.
@@ -439,7 +439,7 @@ started picking up the label, so we added a strip that removes speaker labels
 before sending. The strip is real and pinned by a test.
 
 Re-probing on 13 September we could not make it happen again
-(`scripts/api-probes/probe-stt-prompt-leak.mjs`) — two clips, three posts each: no
+(`scripts/api-probes/probe-stt-prompt-leak.mjs`), two clips, three posts each: no
 `stt_prompt`, one whose prompt is thick with `Student:` and `Tutor:`, and the
 same prompt with the labels stripped:
 
@@ -458,8 +458,8 @@ speaker label appeared in any transcript: NO
 ```
 
 So take this as a single unreproduced observation, not a documented behaviour.
-We are keeping the strip — it costs nothing and a prompt is a bad place to put
-words the learner did not say — and keeping the note, but it should not cost
+We are keeping the strip, it costs nothing and a prompt is a bad place to put
+words the learner did not say, and keeping the note, but it should not cost
 anyone an investigation on our say-so.
 
 ---
@@ -476,21 +476,21 @@ anyone an investigation on our say-so.
   easy to build a subject's vocabulary into, and we send the concept names of
   whatever the student is studying with every clip. We cannot show it changing a
   transcript. An earlier draft of this line said it "measurably fixes subject
-  vocabulary — 'positional encoding' instead of 'positional and coding'". An A/B
-  on our reference clip — same audio, four terms against none, twice each,
-  alternating (`scripts/api-probes/probe-dictation-contract.mjs`) — came back byte-identical
+  vocabulary, 'positional encoding' instead of 'positional and coding'". An A/B
+  on our reference clip, same audio, four terms against none, twice each,
+  alternating (`scripts/api-probes/probe-dictation-contract.mjs`), came back byte-identical
   in all four posts, and "positional encoding" was already right without the
   terms. "Positional and coding" appeared in neither. Section 4 says the same
   thing about the streaming socket, and the two agree.
 - `request_time_ms` on the 9.55 s reference clip, posted straight at the
   endpoint from a UK machine, twelve runs (`scripts/api-probes/probe-dictation-contract.mjs`):
-  **538-1700 ms, median 552 ms** — eleven runs inside 538-583 and one at 1700.
+  **538-1700 ms, median 552 ms**, eleven runs inside 538-583 and one at 1700.
   Through our own Vercel deployment, two runs of twelve on the same afternoon
   (`scripts/api-probes/lat.mjs`) gave `request_time_ms` medians of **605 ms** and **558 ms**,
   inside end-to-end medians of 1215 ms and 1300 ms. An earlier draft said
   "546-580 ms, consistently" and a later one "560-591 ms across twelve runs";
   neither band survives two runs of the same probe, and the outlier is the
-  point — it is fast, and it is not a stable property of the audio. The one
+  point, it is fast, and it is not a stable property of the audio. The one
   thing on this clip that *is* perfectly stable is `confidence`: twelve runs,
   one value (`0.9873139746014078`), twelve distinct session ids.
 - `Begin` reporting the resolved model. It is the only reason section 2 above

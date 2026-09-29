@@ -20,7 +20,7 @@ const failureText = (code: string | undefined): string => (code && failureFor(co
  * The 24 kHz is not a detail. `/worklets/pcm16.js` normally resamples to 16 kHz
  * for Dictation, and the Voice Agent socket is a different product with its own
  * input contract at 24 kHz. Sending 16 kHz to it would still connect and still
- * produce audio — just worse, with no error anywhere, which is the worst kind
+ * produce audio, just worse, with no error anywhere, which is the worst kind
  * of wrong.
  */
 
@@ -67,7 +67,7 @@ export type StartOralArgs = {
  * Decode base64 PCM16 straight into an AudioContext, and make barge-in cheap.
  *
  * The queue is the whole point. When the student interrupts, the docs say to
- * flush the playback buffer — and on a naive implementation that means the
+ * flush the playback buffer, and on a naive implementation that means the
  * already-decoded audio keeps playing, so a student who barges in still has to
  * listen to another two seconds of the answer they just cut off. Every chunk is
  * therefore scheduled with an explicit start time and tracked, so `flush()` can
@@ -199,7 +199,7 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
   };
 
   // The worklet only runs while its output reaches the destination, so the
-  // chain has to terminate there — through a muted gain, or the student's own
+  // chain has to terminate there, through a muted gain, or the student's own
   // voice is played back into the room and picked up again as an interruption.
   const mute = ctx.createGain();
   mute.gain.value = 0;

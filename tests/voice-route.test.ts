@@ -134,11 +134,11 @@ describe("subject keyterms", () => {
 });
 
 describe("context condensing", () => {
-  it("strips speaker labels — the recogniser is never sent words the learner did not say", () => {
+  it("strips speaker labels, the recogniser is never sent words the learner did not say", () => {
     // Seen once on 2026-09-12: stt_prompt "Student: ..." produced a transcript
-    // that began "Student:". The re-probe on 13 Sep did NOT reproduce it —
+    // that began "Student:". The re-probe on 13 Sep did NOT reproduce it, 
     // `.viva/probe-stt-prompt-leak.mjs`, two clips x three prompts, six
-    // byte-identical transcripts, no leak — so treat that as an unreproduced
+    // byte-identical transcripts, no leak, so treat that as an unreproduced
     // observation. This test stays either way: stripping is right on its own
     // terms, because the prompt is context, not speech.
     expect(condenseContext(["Student: I read about attention.", "VIVA: What stuck?"]))
@@ -269,7 +269,7 @@ describe("Dictation → Sync fallback", () => {
     expect(body.mode).toBe("sync");
   });
 
-  it("bad audio does NOT fall back — a second call would fail the same way", async () => {
+  it("bad audio does NOT fall back, a second call would fail the same way", async () => {
     const calls = mockCalls(() => problem(400, "invalid config part"));
     const res = await POST(request({ subjectId: "course_transformers_w4" }));
     expect(calls).toHaveLength(1);
@@ -326,7 +326,7 @@ describe("error mapping", () => {
     expect((await res.json()).error.code).toBe("EMPTY_AUDIO");
   });
 
-  it("a missing key is honest — never a fabricated transcript", async () => {
+  it("a missing key is honest, never a fabricated transcript", async () => {
     delete process.env.ASSEMBLYAI_API_KEY;
     mockCalls(() => new Response(JSON.stringify(okDictation), { status: 200 }));
     const res = await POST(request({ subjectId: "course_transformers_w4" }));
@@ -360,7 +360,7 @@ describe("GET /api/voice/warm", () => {
  * headset or the wrong input device, and the provider answers that with a 200
  * and an empty string. Returned as a success it became a review box with an
  * empty textarea, Send disabled and the caption "Sends on its own in a moment."
- * — a promise the product could not keep, still on screen eighteen seconds
+ *, a promise the product could not keep, still on screen eighteen seconds
  * later. It is a coded failure now, so the mic says one true sentence.
  */
 describe("silence is a coded failure, not a success", () => {
@@ -404,7 +404,7 @@ describe("silence is a coded failure, not a success", () => {
     expect((await res.json()).error.code).toBe("NO_SPEECH");
   });
 
-  it("one real word is still a transcript — the guard is on empty, not on short", async () => {
+  it("one real word is still a transcript, the guard is on empty, not on short", async () => {
     mockCalls(() => new Response(JSON.stringify({ ...okDictation, text: "yes", llm_response: null }), { status: 200 }));
     const res = await POST(request({ subjectId: "course_transformers_w4" }));
     expect(res.status).toBe(200);
@@ -413,7 +413,7 @@ describe("silence is a coded failure, not a success", () => {
 });
 
 /**
- * POST /api/voice/telemetry — where the dictation event goes now.
+ * POST /api/voice/telemetry, where the dictation event goes now.
  *
  * The client's release-to-review number used to be written into an in-tab Map
  * with no readers and no network call: it read like evidence and was not. The
@@ -458,7 +458,7 @@ describe("POST /api/voice/telemetry", () => {
 
 /**
  * R9-1. A 115 s hold came back with `verbatim` at 1495 characters and `clean`
- * at 120 — one sentence out of twelve — and the route handed the short one to
+ * at 120, one sentence out of twelve, and the route handed the short one to
  * a review box that defaults to Clean and commits on its own. Nothing bounded
  * how far the rewrite could diverge from the words it was rewriting.
  *

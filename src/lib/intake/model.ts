@@ -22,7 +22,7 @@ import { clip } from "@/lib/tutor/schema";
  * with the old prompt, which said only "matching the schema you are given":
  * both source texts probed came back with every question, explanation and trap
  * nested inside its own concept and no `title`, `subject`, `examQuestions`,
- * `explainers`, `traps`, `teachback` or `keyterms` key anywhere — real subject
+ * `explainers`, `traps`, `teachback` or `keyterms` key anywhere, real subject
  * matter, invented structure, thrown away whole. Same failure the tutor reply
  * had (see the note above TUTOR_SYSTEM), same fix.
  */
@@ -40,12 +40,12 @@ const N = {
   passageChars: { min: 120, max: 1200 },
 } as const;
 
-/** An id has to resolve, so it is never clipped and never repaired — only dropped. */
+/** An id has to resolve, so it is never clipped and never repaired, only dropped. */
 const ID_RE = /^[a-z0-9_]+$/;
 const Id = z.string().min(2).max(60).regex(ID_RE);
 
 /**
- * A maximum on prose is a display budget, so it clips — the same call the
+ * A maximum on prose is a display budget, so it clips, the same call the
  * tutor's reply makes, for the same measured reason: a six-character overrun
  * should cost a few characters, not a whole grounded map. A minimum is not a
  * budget. A two-word description is not a short description, it is a missing
@@ -103,7 +103,7 @@ const PlanShape = z.object({
 export type SubjectPlan = z.infer<typeof PlanShape>;
 /**
  * The repair runs inside the schema, so it runs inside the provider's own
- * parse and inside its repair retry too — the caller never sees raw output, so
+ * parse and inside its repair retry too, the caller never sees raw output, so
  * this is the only place it can run. `z.preprocess` types its input as
  * `unknown`, which is exactly right at runtime (the input IS unknown JSON) and
  * does not fit the `ZodType<T>` the reasoning seam asks for; hence the
@@ -126,8 +126,8 @@ const keepValid = (items: unknown[], shape: z.ZodTypeAny): unknown[] =>
  * invent what is missing.
  *
  * The seeding script proved the rule against a smaller model. Models slip on
- * the countable parts — a question with two required keywords where three are
- * asked for, a `related` key left off entirely — and Zod then threw a whole
+ * the countable parts, a question with two required keywords where three are
+ * asked for, a `related` key left off entirely, and Zod then threw a whole
  * grounded map away over one array. So an item the item schema would reject is
  * removed, and only the empty cases are filled in (`related: []`, a `missing`
  * given as one sentence rather than a list of one), neither of which asserts
@@ -137,7 +137,7 @@ const keepValid = (items: unknown[], shape: z.ZodTypeAny): unknown[] =>
  *
  * It lives here rather than in the shared provider because only this file
  * knows which parts are droppable. The provider sees `ZodType<T>` and nothing
- * else — it cannot know that a question with two keywords should be dropped
+ * else, it cannot know that a question with two keywords should be dropped
  * while a tutor reply with two citations is exactly right.
  */
 export function repairPlan(value: unknown): unknown {
@@ -243,7 +243,7 @@ const PLAN_SHAPE = [
   ' "traps": [{"conceptId": id, "statement": string, "whyWrong": string, "correct": string}],',
   ' "teachback": {"keywords": {"<concept id>": [string]}, "hints": {"<concept id>": string}},',
   ' "keyterms": [string]}',
-  `Counts, all of them checked: ${N.concepts.min} to ${N.concepts.max} concepts, each with ${N.aliases.min} to ${N.aliases.max} aliases and up to ${N.related.max} related ids — write "related": [] when there are none rather than leaving the key out.`,
+  `Counts, all of them checked: ${N.concepts.min} to ${N.concepts.max} concepts, each with ${N.aliases.min} to ${N.aliases.max} aliases and up to ${N.related.max} related ids, write "related": [] when there are none rather than leaving the key out.`,
   `${N.examQuestions.min} to ${N.examQuestions.max} exam questions, every one of them with ${N.requiredKeywords.min} to ${N.requiredKeywords.max} requiredKeywords; a question with two is dropped.`,
   `One explainers entry per concept id, its "missing" always a list ([] when nothing is missing, never a bare sentence). ${N.traps.min} to ${N.traps.max} traps. Up to ${N.teachbackKeywords.max} teachback keywords per concept id, and one teachback hint per concept id. Up to ${N.keyterms.max} keyterms.`,
   "Nothing goes inside a concept: examQuestions, explainers, traps, teachback and keyterms are all top-level keys, and every id used in them must be one of the concept ids you wrote.",
@@ -256,13 +256,13 @@ const PLAN_SHAPE = [
 export const PLAN_SYSTEM = [
   "You turn a student's own study material into a map they can be quizzed on.",
   ...PLAN_SHAPE,
-  'Rules: give every concept a short id in lower_snake_case, and a name in the words the material uses, written the way a heading would be — "Cell structure", not "cell"; name the idea, not one bare noun from it.',
+  'Rules: give every concept a short id in lower_snake_case, and a name in the words the material uses, written the way a heading would be, "Cell structure", not "cell"; name the idea, not one bare noun from it.',
   "Give every concept aliases a student might say out loud.",
-  "Descriptions and explanations must come from the passages given — never add facts the material does not contain.",
+  "Descriptions and explanations must come from the passages given, never add facts the material does not contain.",
   "Every exam question must be answerable from the passages, and its requiredKeywords are the words a correct spoken answer would contain.",
   "explainers: `formal` mirrors the material's own wording; `jargonFree` says the same thing in everyday language; `missing` lists what a learner still needs after hearing it.",
   "traps: the mistakes a student most plausibly makes on this material.",
-  "keyterms: the words a speech recogniser should expect — concept names, aliases, technical terms.",
+  "keyterms: the words a speech recogniser should expect, concept names, aliases, technical terms.",
   "Plain English. No course codes, no praise, no meta commentary.",
 ].join("\n");
 
@@ -308,7 +308,7 @@ export async function writePassages(topic: string): Promise<WrittenPassages | nu
  * `"Cell structure"`. The app renders the name as the heading of a card, so
  * one shipped subject had headings in lower case while the next had them
  * capitalised. Upper-casing the first letter changes how it is presented and
- * nothing else — the word is still the material's own. A name that already
+ * nothing else, the word is still the material's own. A name that already
  * carries a capital anywhere ("pH scale", "mRNA", "Newton's first law") is
  * left exactly as the model wrote it, because raising its first letter would
  * make it a different word.

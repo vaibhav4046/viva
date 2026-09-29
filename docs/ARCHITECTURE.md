@@ -28,7 +28,7 @@ audio thread, carrying the fractional read position and the previous quantum's
 tail across 128-sample boundaries.
 
 One capture feeds two paths. Frames are buffered into a WAV that is POSTed
-whole on release — that clip is what gets graded — and the same frames go, as
+whole on release, that clip is what gets graded, and the same frames go, as
 they are produced, to a Universal-Streaming socket the browser opens itself so
 the learner can watch the sentence form. `startCapture`'s `onFrame` is the tee;
 opening a second capture for the socket meant two `getUserMedia` calls and two
@@ -66,7 +66,7 @@ path served it.
 ## The three guarantees
 
 **No citation without a passage.** `groundReply` filters every citation against
-the chunk ids actually retrieved for that turn and deletes the rest — the schema
+the chunk ids actually retrieved for that turn and deletes the rest, the schema
 only asks for a string, so that check is what enforces this. If nothing survives
 and the intent needed one, VIVA says it cannot find that in your source.
 
@@ -87,8 +87,8 @@ NDJSON): text or PDF → 800-char chunks with 120 overlap and page numbers →
 concepts, questions, explainers.
 
 Two build paths. With a model, the full plan. Without one, `src/lib/intake/`
-reads the student's own text — definition patterns, headings, term frequency
-with an IDF ceiling — and every description and hint is a verbatim sentence
+reads the student's own text, definition patterns, headings, term frequency
+with an IDF ceiling, and every description and hint is a verbatim sentence
 from their notes. Each subject records `builtBy`, and the UI says which. A
 name-only topic with no model is refused rather than invented, and a PDF with
 no extractable text says so.
@@ -99,7 +99,7 @@ another learner's id resolves to your own default, never to their material.
 ## Identity and storage
 
 Identity is the `viva_did` HttpOnly cookie, 128 bits, `SameSite=Lax`. There is
-no sign-in and no user-switching parameter — every route derives the owner from
+no sign-in and no user-switching parameter, every route derives the owner from
 the cookie alone.
 
 Storage is Postgres when `DATABASE_URL` is set, otherwise a per-instance file
@@ -124,7 +124,7 @@ npm run verify   # typecheck + copy lint + tests + build
 ```
 
 `scripts/lint-copy.mjs` fails the build on internal vocabulary in
-student-facing strings — it scans rendered text only (string literals, template
+student-facing strings, it scans rendered text only (string literals, template
 literals, JSX text), exempts identifiers and SQL, and ships a self-test so the
 rules cannot silently stop firing.
 
@@ -134,7 +134,7 @@ rules cannot silently stop firing.
 books, registered through `src/lib/corpus/index.ts` into the same course
 registry the hand-written labs use, so retrieval, quizzing and teach-back need
 no special case. Each carries a `SourceLicence` that the UI is required to
-render — that is the condition on using the material, not a nicety.
+render, that is the condition on using the material, not a nicety.
 
 A learner's own subject comes from pasted text, a `.txt`/`.md`/`.docx`/`.pdf`
 (dispatched on magic bytes, not the filename), or a URL. URL fetching resolves
@@ -149,14 +149,14 @@ Without `DATABASE_URL` the server store is per-instance, so the browser is the
 authority: `src/components/mirror.ts` keeps events, mastery and whole subjects
 in `localStorage` and `POST /api/learner/sync` replays them into whichever
 instance answers. Replay is idempotent on `clientEventId`, and mastery is
-never taken from the client — it is recomputed by folding the replayed events
+never taken from the client, it is recomputed by folding the replayed events
 through `src/lib/mastery.ts`, so a reload cannot move the map.
 
 ## Reasoning
 
 `src/lib/ai/provider.ts` resolves an ordered chain: `LLM_*` first, then each
 `LLM_FALLBACKS` entry. A credential that returns 429 is skipped for a minute
-rather than retried every turn. This exists because it happened — one key hit
+rather than retried every turn. This exists because it happened, one key hit
 its daily token cap and every turn silently answered from the heuristic path
 for hours. `/api/health/ready` now reports the failure class, never the
 upstream message.
@@ -167,14 +167,14 @@ failed validation, and fell back silently 100% of the time.
 
 ## Other surfaces
 
-- `src/app/api/mcp/route.ts` — Model Context Protocol over Streamable HTTP.
+- `src/app/api/mcp/route.ts`, Model Context Protocol over Streamable HTTP.
   Eight tools, all calling VIVA's own routes, so an assistant's quiz is marked
   by the same code. Pairing is an HMAC-signed code (10 min) exchanged for an
   account key (30 days).
-- `extension/` — Manifest V3, no build step, no credentials. It works inside
+- `extension/`, Manifest V3, no build step, no credentials. It works inside
   the learner's own VIVA tab, so requests are same-origin; host permissions
   are the two VIVA origins only.
-- `src/components/orb/` — one WebGL orb for the whole app, mounted in the root
+- `src/components/orb/`, one WebGL orb for the whole app, mounted in the root
   layout outside `template.tsx`. Pages render an empty `OrbSlot`; the host
   measures the active slot and springs its own transform. Phones get a drawn
   SVG and never download three.

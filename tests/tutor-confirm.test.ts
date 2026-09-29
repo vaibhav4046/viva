@@ -15,7 +15,7 @@ import type { SourceChunk } from "@/lib/types";
 import { POST as studyTurn } from "@/app/api/study/turn/route";
 
 /**
- * Telling a learner they are right — the promise, and what it costs to keep.
+ * Telling a learner they are right, the promise, and what it costs to keep.
  *
  * A confirmation is the one thing VIVA says that a student cannot check for
  * themselves in the moment, so the bar is not "usually correct", it is "never
@@ -34,8 +34,8 @@ import { POST as studyTurn } from "@/app/api/study/turn/route";
  * half of the same set in `tests/tutor-support-forms.test.ts`.
  *
  * The rest are the set a paraphrase-confirming path would have to survive.
- * One such path — the model nominating the supporting line, the server
- * checking the nomination — was built against this file and did not survive
+ * One such path, the model nominating the supporting line, the server
+ * checking the nomination, was built against this file and did not survive
  * it; the counter-examples are recorded in `claim.ts` above `matchesLead` and
  * the two of them that matter most are pinned here so the next attempt meets
  * them on the first run rather than the fifth.
@@ -107,7 +107,7 @@ const FALSE_CLAIMS: Probe[] = [
   /*
    * f21 to f29: one word of a passage line swapped for its opposite, the rest
    * of the sentence left alone. All but f26 were CONFIRMED on a running server
-   * on 13 Sep — "That matches 19.1 Heart Anatomy", quoting the line that says
+   * on 13 Sep, "That matches 19.1 Heart Anatomy", quoting the line that says
    * the reverse, with the concept moved UP the map as a successful recall.
    *
    * This is the shape everything else in this file was built to stop and none

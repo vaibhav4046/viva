@@ -79,7 +79,7 @@ export async function docFromFile(name: string, bytes: Buffer): Promise<SourceRe
   if (junk > text.length / 200) {
     return {
       ok: false,
-      error: { code: "BAD_FILE", message: "VIVA can read PDFs, Word documents and plain text. That file is something else — paste the text instead.", status: 415 },
+      error: { code: "BAD_FILE", message: "VIVA can read PDFs, Word documents and plain text. That file is something else, paste the text instead.", status: 415 },
     };
   }
   const read = readTextDoc(text, title);
@@ -102,7 +102,7 @@ function pdfFailure(code: string): SourceFailure {
     return {
       code: "NO_TEXT_IN_PDF",
       message:
-        "There is no text in that PDF — it looks like scanned pages or images. VIVA will not guess at what they say. Paste the text instead and it will read that.",
+        "There is no text in that PDF, it looks like scanned pages or images. VIVA will not guess at what they say. Paste the text instead and it will read that.",
       status: 422,
     };
   }

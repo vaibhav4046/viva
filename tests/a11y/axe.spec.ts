@@ -19,7 +19,7 @@ for (const route of ROUTES) {
       ["serious", "critical"].includes(v.impact ?? "")
     );
     expect(
-      serious.map((v) => `${v.id}: ${v.nodes.length} nodes — ${v.help}`),
+      serious.map((v) => `${v.id}: ${v.nodes.length} nodes, ${v.help}`),
       `route ${route}`
     ).toEqual([]);
   });

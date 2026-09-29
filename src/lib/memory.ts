@@ -55,7 +55,7 @@ export function compoundMemory(events: MemoryEvent[], conceptNames: Record<strin
       }
     }
     if (firstConfusion !== -1 && laterSuccess) {
-      out.push(`${name(id)} improved after a wrong attempt — it held.`);
+      out.push(`${name(id)} improved after a wrong attempt, it held.`);
     }
   }
 

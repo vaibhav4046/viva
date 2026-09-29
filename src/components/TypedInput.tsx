@@ -11,7 +11,7 @@ export type TypedInputHandle = {
  * The typed box. Voice is the hero; this is the guarantee that VIVA never
  * *requires* a microphone.
  *
- * HYDRATION INVARIANT — the input is uncontrolled on purpose.
+ * HYDRATION INVARIANT, the input is uncontrolled on purpose.
  *
  * This markup is server-rendered, so it is on screen and focusable a beat
  * before React hydrates. A student who starts typing in that window used to
@@ -21,8 +21,8 @@ export type TypedInputHandle = {
  *
  * The fix is to let the DOM own the value. There is no `value` prop and no
  * `onChange` state write, so hydration has nothing to reconcile and nothing
- * to erase; submit reads `ref.current.value` — the same value the student can
- * see — at the moment they press Send. Do not reintroduce a controlled value
+ * to erase; submit reads `ref.current.value`, the same value the student can
+ * see, at the moment they press Send. Do not reintroduce a controlled value
  * here: `tests/typed-input.test.ts` fails if you do.
  */
 export function TypedInput({

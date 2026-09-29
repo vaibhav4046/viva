@@ -9,7 +9,7 @@ export type PathSegment = {
   kind: "recall" | "weak_concept" | "misconception" | "teachback" | "summary";
   conceptId: string | null;
   conceptName?: string;
-  /** Owning lab when known — lets "All courses" mode hand off to the right API. */
+  /** Owning lab when known, lets "All courses" mode hand off to the right API. */
   courseId?: string | null;
   minutes: number;
   why: string;
@@ -36,7 +36,7 @@ export type ExamAnswerResponse = {
   mastery: Record<string, ConceptMastery>;
 };
 
-/** Locale-free date slice — identical on server and client. */
+/** Locale-free date slice, identical on server and client. */
 export function shortDate(iso: string): string {
   return iso.slice(0, 10);
 }

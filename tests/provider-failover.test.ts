@@ -139,7 +139,7 @@ describe("FailoverProvider budget", () => {
       },
     });
     // The first credential spends 2s of a 6s budget. The second must be told
-    // it has about 4s left, not another full 6s — that is the whole bug.
+    // it has about 4s left, not another full 6s, that is the whole bug.
     const chain = chainOf(burn(2_000), burn(10));
     const started = Date.now();
     await expect(chain.generateObject({ ...ask, timeoutMs: 6_000 })).rejects.toThrow(ProviderError);

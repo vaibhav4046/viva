@@ -42,8 +42,8 @@ export const LearningEventSchema = z.object({
   /**
    * Which AssemblyAI endpoint answered, and the one it fell back from.
    *
-   * Stored rather than held on screen because the footer that shows it —
-   * "Dictation · AssemblyAI 554 ms · 99% confident" — is the only evidence a
+   * Stored rather than held on screen because the footer that shows it, 
+   * "Dictation · AssemblyAI 554 ms · 99% confident", is the only evidence a
    * reader ever gets that this integration is real, and it was visible for one
    * turn and gone on reload. Evidence that does not survive a refresh is not
    * evidence.
@@ -52,7 +52,7 @@ export const LearningEventSchema = z.object({
   transcriptionFellBackFrom: z.enum(["dictation", "sync"]).nullable().optional(),
   /**
    * What the microphone actually heard, before the student edited it.
-   * `transcript` holds the edited text — the thing they meant to send — so
+   * `transcript` holds the edited text, the thing they meant to send, so
    * the two cannot share a field: the disclosure shows them side by side.
    */
   transcriptVerbatim: z.string().nullable().optional(),
@@ -74,7 +74,7 @@ export const LearningEventSchema = z.object({
   evidenceIds: z.array(z.string()),
   requestedAction: z.enum(["store", "explain", "quiz", "compare", "review", "evaluate", "none"]),
   status: z.enum(["captured", "compiled", "grounded", "responded", "failed"]),
-  /** Additive outcome fields — replayable per-event evidence of what happened. */
+  /** Additive outcome fields, replayable per-event evidence of what happened. */
   assessment: z.enum(["correct", "partial", "incorrect"]).nullable().optional(),
   delta: z.number().nullable().optional(),
   reason: z.string().nullable().optional(),

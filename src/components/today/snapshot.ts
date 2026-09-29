@@ -6,8 +6,8 @@ import type { PathSegment } from "./types";
 /**
  * One snapshot in, the whole /today screen out.
  *
- * The page used to make four calls — /api/learner/path, /api/learner,
- * /api/learner/review and /api/learner/week — and print all four answers on one
+ * The page used to make four calls, /api/learner/path, /api/learner,
+ * /api/learner/review and /api/learner/week, and print all four answers on one
  * screen. On Vercel each of those lands on whichever lambda is free, and the
  * file store lives in that lambda's own /tmp, so the four sections were reading
  * four different memories of the same student: a seven-minute plan naming two
@@ -16,7 +16,7 @@ import type { PathSegment } from "./types";
  *
  * They cannot disagree now, because they are no longer four answers. The page
  * fetches the learner state once and folds it here, with the same planner the
- * routes use — `selectDailyPath` and `projectWeek` are imported, not copied, so
+ * routes use, `selectDailyPath` and `projectWeek` are imported, not copied, so
  * the plan on screen is still the plan the server would have composed.
  *
  * The due list is the week projection with today removed. That is what "due"
@@ -46,7 +46,7 @@ export type TodayView = {
   due: DueItem[];
   /** A compound-memory sentence about what keeps coming back, when there is one. */
   recurring: string | null;
-  /** The concept behind that sentence — the map link, and the fallback line. */
+  /** The concept behind that sentence, the map link, and the fallback line. */
   mixedUp: ConceptMastery | null;
   improved: ConceptMastery | null;
   /** False on a cold account: nothing has been said yet, so nothing is claimed. */

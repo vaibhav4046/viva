@@ -2,7 +2,7 @@
  * HTML in, readable passages out.
  *
  * One extractor, two callers: the corpus seeder reading an OpenStax section,
- * and a student pasting a URL. Both need the same thing — the prose a person
+ * and a student pasting a URL. Both need the same thing, the prose a person
  * would read, with the heading it sat under, and nothing from the navigation.
  *
  * No parser dependency. Regex over HTML is wrong for anything that has to be
@@ -22,8 +22,8 @@ const DROP_CODE = /<!--[\s\S]*?-->|<(script|style)\b[\s\S]*?<\/\1\s*>/gi;
  * Every tag reduced to `<tag>` or `</tag>`, attributes gone.
  *
  * This exists because of one bug with a visible cost. Wikipedia stores parser
- * metadata in attributes — `<span data-mw='{"parts":[{"template":...">"}]}'>`
- * — and any `<[^>]*>` stops at the first `>` INSIDE that quoted JSON, so the
+ * metadata in attributes, `<span data-mw='{"parts":[{"template":...">"}]}'>`
+ *, and any `<[^>]*>` stops at the first `>` INSIDE that quoted JSON, so the
  * rest of the attribute leaked into the page as text. The first passage of a
  * subject built from a Wikipedia article opened with `{{Cite web |title=...`
  * before it said anything about photosynthesis. A scanner that knows a quote
@@ -75,7 +75,7 @@ const BLOCK = /<(h1|h2|h3|h4|p|li|dd|blockquote)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi;
 
 const NAMED: Record<string, string> = {
   amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ensp: " ", emsp: " ", thinsp: " ",
-  mdash: "—", ndash: "–", hellip: "…", lsquo: "‘", rsquo: "’",
+  mdash: ", ", ndash: ", ", hellip: "…", lsquo: "‘", rsquo: "’",
   ldquo: "“", rdquo: "”", laquo: "«", raquo: "»", deg: "°",
   times: "×", divide: "÷", minus: "−", plusmn: "±", micro: "µ",
   alpha: "α", beta: "β", gamma: "γ", delta: "δ", pi: "π",

@@ -13,7 +13,7 @@ import type { LiveWord } from "@/lib/audio/stream";
  * is still willing to change and one it has committed to, so that difference is
  * the only thing the styling says. A provisional word is dimmed and sitting
  * fractionally low; when `word_is_final` flips it rises and comes up to full
- * weight. That is a transition on `opacity` and `transform` and nothing else —
+ * weight. That is a transition on `opacity` and `transform` and nothing else, 
  * both run on the compositor, so a sentence's worth of words settling at once
  * costs no layout.
  *
@@ -26,7 +26,7 @@ import type { LiveWord } from "@/lib/audio/stream";
  * every revision of every partial word is unusable noise. Finalised text goes
  * to a polite live region instead, so assistive tech hears the sentence settle
  * once rather than a dozen times. Under `prefers-reduced-motion` the transform
- * is dropped and only the opacity step remains — the state is still legible,
+ * is dropped and only the opacity step remains, the state is still legible,
  * nothing travels.
  */
 
@@ -34,7 +34,7 @@ export function LiveTranscript({
   committed,
   words,
   listening,
-  placeholder = "Start talking — your words appear here.",
+  placeholder = "Start talking, your words appear here.",
   className,
 }: {
   /** Turns the model has closed. Never revised again. */
@@ -72,7 +72,7 @@ export function LiveTranscript({
               // Keyed by position, not by text: a partial word is revised in
               // place ("match" becoming "matter"), and keying by text would
               // unmount the old span and replay the entrance on every
-              // correction — the settle would stutter instead of settling.
+              // correction, the settle would stutter instead of settling.
               <span key={i} className="viva-live__word" data-final={word.final || undefined}>
                 {word.text}
               </span>

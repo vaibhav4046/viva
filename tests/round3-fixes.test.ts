@@ -138,7 +138,7 @@ describe("the browser's key-term hint", () => {
       "x".repeat(500),
     ]);
     // De-duplicated case-insensitively, trimmed, and one term is a phrase not
-    // an essay — the same treatment a resolved subject's terms get.
+    // an essay, the same treatment a resolved subject's terms get.
     expect(out.keyterms).toEqual(["Michaelis-Menten", "Vmax", "x".repeat(60)]);
   });
 

@@ -7,7 +7,7 @@ import type { RecordInput } from "@/lib/store/repo";
 /**
  * `PgEventStore` had no tests at all, and it is the store production runs:
  * `getStore()` picks Postgres whenever DATABASE_URL is set. Isolation in the
- * file store is structural — one JSON document per user — so `idor.test.ts`
+ * file store is structural, one JSON document per user, so `idor.test.ts`
  * says almost nothing about what actually serves students. Isolation in
  * Postgres is roughly thirty hand-written `user_id` predicates, and dropping
  * any one of them is the IDOR this project cares most about.
@@ -16,7 +16,7 @@ import type { RecordInput } from "@/lib/store/repo";
  *
  *  - A live test has to be gated, the way `assemblyai-live.test.ts` gates its
  *    live block, or the suite stops running without a network. Gated means the
- *    default gate never runs it — so a dropped predicate would still ship
+ *    default gate never runs it, so a dropped predicate would still ship
  *    green, which is exactly the hole being closed here.
  *  - Against a live database, "B saw nothing of A's" is also satisfied when B
  *    simply has no rows. Telling that apart from real scoping needs both users
@@ -27,8 +27,8 @@ import type { RecordInput } from "@/lib/store/repo";
  *
  * Its ceiling: it reads SQL, so it cannot catch a predicate that is present
  * but means the wrong thing at the database (a bad index, an RLS policy, a
- * column that is not the owner). It catches the mutation that matters — a
- * missing `WHERE user_id=$1` — and nothing here should be read as a claim
+ * column that is not the owner). It catches the mutation that matters, a
+ * missing `WHERE user_id=$1`, and nothing here should be read as a claim
  * about Postgres semantics.
  */
 
@@ -40,7 +40,7 @@ vi.mock("pg", () => {
   /**
    * `RETURNING *` on the events insert has to hand back a row or
    * `recordLearning` takes the duplicate branch and dereferences undefined.
-   * Everything else answers empty, which is a cold user — the case where a
+   * Everything else answers empty, which is a cold user, the case where a
    * missing predicate would leak somebody else's rows in production.
    */
   const rowsFor = (sql: string, params: unknown[]): Record<string, unknown>[] =>
@@ -167,7 +167,7 @@ describe("PgEventStore scopes every statement to one owner", () => {
       let checked = 0;
       for (const statement of log) if (expectScopedToOwner(statement, USER_A)) checked += 1;
       // Without this the case passes when the method issues nothing, or only
-      // statements the helper skips — the vacuum this whole file exists to
+      // statements the helper skips, the vacuum this whole file exists to
       // close, reappearing one level up.
       expect(checked, "no owned table was touched, so nothing was checked").toBeGreaterThan(0);
     });

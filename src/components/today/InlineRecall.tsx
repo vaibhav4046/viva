@@ -13,7 +13,7 @@ import type { ExamAnswerResponse, ExamQuestion } from "./types";
  * Nothing is written until the server answers 200; on failure the error banner's
  * retry resubmits the SAME answer text, so a network blip can't drop the event.
  *
- * The answer comes in through the mic, with the typed box underneath it — the
+ * The answer comes in through the mic, with the typed box underneath it, the
  * same control as /study and /exam. It used to be a bare text input, which is
  * why the mic appeared on one screen in six.
  *
@@ -80,14 +80,14 @@ export function InlineRecall({
         if (!res.ok) throw new Error("exam answer failed");
         const d = (await res.json()) as ExamAnswerResponse;
         setResult(d);
-        // The browser's own copy, beside the id the replay dedupes on — the
+        // The browser's own copy, beside the id the replay dedupes on, the
         // same two lines /study has. A recall answered from Today used to
         // exist only on the instance that graded it.
         rememberEvent(d.event, clientEventId);
         rememberMastery(d.mastery);
         onAnswered?.();
       } catch {
-        setError({ message: "Couldn't score that answer — it may not have been recorded.", retry: () => void submit(value) });
+        setError({ message: "Couldn't score that answer, it may not have been recorded.", retry: () => void submit(value) });
       } finally {
         setPhase("ready");
       }
@@ -111,7 +111,7 @@ export function InlineRecall({
     : null;
 
   return (
-    <div aria-label={`Recall — ${conceptName}`} className="space-y-3">
+    <div aria-label={`Recall, ${conceptName}`} className="space-y-3">
       {phase === "loading" && !q ? <LoadingBlock label={`Loading a question on ${conceptName}…`} lines={2} /> : null}
 
       {q ? (

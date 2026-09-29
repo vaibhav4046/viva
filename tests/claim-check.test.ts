@@ -12,7 +12,7 @@ import type { SourceChunk } from "@/lib/types";
  * The failure this file exists for is asymmetric: missing a wrong claim costs
  * a teaching moment, but contradicting a RIGHT claim tells a student who
  * understands the material that they do not, and docks their mastery for it.
- * So every case below is paired — the mistake and its correct refutation.
+ * So every case below is paired, the mistake and its correct refutation.
  */
 
 const TRANSFORMERS = getCourse("course_transformers_w4");
@@ -33,7 +33,7 @@ function run(course: Course, text: string) {
 
 describe("a stated belief reaches the checker at all", () => {
   // The old gate was a verb whitelist (is/are/means/…), so any sentence built
-  // on another verb — "uses", "alternates", "runs" — was filed unchecked.
+  // on another verb, "uses", "alternates", "runs", was filed unchecked.
   const declaratives = [
     "Multi-head attention uses one head per layer.",
     "Value iteration alternates policy evaluation and policy improvement.",

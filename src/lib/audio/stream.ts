@@ -5,8 +5,8 @@
  * release, so nothing appears until the learner stops speaking. This module is
  * the other half: the same AudioWorklet, but every frame goes straight out over
  * a WebSocket and words come back while the sentence is still being said. The
- * two run side by side — the socket paints the words, the buffered POST still
- * produces the authoritative cleaned transcript — so a socket that fails costs
+ * two run side by side, the socket paints the words, the buffered POST still
+ * produces the authoritative cleaned transcript, so a socket that fails costs
  * the animation and nothing else.
  *
  * ── The contract, as measured against the live endpoint on 2026-09-12 ──
@@ -24,7 +24,7 @@
  * Messages actually observed, in order:
  *   Begin         { id, expires_at, configuration:{ model, mode, … } }
  *                 `configuration.model` is the server's last word on which
- *                 model you got — see LANGUAGE below, it is not always the one
+ *                 model you got, see LANGUAGE below, it is not always the one
  *                 you asked for.
  *   SpeechStarted { timestamp, confidence }        (informational)
  *   Turn          { turn_order, transcript, end_of_turn, turn_is_formatted,
@@ -38,14 +38,14 @@
  *
  * 1. WORD FINALISATION DEPENDS ON THE MODEL. On `universal-3-5-pro` every word
  *    carries `word_is_final:false` for the whole turn and all of them flip to
- *    true in one step at `end_of_turn` — there is no progressive settle to
+ *    true in one step at `end_of_turn`, there is no progressive settle to
  *    animate. On the multilingual model words finalise one at a time
  *    (words=3/final=2, then 4/final=3, …), which is the behaviour the UI wants.
  *    Measured at the socket by `.viva/probe-stream-timing.mjs`, 9.55 s clip,
  *    nine runs per model: 17 of its 19 words settle before their turn closes on
  *    the multilingual model, 0 of 19 on universal-3-5-pro. Median gap between
  *    updates 971-1342 ms on universal-3-5-pro against 438-680 ms on
- *    multilingual — the gaps are very uneven (38-1290 ms inside one run), so
+ *    multilingual, the gaps are very uneven (38-1290 ms inside one run), so
  *    read that as "several partials per second against roughly one", not as a
  *    band. An earlier version of this comment said ~250-400 ms for
  *    multilingual, which is outside every median we can measure. Hence the
@@ -61,7 +61,7 @@
  *
  * 3. WHAT ARRIVES AFTER `Terminate` DEPENDS ON THE MODEL AND ON THE TIMING.
  *    The empty final turn `{ end_of_turn:true, transcript:"", words:[] }` is
- *    NOT universal — measured by `.viva/probe-stream-timing.mjs`, identically
+ *    NOT universal, measured by `.viva/probe-stream-timing.mjs`, identically
  *    across two runs:
  *      universal-3-5-pro, terminated after the last turn closed → nothing;
  *      universal-3-5-pro, terminated mid-turn                   → one populated final;
@@ -71,7 +71,7 @@
  *                                                                 then the empty one.
  *    This module runs multilingual by default, so it sees the empty frame on
  *    the ordinary path. Committing it appends a blank turn and, if you read the
- *    last word without checking, throws. `applyTurn` drops it — which is the
+ *    last word without checking, throws. `applyTurn` drops it, which is the
  *    right guard for every cell above, not just ours. A `Termination` frame
  *    arrives last in all four cases; that is what `close()` waits for.
  *
@@ -79,7 +79,7 @@
  * (`error_code 1008, "Too many concurrent sessions"`). Measured cold by
  * `.viva/probe-streaming-shape.mjs`: ten simultaneous opens got five `Begin`
  * and five 1008, and the first slot did not free for **27.7 s** after that
- * burst closed — far longer than the "few seconds" this comment used to
+ * burst closed, far longer than the "few seconds" this comment used to
  * claim. 1008 is therefore terminal here, never retried. One handle owns one
  * socket, and `close()` waits for Termination rather than yanking the
  * connection.
@@ -116,8 +116,8 @@ export const AUTO_LANGUAGE = "multi";
  * Translate the picker's value into something the socket accepts.
  *
  * The picker is an override, not a requirement: anything it cannot express as
- * a single supported code — a comma pair like "en,hi", a language streaming
- * does not serve, an empty value — becomes automatic detection. Guessing one
+ * a single supported code, a comma pair like "en,hi", a language streaming
+ * does not serve, an empty value, becomes automatic detection. Guessing one
  * half of "en,hi" would be worse than detecting, and sending "en,hi" verbatim
  * is a validation error that closes the socket before a word is heard.
  */
@@ -153,7 +153,7 @@ export type LiveState = {
   order: number | null;
   /** The turn being spoken right now, partial words included. */
   words: LiveWord[];
-  /** Closed turns joined — the part that will not change. */
+  /** Closed turns joined, the part that will not change. */
   committed: string;
   /** Everything, closed and in-flight. What you would send if it stopped now. */
   text: string;
@@ -191,7 +191,7 @@ function derive(turns: string[], order: number | null, words: LiveWord[]): LiveS
 }
 
 /**
- * Fold one Turn frame into the transcript. Pure — the socket layer and the
+ * Fold one Turn frame into the transcript. Pure, the socket layer and the
  * tests drive the same function, so what the tests prove is what runs.
  */
 export function applyTurn(state: LiveState, msg: TurnMessage): LiveState {
@@ -265,7 +265,7 @@ export type TranscriptSocket = {
  * The sentences here are the live ones, not VOICE_MESSAGES': failing to get a
  * token loses the live words and nothing else, because the microphone is still
  * recording and the buffered clip still goes to Dictation. `liveTokenMessage`
- * owns the one exception — a deployment with no voice at all — and the reason
+ * owns the one exception, a deployment with no voice at all, and the reason
  * the distinction is load-bearing.
  */
 export async function mintToken(): Promise<string> {
@@ -299,7 +299,7 @@ const MAX_PENDING_SAMPLES = SAMPLE_RATE * 2;
 const MAX_RECONNECTS = 2;
 
 /**
- * Open the transcript socket. No microphone — audio is whatever the caller
+ * Open the transcript socket. No microphone, audio is whatever the caller
  * sends. `openLiveStream` below wires the mic to it; the tests drive it with a
  * fake socket and hand-written frames.
  */
@@ -342,7 +342,7 @@ export function openTranscriptSocket(opts: StreamOptions = {}): TranscriptSocket
       if (!closing) {
         closing = true;
         // A thrown Error here already carries a learner-facing sentence from
-        // mintToken — "Voice is not switched on for this deployment. Type
+        // mintToken, "Voice is not switched on for this deployment. Type
         // instead" is strictly better than a generic "live words stopped", so
         // it is passed through rather than flattened.
         opts.onError?.(e instanceof Error && e.message ? e.message : liveMessage(undefined));
@@ -416,7 +416,7 @@ export function openTranscriptSocket(opts: StreamOptions = {}): TranscriptSocket
       }
       // An unasked-for close is a dropped connection or an expired token, and
       // both have the same remedy: a fresh token and a new socket. The
-      // transcript so far is kept — a reconnect must not rewind what the
+      // transcript so far is kept, a reconnect must not rewind what the
       // learner already watched appear.
       if (reconnects < MAX_RECONNECTS) {
         reconnects += 1;
@@ -494,7 +494,7 @@ export type LiveStreamHandle = {
  * Microphone straight into the transcript socket.
  *
  * This opens its own AudioContext against the SAME worklet module
- * (`/worklets/pcm16.js`) that ./worklet.ts uses — the resampler, the one piece
+ * (`/worklets/pcm16.js`) that ./worklet.ts uses, the resampler, the one piece
  * that is genuinely hard to get right, is shared. It is not shared any further
  * than that because `startCapture` buffers frames privately and exposes no
  * per-frame hook; the honest fix is an `onFrame` callback there, at which point
@@ -546,7 +546,7 @@ export async function openLiveStream(opts: StreamOptions = {}): Promise<LiveStre
   };
 
   // The worklet is only pulled while its output reaches the destination, so the
-  // chain has to terminate there — through a muted gain, or the microphone
+  // chain has to terminate there, through a muted gain, or the microphone
   // would be played back into the room. Same reason as in ./worklet.ts.
   const mute = ctx.createGain();
   mute.gain.value = 0;

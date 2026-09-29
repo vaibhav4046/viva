@@ -22,7 +22,7 @@ function clamp01(x: number) {
 }
 
 /**
- * HARNESS C — Learner Model Reducer. Deterministic, bounded, reviewable.
+ * HARNESS C, Learner Model Reducer. Deterministic, bounded, reviewable.
  * No LLM writes mastery directly; events are the source of truth and this
  * function is a pure fold over them. Displayed as "VIVA estimate" with reasons.
  */
@@ -47,7 +47,7 @@ export function reduceMastery(
     case "remember":
     case "exam_marker":
       m = { ...m, mastery: m.mastery + 0.02 };
-      reason = "marked important — exposure";
+      reason = "marked important, exposure";
       break;
     case "quiz_request":
     case "review_request":
@@ -71,8 +71,8 @@ export function reduceMastery(
         reason = event.intent === "teachback" ? "correct teachback" : "correct recall";
       } else if (event.assessment === "partial") {
         // "Partly there" used to add 0.02 and log nothing, so an answer with
-        // two definitions exactly reversed — diagnosed, out loud, in the same
-        // reply — moved the map UP and left MISSED on 0. A counter that does
+        // two definitions exactly reversed, diagnosed, out loud, in the same
+        // reply, moved the map UP and left MISSED on 0. A counter that does
         // not move for the most examinable mistake there is means nothing.
         //
         // Which of the two "partly there"s it was arrives as the direction the
@@ -86,7 +86,7 @@ export function reduceMastery(
           reason = "part of that was the wrong way round";
         } else {
           m = { ...m, mastery: m.mastery + 0.02 };
-          reason = "partially correct — one piece missing";
+          reason = "partially correct, one piece missing";
         }
       } else if (event.assessment === "incorrect") {
         m = {
@@ -95,13 +95,13 @@ export function reduceMastery(
           misconceptionCount: m.misconceptionCount + 1,
           mastery: m.mastery - 0.12,
         };
-        reason = "unsupported claim — possible misconception";
+        reason = "unsupported claim, possible misconception";
       } else if (event.masterySignal === "up") {
         // No got-it here, on purpose. "up" only says something moved the right
         // way, and one of the things that can emit it is a model liking the
         // sound of a sentence. A got-it is a claim about the learner's record,
         // so it is written only when something checked the sentence against
-        // the source — and that arrives as `assessment: "correct"` above,
+        // the source, and that arrives as `assessment: "correct"` above,
         // which is the same standing an exam answer gets.
         m = { ...m, mastery: m.mastery + 0.04 };
         reason = "said it right, not yet checked out loud";
@@ -110,7 +110,7 @@ export function reduceMastery(
         // it, or the model reading those passages said so. Both are the same
         // standing as an exam "incorrect" for the tally the student reads, so
         // this is a missed-it. The mastery move stays smaller than a graded
-        // wrong answer and logs no misconception — nothing here was marked
+        // wrong answer and logs no misconception, nothing here was marked
         // against a question.
         m = { ...m, failedRecallCount: m.failedRecallCount + 1, mastery: m.mastery - 0.06 };
         reason = "that part did not match your source";
@@ -120,7 +120,7 @@ export function reduceMastery(
         // something CORRECT, could not be graded, and lost mastery for it;
         // moving a number on no evidence is the one thing this reducer exists
         // to prevent.
-        reason = "said it — not checked against your source yet";
+        reason = "said it, not checked against your source yet";
       } else {
         m = { ...m, mastery: m.mastery - 0.02 };
         reason = "unverified claim stored";
@@ -129,7 +129,7 @@ export function reduceMastery(
     case "explain":
     case "question":
       m = { ...m, mastery: m.mastery + (event.masterySignal === "up" ? 0.01 : -0.02) };
-      reason = "open question — awaiting evidence";
+      reason = "open question, awaiting evidence";
       break;
     default:
       reason = "noted";
@@ -183,7 +183,7 @@ export const BAND_LABEL: Record<BandKey, string> = {
 
 /**
  * The band a concept sits in, from its stored record. A concept nobody has
- * touched is "Not yet" whether or not a row exists for it — a row written at
+ * touched is "Not yet" whether or not a row exists for it, a row written at
  * the default 0.5 is an absence of information, not a measurement of one.
  *
  * This is the unit the API returns. The signed point delta stays inside the

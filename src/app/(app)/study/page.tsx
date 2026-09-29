@@ -38,7 +38,7 @@ import type { ConceptMastery, LearningEvent } from "@/lib/types";
 import { logEvent } from "@/lib/analytics";
 
 /*
- * /study — the product screen.
+ * /study, the product screen.
  *
  * Everything a judge needs is above the fold at 390 px: the subject, how it
  * is going, three things they could say, and the mic. The source passages and
@@ -87,11 +87,11 @@ type Boot = {
 /**
  * Where a session's conversation lives between reloads.
  *
- * A student said three things, pressed F5, and "Your notes" was empty again —
+ * A student said three things, pressed F5, and "Your notes" was empty again, 
  * the whole point of the product is that it remembers, and the first thing it
  * did was forget. This is the rendered conversation: the tutor's words, the open
  * question and the marked answer, which are the shape of the screen rather than
- * facts about the learner. The facts — events, mastery, subjects — live in
+ * facts about the learner. The facts, events, mastery, subjects, live in
  * src/components/mirror.ts and are handed back to the server on load.
  *
  * Per subject, because switching subjects switches conversations.
@@ -111,7 +111,7 @@ type SavedConvo = {
  * Openers for the typed box.
  *
  * The first one used to be a fixed sentence about attention and positional
- * encoding, which is the Transformers lab — so a student reading about the
+ * encoding, which is the Transformers lab, so a student reading about the
  * lymphatic system or binary search trees was invited to ask about a subject
  * they had not opened. It names the concept VIVA is least sure they have,
  * which is both true of this subject and the thing worth asking about; the
@@ -141,8 +141,8 @@ export default function StudyPage() {
   const [bootLoading, setBootLoading] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
   /*
-   * `facts` rides along with the note. What the Dictation path cost — its own
-   * request_time_ms, the confidence, the verbatim beside the tidied text — used
+   * `facts` rides along with the note. What the Dictation path cost, its own
+   * request_time_ms, the confidence, the verbatim beside the tidied text, used
    * to exist only inside the pre-send review panel, which auto-sends after
    * 1.5 s and took all of it with it. A judge watching a ninety-second demo
    * never saw the evidence for the integration the demo is about.
@@ -197,7 +197,7 @@ export default function StudyPage() {
     try {
       window.localStorage.setItem(convoKey(courseId), JSON.stringify({ notes, tutor, quiz, result }));
     } catch {
-      /* storage full or blocked — the server still has the record */
+      /* storage full or blocked, the server still has the record */
     }
   }, [courseId, convoFor, notes, tutor, quiz, result]);
 
@@ -224,7 +224,7 @@ export default function StudyPage() {
    * Open a subject: hand the browser's record in, take the merged view back.
    *
    * `syncRecord` replays this student's events and any subject they built into
-   * whichever instance answers, so the reply is a record that knows about both —
+   * whichever instance answers, so the reply is a record that knows about both, 
    * which is the difference between a self-built subject opening on its own
    * material and 404ing. A plain read is the fallback, and the mirror is the
    * fallback after that: a student who did the work keeps their map on screen
@@ -296,7 +296,7 @@ export default function StudyPage() {
   }
 
   /**
-   * One conversational turn — the single entry point for anything the student
+   * One conversational turn, the single entry point for anything the student
    * says or types.
    *
    * `/api/study/turn` owns the whole loop now: it reads the words, retrieves
@@ -312,12 +312,12 @@ export default function StudyPage() {
        * The subject resolves asynchronously after load (?subject → ?course →
        * stored → default). A turn sent before it lands used to vanish: an
        * early return with no error, while the typed box had already been
-       * cleared — words eaten with zero feedback. Say so, and offer the retry:
+       * cleared, words eaten with zero feedback. Say so, and offer the retry:
        * the closure still holds the text, so one tap replays it.
        */
       if (!courseId) {
         setTurnError({
-          message: "Still opening your subject — nothing was sent. Try again in a moment.",
+          message: "Still opening your subject, nothing was sent. Try again in a moment.",
           retry: () => void takeTurn(t),
         });
         return;
@@ -358,8 +358,8 @@ export default function StudyPage() {
         /*
          * The server already wrote the sentence and already said whether trying
          * again would help. Throwing a bare Error here discarded both, so a
-         * refusal the server marked `retryable: false` — words it will reject
-         * identically every time — came back as the generic network line with a
+         * refusal the server marked `retryable: false`, words it will reject
+         * identically every time, came back as the generic network line with a
          * Try again button under it. Read the body; offer the retry only when
          * the server said one was worth offering.
          */
@@ -369,7 +369,7 @@ export default function StudyPage() {
             | null;
           setTurnError({
             message:
-              body?.error?.message ?? "That didn't reach VIVA. Nothing was saved — try again.",
+              body?.error?.message ?? "That didn't reach VIVA. Nothing was saved, try again.",
             retry: body?.error?.retryable === false ? undefined : () => void takeTurn(t),
           });
           return;
@@ -413,7 +413,7 @@ export default function StudyPage() {
         }
       } catch {
         setTurnError({
-          message: "That didn't reach VIVA. Nothing was saved — try again.",
+          message: "That didn't reach VIVA. Nothing was saved, try again.",
           retry: () => void takeTurn(t),
         });
       } finally {
@@ -441,7 +441,7 @@ export default function StudyPage() {
     });
   }, [takeTurn]);
 
-  /** Recent turns, oldest first — recognition context for the next clip. */
+  /** Recent turns, oldest first, recognition context for the next clip. */
   const spokenContext = useMemo(
     () => [...notes].reverse().map((n) => n.event.cleanedTranscript),
     [notes]
@@ -450,7 +450,7 @@ export default function StudyPage() {
   const bandCounts = boot
     ? BAND_ORDER.map((key) => ({
         key,
-        // `seen` is exposureCount > 0, not "a record exists" — the same test
+        // `seen` is exposureCount > 0, not "a record exists", the same test
         // the map beside this row uses (Graph.bandOf, /map). Asking a different
         // question here is how one concept ends up with two band words on one
         // screen: a record with no exposures reads Not yet in the map and
@@ -620,7 +620,7 @@ export default function StudyPage() {
                 style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}
               >
                 Nothing yet. Hold <kbd className="mono rounded border hairline px-1.5 py-0.5 text-xs">Space</kbd> and say what
-                you think — or tap one of the lines above.
+                you think, or tap one of the lines above.
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1" role="log" aria-live="polite">

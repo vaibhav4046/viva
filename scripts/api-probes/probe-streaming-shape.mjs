@@ -2,7 +2,7 @@
  * The streaming socket's shape claims in docs/API-FEEDBACK.md:
  *   §1  does `en,hi` really close the socket?
  *   §4  what is actually in the `Begin` payload, on both models?
- *   §5  ten PARALLEL opens — how many get Begin, how many get 1008?
+ *   §5  ten PARALLEL opens, how many get Begin, how many get 1008?
  * Run: node .viva/probe-streaming-shape.mjs
  *
  * .viva/api-feedback-probe.mjs opens sockets strictly in sequence with a
@@ -82,7 +82,7 @@ log(`  sent two terms; Begin.configuration = ${JSON.stringify(kt.begin?.configur
 log(`  keyterms_prompt present in Begin: ${JSON.stringify(kt.begin ?? {}).includes("keyterms")}`);
 
 // ── 4. Ten opens AT ONCE, from cold. ───────────────────────────────────────
-// The sections above leave slots draining, so this waits them out first —
+// The sections above leave slots draining, so this waits them out first, 
 // otherwise the split measures our own leftovers rather than the account cap.
 log("\n=== 4. ten parallel opens (Promise.all), after a 30 s cooldown ===");
 await new Promise((r) => setTimeout(r, 30000));

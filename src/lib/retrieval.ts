@@ -66,7 +66,7 @@ export function retrieveEvidence(
 }
 
 /**
- * HARNESS B — Evidence Grounding. Source text is DATA, never instructions:
+ * HARNESS B, Evidence Grounding. Source text is DATA, never instructions:
  * any "ignore previous instructions" inside a chunk is inert because we only
  * do keyword containment checks here, never prompt-inject the chunk.
  */

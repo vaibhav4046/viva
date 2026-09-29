@@ -91,7 +91,7 @@ export default function ExamPage() {
       try {
         const sp = new URLSearchParams(window.location.search);
         if (sp.get("mode") === "teach") setMode("teach");
-      } catch { /* prerender — no window */ }
+      } catch { /* prerender, no window */ }
       setCourseId(readCourseParam() || readStoredCourse() || DEFAULT_COURSE_ID);
     })();
   }, []);
@@ -143,7 +143,7 @@ export default function ExamPage() {
       setResult(null);
       setVoiceState("idle");
     } catch {
-      setFailure({ message: "Couldn't load a question — the exam service didn't respond.", retry: () => void start() });
+      setFailure({ message: "Couldn't load a question, the exam service didn't respond.", retry: () => void start() });
     } finally {
       setBusy(null);
     }
@@ -168,14 +168,14 @@ export default function ExamPage() {
       });
       setMastery(d.mastery);
       // Written down here as well as on whichever instance graded it, carrying
-      // the id the replay dedupes on — the same two lines /study has. Without
+      // the id the replay dedupes on, the same two lines /study has. Without
       // them a quiz answer is not in the browser's record, so when the server
       // copy shrinks there is nothing to defend it with and the recall the
       // student watched register goes back to "Not yet".
       rememberEvent(d.event, clientEventId);
       rememberMastery(d.mastery);
     } catch {
-      setFailure({ message: "Couldn't score that answer — it may not have been recorded.", retry: () => void answer(transcript, origin) });
+      setFailure({ message: "Couldn't score that answer, it may not have been recorded.", retry: () => void answer(transcript, origin) });
     } finally {
       setBusy(null);
     }
@@ -220,7 +220,7 @@ export default function ExamPage() {
       rememberEvent(d.event, clientEventId);
       rememberMastery(d.mastery);
     } catch {
-      setFailure({ message: "Couldn't score that explanation — it may not have been recorded.", retry: () => void answerTeach(transcript, origin) });
+      setFailure({ message: "Couldn't score that explanation, it may not have been recorded.", retry: () => void answerTeach(transcript, origin) });
     } finally {
       setBusy(null);
     }
@@ -323,8 +323,8 @@ export default function ExamPage() {
                   {/*
                     * One door, and it is the one with the label on it.
                     *
-                    * This screen used to carry a whole mic — waveform, language
-                    * picker, typed box — above a ghost "Start the quiz" pill 325
+                    * This screen used to carry a whole mic, waveform, language
+                    * picker, typed box, above a ghost "Start the quiz" pill 325
                     * px below it. The filled lime button was therefore the
                     * loudest thing on a page that has not asked a question yet,
                     * and it was also a lie: its onSubmit threw the transcript
@@ -334,7 +334,7 @@ export default function ExamPage() {
                     *
                     * The mic belongs to the question, so it now arrives with
                     * one. Paper pill rather than lime, because lime belongs to
-                    * the mic — the same rule /today and the landing hero keep.
+                    * the mic, the same rule /today and the landing hero keep.
                     */}
                   <div className="mt-6">
                     <button onClick={start} disabled={busy === "start"} className="btn-primary">
@@ -455,7 +455,7 @@ export default function ExamPage() {
                     </div>
                     <div className="mt-4">
                       <button onClick={startTeach} disabled={busy !== null} className="btn-ghost !py-2 text-sm">
-                        Try again — 45 seconds
+                        Try again, 45 seconds
                       </button>
                     </div>
                   </section>

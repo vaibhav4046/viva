@@ -4,7 +4,7 @@
  * Wispr Flow, OpenWhispr and the OS dictation services do not talk to VIVA;
  * they paste a finished sentence into whatever field has focus. A human typing
  * produces a character or two per input event, so more than a line of text
- * arriving inside a third of a second was spoken, not typed — and the turn
+ * arriving inside a third of a second was spoken, not typed, and the turn
  * should be tagged that way so a learner with their own dictation tool still
  * gets the full loop.
  *
@@ -33,7 +33,7 @@ export function emptyBurst(): BurstState {
 /**
  * Fold one input event into the window. Immutable: returns the next state.
  *
- * Once a field has taken a burst the origin stays external — later
+ * Once a field has taken a burst the origin stays external, later
  * single-character corrections do not turn a dictated sentence back into a
  * typed one, because the body of the text still came from a dictation tool.
  *

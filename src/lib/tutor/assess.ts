@@ -26,7 +26,7 @@ export const ASSESS_SYSTEM = [
   "Judge substance, not wording. Do not penalise fillers or grammar.",
   // Measured: a nonsense sentence containing three of the marking words came
   // back "correct" with "you identified that without positional information a
-  // Transformer cannot distinguish the order of tokens" — a description of
+  // Transformer cannot distinguish the order of tokens", a description of
   // reasoning the learner never did. The server replaces correctPoints with
   // quotes of their own words; these lines stop the same invention in prose.
   "Credit only what the learner actually wrote. Never describe understanding they did not show, and never restate their sentence as if it were yours.",
@@ -60,7 +60,7 @@ function passageBlock(chunks: SourceChunk[]): string {
 /**
  * Grade one answer. The model does the judging, with the passages in front of
  * it; keyword coverage is the fallback when the model is unavailable and a
- * floor underneath it — an answer that affirms every required point does not
+ * floor underneath it, an answer that affirms every required point does not
  * come back "incorrect", whatever the model says.
  *
  * Three things keyword coverage may NOT do, all of them measured failures:
@@ -81,8 +81,8 @@ function passageBlock(chunks: SourceChunk[]): string {
  *     about a student who understood.
  *
  * `check` is the deterministic read of the same passages (`checkClaim`). It
- * cannot make a verdict correct — only the model or a supporting line can do
- * that — but a contradiction in it removes "correct", because a verdict may
+ * cannot make a verdict correct, only the model or a supporting line can do
+ * that, but a contradiction in it removes "correct", because a verdict may
  * never be more generous than the source it was checked against.
  */
 export async function gradeAnswer(input: {

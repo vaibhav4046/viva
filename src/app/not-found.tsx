@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
  * 404.
  *
  * Without this file Next.js serves its own, and its own ships an inline
- * `body { background: #fff }` — so an unmatched address inside an obsidian
+ * `body { background: #fff }`, so an unmatched address inside an obsidian
  * product handed the student a full-screen white sheet with black "404 | This
  * page could not be found.", no wordmark, no nav and nothing to click. It was
  * the one screen in VIVA the design system did not reach, and the students who
@@ -16,7 +16,7 @@ import { AppShell } from "@/components/AppShell";
  * bar and the five destinations are the way back, and reproducing them here
  * would be a sixth copy of the navigation that drifts on the first change.
  *
- * `force-dynamic` for the same reason as the app routes — src/proxy.ts serves
+ * `force-dynamic` for the same reason as the app routes, src/proxy.ts serves
  * a `script-src 'nonce-…' 'strict-dynamic'` policy, and only a per-request
  * document carries the nonce on Next's bootstrap scripts.
  */
@@ -37,7 +37,7 @@ export default function NotFound() {
           <h1 className="heading mt-2 text-2xl">This page isn&apos;t here.</h1>
           <p className="prose-measure mt-3 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
             The address may have a typo in it, or the link may be older than the page it points at.
-            Nothing you have said is lost — your subjects, your notes and your map are where you
+            Nothing you have said is lost, your subjects, your notes and your map are where you
             left them.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

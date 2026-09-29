@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Next.js 16 Proxy (the `middleware` convention is deprecated — see
+ * Next.js 16 Proxy (the `middleware` convention is deprecated, see
  * node_modules/next/dist/docs/…/content-security-policy.md and proxy.md).
  *
  * CSP with a per-request nonce:
@@ -32,14 +32,14 @@ export function proxy(request: NextRequest) {
    * This used to carry a STATIC_PAGES exemption: a prerendered document's
    * inline bootstrap is generated before any request exists, so no nonce can
    * be attached and a nonce policy blocks the page's own scripts. That set
-   * went stale the moment routes were renamed, and the result was severe —
+   * went stale the moment routes were renamed, and the result was severe, 
    * `/` and `/study` painted and then never hydrated, with a dozen CSP errors
    * per load, because they were prerendered but served the nonce policy.
    *
    * The fix is upstream: every page is dynamically rendered on purpose (the
    * landing awaits headers(), the app group sets force-dynamic), so Next
    * stamps its own bootstrap with this nonce and `'strict-dynamic'` holds
-   * everywhere. If you ever make a route static again, it will break loudly —
+   * everywhere. If you ever make a route static again, it will break loudly, 
    * that is the intent. Do not reintroduce an allowlist; make the page dynamic.
    */
   const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`;
@@ -62,7 +62,7 @@ export function proxy(request: NextRequest) {
     // streaming-only token from /api/voice/stream-token, never the API key.
     //
     // Scoped as tightly as the mechanism allows: the exact host, and `wss:`
-    // only — an injected script gets a WebSocket to AssemblyAI's streaming
+    // only, an injected script gets a WebSocket to AssemblyAI's streaming
     // endpoint and no new fetch target anywhere.
     "connect-src 'self' https://*.vercel-insights.com wss://streaming.assemblyai.com wss://agents.assemblyai.com",
     "frame-src 'none'",
@@ -88,7 +88,7 @@ export const config = {
   matcher: [
     /*
      * Everything except:
-     * - _next/static, _next/image (build assets — no CSP needed, avoids 431s)
+     * - _next/static, _next/image (build assets, no CSP needed, avoids 431s)
      * - favicon.ico, brand/ (static public assets)
      * and except prefetch requests (they never render a document).
      */

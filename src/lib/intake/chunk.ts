@@ -1,8 +1,8 @@
 import type { SourceChunk } from "@/lib/types";
 
 /**
- * Text in, passages out. Cut where the writer cut — at their paragraphs, their
- * bullet lists, their numbered steps — and only fall back to counting
+ * Text in, passages out. Cut where the writer cut, at their paragraphs, their
+ * bullet lists, their numbered steps, and only fall back to counting
  * characters inside a paragraph too long to be a passage on its own. Never
  * across a page boundary: a citation has to be able to say which page it came
  * from.
@@ -24,7 +24,7 @@ export function normalizeText(raw: string): string {
   return raw
     // A Windows line ending is ONE break, not two. `/\r/` alone turned every
     // "\r\n" into a blank line, so a paste off a Windows machine had a
-    // paragraph break between every pair of lines — invisible while passages
+    // paragraph break between every pair of lines, invisible while passages
     // were cut by character count, and a citation that miscounts the
     // student's own paragraphs now that they are cut where the writer cut.
     .replace(/\r\n?/g, "\n")
@@ -58,7 +58,7 @@ function wordWindows(clean: string): string[] {
  *
  * Passages used to be cut at 800 characters and snapped to the nearest space,
  * so a judge reading their own notes back got "Passage 2: correct validity
- * check passes a (min, max) range down the recursion" — a passage opening on
+ * check passes a (min, max) range down the recursion", a passage opening on
  * the second half of a clause. Whole sentences are packed instead.
  *
  * This is now the only place that guesses at a boundary, so it is the only
@@ -116,7 +116,7 @@ function sentenceWindows(clean: string): string[] {
 /**
  * The blocks the writer left: paragraphs, separated by a blank line. A run of
  * bullets or numbered steps with no blank line between them is one block,
- * which is the point — a list is one idea and belongs in one passage.
+ * which is the point, a list is one idea and belongs in one passage.
  */
 function paragraphsOf(text: string): string[] {
   return text
@@ -136,7 +136,7 @@ type Window = { text: string; paragraphs: [number, number] | null };
  * equation: 1." and the next opened with it, one ran from the turnover number
  * through to the intercepts of a Lineweaver-Burk plot, and the last was a
  * remainder. Whole sentences did not fix that, because the cut was never
- * wrong by a few words — it was in a place the writer had not put one. Their
+ * wrong by a few words, it was in a place the writer had not put one. Their
  * own blank lines are a better boundary than any character count, and they
  * cost nothing to read.
  *
@@ -185,7 +185,7 @@ function windows(text: string, base: number): { passages: Window[]; paragraphs: 
  * Section first, then the page number, then where in the document it is, and
  * only then the source's own name.
  *
- * Every passage of a paste used to be stamped with the source's own name —
+ * Every passage of a paste used to be stamped with the source's own name, 
  * "§Your notes", the same string on all seven of them, which locates nothing.
  * A student checking whether they were quoted correctly needs somewhere to
  * look: their heading if they wrote one, and failing that the paragraph,
@@ -198,7 +198,7 @@ function locatorFor(page: IntakePage, at: [number, number] | null, fallbackSecti
   if (section && page.page) return { section, page: page.page };
   if (section) return { section };
   if (page.page) return { section: `Page ${page.page}`, page: page.page };
-  if (at) return { section: at[0] === at[1] ? `Paragraph ${at[0]}` : `Paragraphs ${at[0]}–${at[1]}` };
+  if (at) return { section: at[0] === at[1] ? `Paragraph ${at[0]}` : `Paragraphs ${at[0]}-${at[1]}` };
   return { section: fallbackSection };
 }
 
@@ -216,7 +216,7 @@ export function chunkPages(
    * How many passages to cut before stopping. The default is the ceiling a
    * subject ships with; `sourcesFrom` asks for one more than it intends to
    * keep, which is the only way to tell "this document fitted" from "this
-   * document was cut off here" — and the student is owed that difference.
+   * document was cut off here", and the student is owed that difference.
    */
   limit: number = MAX_CHUNKS
 ): SourceChunk[] {

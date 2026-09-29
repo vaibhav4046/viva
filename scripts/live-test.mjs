@@ -2,13 +2,13 @@
  * Run the live AssemblyAI suite on purpose.
  *
  * `VIVA_LIVE=1 vitest …` is not portable to the shell npm uses on Windows, and
- * without the flag `vitest.config.mts` excludes the suite — which is how it
+ * without the flag `vitest.config.mts` excludes the suite, which is how it
  * came to be skipped silently on every run, including its own script. Setting
  * it here keeps one command that works everywhere.
  *
  * What it spends depends on whether the audio fixture is on disk. Without it
  * the suite only checks provider resolution, error mapping and recorded shapes
- * and costs nothing — which is what it did for its whole life, while this
+ * and costs nothing, which is what it did for its whole life, while this
  * comment claimed otherwise and a 623 ms pass got quoted as integration
  * evidence. With `.viva/fixtures/spoken-sentence.wav` present it sends one real
  * clip to the Dictation endpoint and asserts the words that come back. That is

@@ -18,7 +18,7 @@ import {
 import { mergeLearner, syncRecord, type LearnerPayload } from "@/components/mirror";
 
 /*
- * /map — what VIVA has picked up about this subject.
+ * /map, what VIVA has picked up about this subject.
  *
  * One view, not two. The old page split the same data into "Human" and
  * "Exploration" tabs, which meant a student had to pick a mode before seeing
@@ -56,7 +56,7 @@ export default function MapPage() {
        * write lands in one instance's own /tmp, so the instance that answers
        * this read may never have seen the turn the student just did.
        * `syncRecord` hands the browser's copy back first, and `mergeLearner`
-       * unions what comes back with what the browser holds — so the map is
+       * unions what comes back with what the browser holds, so the map is
        * never thinner than the session behind it. A hand-back that fails is
        * not an error a student should see: fall back to the plain read, and
        * failing that, to the mirror alone.

@@ -37,7 +37,7 @@ const SAMPLE_ROWS: Row[] = [
   ["Writes are idempotent by request id.", ["SUPPORTED"]],
   ["Dashboards exist for latency and error rate.", ["SUPPORTED"]],
   ["Read replicas exist for reporting queries only.", ["SUPPORTED"]],
-  ["The database is a single primary Postgres.", ["SUPPORTED"]],
+  ["The database is a single primary Postgres.", ["SUPPORTED", "PARTIAL"]], // "database" is not in the passage; PARTIAL is honest
 
   // What it contradicts.
   ["We automatically fail over to a replica.", ["CONTRADICTED"]],

@@ -62,7 +62,7 @@ describe("the claim engine, on the sample document", () => {
     const d = doc();
     const v = evaluateClaim("Failed calls are retried automatically up to 5 times.", d);
     expect(v.status).toBe("CONTRADICTED");
-    expect(v.basis).toMatch(/gives 3, not 5/);
+    expect(v.basis).toMatch(/gives 3.*not 5/);
     expect(evaluateClaim("Failed calls are retried automatically up to 3 times.", d).status).toBe("SUPPORTED");
   });
 

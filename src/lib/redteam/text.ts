@@ -13,15 +13,29 @@ const STOP = new Set(
     "we,our,us,you,your,they,their,them,he,she,his,her,i,my,me,there,here,so,very,really,just,also,then,than,when,if," +
     "will,would,should,can,could,may,might,must,shall,do,does,did,done,have,has,had,into,onto,over,under,about,any,all," +
     "each,every,both,some,such,which,who,whom,what,why,how,where,while,because,per,via,up,out,off,too,yes,yeah,well," +
-    "actually,basically,currently,always,still,even,though,although,thing,things,stuff,way,make,made,get,got,use,used,uses,using")
+    "actually,basically,currently,always,still,even,though,although,thing,things,stuff,way,make,made,get,got,use,used,uses,using," +
+    "least,most,than,within,exactly,approximately,around,roughly")
     .split(",")
 );
 
 /** Words that flip what a clause asserts. Kept separate from STOP on purpose. */
-export const NEGATION = /\b(?:not|no|never|neither|nor|cannot|cant|isnt|arent|doesnt|dont|didnt|wont|wasnt|werent|hasnt|havent|lack|lacks|lacking|absent|missing|disabled|excluded|nonexistent|unsupported|unimplemented|unconfigured)\b/i;
+export const NEGATION = /\b(?:not|no|never|neither|nor|cannot|cant|isnt|arent|doesnt|dont|didnt|wont|wasnt|werent|hasnt|havent|lack|lacks|lacking|absent|missing|disabled|excluded|nonexistent|unsupported|unimplemented|unconfigured|out of scope|not in scope|non-goal)\b/i;
 
 /** "Planned", "TBD", "future work": the document says it is not true today. */
-export const NOT_YET = /\b(?:planned|future work|roadmap|tbd|todo|not yet|intend(?:s|ed)? to|will eventually|proposed|considering|out of scope|non-goal)\b/i;
+export const NOT_YET = /\b(?:future work|roadmap|tbd|todo|not yet|will eventually|considering)\b/i;
+
+/**
+ * A document stating a plan, an expectation or a recommendation rather than a
+ * fact. A claim that states the same thing as fact is at most PARTIAL: "GA is
+ * planned for 1 June" backs "GA is 1 June" only as a plan.
+ */
+export const SOFT = /\b(?:should|may|might|could|expects?|expected|expecting|aims? to|planned|plans? to|planning to|targets? to|estimates?|estimated|projected|forecast(?:s|ed)?|intends?|intended|hopes? to|proposed)\b/i;
+
+/** Words that make a claim absolute. If the passage does not say them too, it is not backing the absolute. */
+export const ABSOLUTE = /\b(?:always|never|all|every|most|majority|guarantees?|guaranteed|must|without exception|in every case)\b/i;
+
+/** Labels whose number names a thing rather than counting it: "Severity 1", "version 2", "tier 3". */
+export const IDENT_SLOTS: ReadonlySet<string> = new Set(["severity", "sev", "version", "tier", "level", "phase", "priority", "step", "round", "stage", "wave", "option", "plan", "release", "p"]);
 
 /** A speaker who is not committing to the sentence. */
 export const HEDGE = /\b(?:maybe|perhaps|probably|possibly|i think|i guess|i believe|not sure|kind of|sort of|might|i suppose)\b/i;
@@ -104,9 +118,7 @@ const ALIAS: Record<string, string> = {
   crash: "unavailable",
   crashes: "unavailable",
   one: "single",
-  postgres: "database",
-  postgresql: "database",
-  mysql: "database",
+  postgresql: "postgres",
   keep: "retain",
   keeps: "retain",
   kept: "retain",
@@ -172,7 +184,7 @@ export function compact(text: string): string {
 /** Content stems of a string: stopwords out, compounds joined, stems canonical. */
 export function contentStems(text: string): string[] {
   const out: string[] = [];
-  for (const w of compact(text).split(/[^a-z0-9]+/)) {
+  for (const w of compact(normaliseAmounts(text)).split(/[^a-z0-9]+/)) {
     if (!w || STOP.has(w)) continue;
     if (/^\d+$/.test(w)) continue; // numbers are compared separately, with their unit
     const s = stem(w);
@@ -195,7 +207,7 @@ export function stemSet(text: string): Set<string> {
  */
 export function clauses(sentence: string): string[] {
   const base = sentence
-    .split(/[;:]|,\s*(?:but|and then|so)\s+|\s+(?:but|however|although|whereas|instead)\s+|\s+—\s+|\s+-\s+/i)
+    .split(/[;:]|,\s*(?:but|and then|so|provided|unless|except|as long as)\s+|\s+(?:but|however|although|whereas|instead|provided that|unless|as long as)\s+|\s+—\s+|\s+-\s+/i)
     .map((c) => c.trim())
     .filter(Boolean);
   const out: string[] = [];
@@ -220,7 +232,7 @@ export function sentences(paragraph: string): string[] {
 
 export type Figure = { value: number; unit: string; raw: string };
 
-const NUMBER_WORDS: Record<string, number> = {
+export const NUMBER_WORDS: Record<string, number> = {
   two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
   twenty: 20, thirty: 30, fifty: 50, hundred: 100, thousand: 1000, twice: 2, thrice: 3,
 };
@@ -244,11 +256,77 @@ export function figures(text: string): Figure[] {
  * excluded. Version numbers count: "TLS 1.2" is not "TLS 1.3".
  */
 export function numbers(text: string): Set<string> {
-  const t = compact(stripClock(text));
+  const t = normaliseAmounts(compact(stripClock(text)));
   const out = new Set<string>();
   for (const m of t.matchAll(/\b\d+(?:\.\d+)*\b/g)) out.add(m[0]);
   for (const m of t.matchAll(/\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|fifty|hundred|thousand|twice|thrice)\b/g)) out.add(String(NUMBER_WORDS[m[1]]));
   return out;
+}
+
+/**
+ * "3,000" is 3000, "$2.4M" and "2.4 million dollars" are the same amount,
+ * "$4.1B" is 4100 million. Amounts are compared in one spelling so a
+ * formatting difference is never read as a different number.
+ */
+export function normaliseAmounts(t: string): string {
+  return t
+    .replace(/(\d),(\d{3})\b/g, "$1$2")
+    .replace(/(\d),(\d{3})\b/g, "$1$2")
+    .replace(/(\d)\s*%/g, "$1 percent")
+    .replace(/\$\s?(\d+(?:\.\d+)?)\s*(?:mn|m|million)\b/g, (_, n) => ` ${Number(n)} million `)
+    .replace(/\$\s?(\d+(?:\.\d+)?)\s*(?:bn|b|billion)\b/g, (_, n) => ` ${Math.round(Number(n) * 1000 * 1000) / 1000} million `)
+    .replace(/\b(\d+(?:\.\d+)?)\s*billion\b/g, (_, n) => ` ${Math.round(Number(n) * 1000 * 1000) / 1000} million `)
+    .replace(/\$\s?(\d+(?:\.\d+)?)\s*k\b/g, (_, n) => ` ${Number(n) * 1000} `)
+    .replace(/\$\s?(\d)/g, "$1");
+}
+
+export type Bound = "exact" | "min" | "max";
+export type Quantity = { value: number; unit: string; bound: Bound; strict: boolean; slot: string };
+
+const TIME_SECONDS: Record<string, number> = { second: 1, minut: 60, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000 };
+
+/** A time quantity in seconds, when the unit is a time unit. */
+export function inSeconds(q: Quantity): number | null {
+  const s = TIME_SECONDS[q.unit];
+  return s ? q.value * s : null;
+}
+
+/**
+ * Every number in a text with what it counts, the bound around it ("at least",
+ * "up to", "more than", "within") and the word before it (its slot: "TLS 1.2",
+ * "autumn 2023"). Clock times are excluded; they are compared separately.
+ */
+export function quantities(text: string): Quantity[] {
+  const t = normaliseAmounts(compact(stripClock(text)));
+  const toks = t.split(/[^a-z0-9.]+/).map((w) => w.replace(/^\.+|\.+$/g, "")).filter(Boolean);
+  const out: Quantity[] = [];
+  for (let i = 0; i < toks.length; i++) {
+    const w = toks[i];
+    const value = /^\d+(?:\.\d+)?$/.test(w) ? Number(w) : NUMBER_WORDS[w];
+    if (value === undefined || !Number.isFinite(value)) continue;
+    let j = i + 1;
+    while (j < toks.length && /^(?:x|times?)$/.test(toks[j]) && toks[j] !== "times") j++;
+    const next = toks[j] ?? "";
+    const unit = next && !/^\d/.test(next) && !STOP.has(next) ? stem(next) : "";
+    const before = toks.slice(Math.max(0, i - 3), i).join(" ");
+    let bound: Bound = "exact";
+    let strict = false;
+    if (/(?:at least|minimum of|no fewer than|no less than)$/.test(before)) bound = "min";
+    else if (/(?:more than|over|above|greater than|exceeds?|exceeding)$/.test(before)) (bound = "min"), (strict = true);
+    else if (/(?:up to|at most|maximum of|no more than|within|not exceed|capped at)$/.test(before)) bound = "max";
+    else if (/(?:less than|under|below|fewer than)$/.test(before)) (bound = "max"), (strict = true);
+    let k = i - 1;
+    while (k >= 0 && (STOP.has(toks[k]) || /^(?:least|most|than|up|over|under|above|below|within|to|of)$/.test(toks[k]))) k--;
+    out.push({ value, unit, bound, strict, slot: k >= 0 ? stem(toks[k]) : "" });
+  }
+  return out;
+}
+
+/** Does value `v` satisfy quantity `q`'s bound? */
+export function satisfies(v: number, q: Quantity): boolean {
+  if (q.bound === "exact") return v === q.value;
+  if (q.bound === "min") return q.strict ? v > q.value : v >= q.value;
+  return q.strict ? v < q.value : v <= q.value;
 }
 
 const CLOCK = /\b(\d{1,2}):(\d{2})\s*(am|pm)?\b|\b(\d{1,2})\s*(am|pm)\b|\b(midnight|noon)\b/gi;

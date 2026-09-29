@@ -1,9 +1,10 @@
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
-import { getStore } from "@/lib/store";
+import { getStore, storeDurability } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { toolDefsForWire } from "@/lib/oral/tools";
-import { ORAL_EXAMINER_RULES } from "@/lib/oral/prompt";
+import { buildOralSystemPrompt, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
+import { buildLearnerBrief } from "@/lib/oral/learner-brief";
 import { err } from "@/lib/types";
 
 /**
@@ -38,26 +39,34 @@ export async function GET(req: Request): Promise<Response> {
     const concepts = subject.concepts.slice(0, 40).map((c) => c.name);
     const keyterms = keytermsFrom(subject.concepts);
 
-    const system_prompt = [
-      ORAL_EXAMINER_RULES,
-      "",
-      `THE STUDENT'S SUBJECT: ${subject.title}`,
-      concepts.length ? `CONCEPTS IN PLAY: ${concepts.join(", ")}` : "",
-      `SOURCE LANGUAGES: ${(subject.languageCodes ?? ["en"]).join(", ")}`,
-      subject.sources?.length
-        ? `THEIR SOURCES: ${subject.sources.map((s) => s.title).join("; ")}`
-        : "",
-      "",
-      "Open the exam by asking for the first thing they want to be examined on.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // The stored map for this learner and this subject: the examiner opens on the
+    // weakest concept and is told, in words, when there is no history or the
+    // store is the temporary one. A failed read is an empty brief, never a guess.
+    const [mastery, durability] = await Promise.all([
+      store.getMastery(identity.userId).catch(() => ({})),
+      storeDurability().catch(() => ({ durable: false })),
+    ]);
+    const brief = buildLearnerBrief({
+      concepts: subject.concepts.map((c) => ({ id: c.id, name: c.name })),
+      mastery,
+      durable: durability.durable,
+    });
+
+    const system_prompt = buildOralSystemPrompt({
+      subjectTitle: subject.title,
+      concepts,
+      languages: subject.languageCodes ?? ["en"],
+      sourceTitles: subject.sources?.map((s) => s.title) ?? [],
+      brief,
+    });
 
     return withIdentityCookie(
       Response.json(
         {
           subjectId: subject.id,
           system_prompt,
+          promptVersion: ORAL_PROMPT_VERSION,
+          memory: { status: brief.status, durable: brief.durable, note: brief.note, opening: brief.opening?.name ?? null },
           greeting: "You're being examined. Tell me what you want to be asked on, and I'll start there.",
           // Only the fields the turn-detection reference documents. An earlier
           // version sent undocumented names (silence_duration_ms, interrupt_*),

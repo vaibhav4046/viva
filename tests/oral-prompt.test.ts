@@ -23,6 +23,7 @@ describe("examiner prompt", () => {
     expect(t).toMatch(/Never resume the interrupted sentence/);
     expect(t).toMatch(/weakest concept/i);
     expect(t).toMatch(/Alternate recall, why, and application/);
+    expect(t).toMatch(/next_focus/);
     expect(t).toContain(`After ${ORAL_MAX_QUESTIONS} questions`);
     expect(t).toMatch(/never lecture/i);
   });

@@ -8,6 +8,8 @@ import { getStore } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { getCourse } from "@/lib/courses";
 import { runOralTool, MAX_ANSWER, type OralVerdict } from "@/lib/oral/tools";
+import { turnResultOf, type Turn } from "@/lib/oral/next-concept";
+import { nextFocusFor } from "@/lib/oral/steering";
 import { resolveConceptId } from "@/lib/oral/debrief";
 import { err } from "@/lib/types";
 
@@ -76,6 +78,8 @@ export async function POST(req: Request): Promise<Response> {
     // this is the only path that can hand a demo session its material.
     const course = subject.origin === "starter" || subject.demo ? getCourse(subject.id) : null;
     const chunks = await store.getCourseChunks(identity.userId, subject.id);
+    // The answer this call checked, if it checked one: the next question is chosen from it.
+    let current: Turn | null = null;
 
     const { result, isError } = await runOralTool(
       {
@@ -88,6 +92,7 @@ export async function POST(req: Request): Promise<Response> {
           const claim = (v.kind === "claim" ? v.claim : v.answer).slice(0, MAX_ANSWER);
           const conceptId = resolveConceptId(subject.concepts, v.kind === "claim" ? v.concept : null, claim);
           const assessment = v.kind === "claim" ? (v.verdict === "supported" ? "correct" : "incorrect") : v.grade;
+          current = { conceptId, result: turnResultOf(v) };
           // After the response: the store write measured about a second, and the
           // agent is waiting on this result to speak. A failed write is logged.
           after(async () => { try { await store.recordLearning(identity.userId, {
@@ -158,6 +163,29 @@ export async function POST(req: Request): Promise<Response> {
       name,
       args
     );
+
+    if (!isError && !current && name === "verify_claim" && result.verdict === "not_in_material") {
+      const claim = typeof args?.claim === "string" ? args.claim : "";
+      const concept = typeof args?.concept === "string" ? args.concept : null;
+      current = { conceptId: resolveConceptId(subject.concepts, concept, claim), result: "unsettled" };
+    }
+    if (!isError && current) {
+      // A failed read leaves the result as the tool returned it: no focus, and the prompt says what to do then.
+      try {
+        const [mastery, events] = await Promise.all([store.getMastery(identity.userId), store.listEvents(identity.userId, 200)]);
+        const focus = nextFocusFor({
+          concepts: subject.concepts.map((c) => ({ id: c.id, name: c.name })),
+          mastery,
+          events,
+          sessionId: sessionId ?? `oral_${traceId}`,
+          current,
+          now: new Date().toISOString(),
+        });
+        if (focus) result.next_focus = focus;
+      } catch (e) {
+        serverLog("oral_tool.focus_failed", traceId, { err: (e as Error).message?.slice(0, 160) });
+      }
+    }
 
     serverLog("oral_tool.called", traceId, { tool: name, isError, chunks: chunks.length });
     return done(

@@ -49,8 +49,12 @@ export function OralScreen(p: OralScreenProps) {
   const state = p.phase === "idle" && p.state !== "ERROR" ? "IDLE" : p.state;
   const controls = controlsFor(p.phase, state, p.fatal ?? false);
   const stopped = p.phase !== "running";
-  const line = stateLine(state, { phase: p.phase, page: p.page });
-  const hint = p.phase === "loading" ? "Fetching your subject and opening the exam." : stateHint(state, p.phase === "ended" ? "ended" : p.phase === "idle" ? "idle" : "running");
+  const line = p.typedSlot ? "Typing" : stateLine(state, { phase: p.phase, page: p.page });
+  const hint = p.typedSlot
+    ? "You are answering in writing. The microphone is off."
+    : p.phase === "loading"
+      ? "Fetching your subject and opening the exam."
+      : stateHint(state, p.phase === "ended" ? "ended" : p.phase === "idle" ? "idle" : "running");
   const question = p.examinerText.trim();
   const startLabel = p.phase === "ended" || state === "ENDED" ? "Start another exam" : p.failure ? "Start again" : "Start the exam";
 
@@ -88,8 +92,8 @@ export function OralScreen(p: OralScreenProps) {
                 </QuestionCard>
                 {p.examinerCut && question ? <p className="mono oral-cut">You cut in here. The examiner dropped the rest of the sentence.</p> : null}
               </div>
-              {stopped ? <HeadphoneNote /> : null}
-              {!stopped || p.learnerText ? (
+              {p.phase === "idle" || p.phase === "ended" ? <HeadphoneNote /> : null}
+              {p.phase !== "idle" || p.learnerText ? (
                 <section className="oral-line" aria-label="Your words">
                   <p className="eyebrow">You</p>
                   <p className={p.learnerText ? undefined : "oral-line-empty"}>{p.learnerText || "Waiting for you to speak."}</p>

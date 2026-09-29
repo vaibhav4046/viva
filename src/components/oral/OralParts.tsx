@@ -28,7 +28,7 @@ export function HeadphoneNote() {
       <ul className="grid gap-1" style={{ color: "var(--text-secondary)", fontSize: "var(--fs-body-sm)" }}>
         <li>Put headphones on. On speakers the microphone hears the examiner and it interrupts itself.</li>
         <li>Allow the microphone when the browser asks. If you would rather type, use Type instead.</li>
-        <li>You can talk over the examiner at any time to cut in.</li>
+        <li>You can talk over the examiner to cut in. While it checks your pages, what you say is held until the check finishes.</li>
       </ul>
     </section>
   );

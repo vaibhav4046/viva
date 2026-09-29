@@ -25,8 +25,11 @@ type SessionConfig = Parameters<typeof startOralExam>[0]["config"];
 type SessionResponse = SessionConfig & { subjectId: string; error?: { code?: string; message?: string } };
 
 const MAX_ENTRIES = 80;
+/** No exam reaches LISTENING later than this after Start: token, socket and session.ready included. */
+export const CONNECT_TIMEOUT_MS = 25_000;
+const SESSION_FETCH_TIMEOUT_MS = 15_000;
 const NOTICE_MS = 12_000;
-const NO_PUNCT_BEFORE = /^[.,!?;:%)\]'"’”]/;
+const NO_PUNCT_BEFORE = /^[.,!?;:%)\]'"ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â]/;
 
 function subjectParam(): string {
   if (typeof window === "undefined") return "";
@@ -66,6 +69,9 @@ export function useOralSession(opts: { diag: boolean }) {
   const replyRef = useRef<string>("");
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const summaryRef = useRef<{ turns: number; interruptions: number } | null>(null);
+  /** Bumped by every Start, End and Type instead, so a start that is still waiting on the microphone prompt can tell it was abandoned. */
+  const attemptRef = useRef(0);
+  const reachedListeningRef = useRef(false);
 
   const readLevels = useCallback(() => micRef.current?.levels() ?? { learner: 0, examiner: 0 }, []);
 
@@ -155,6 +161,11 @@ export function useOralSession(opts: { diag: boolean }) {
   }, [buildRecord]);
 
   const begin = useCallback(async () => {
+    // A hot mic from an earlier attempt must never survive into a new one.
+    micRef.current?.cancel();
+    micRef.current = null;
+    const attempt = ++attemptRef.current;
+    reachedListeningRef.current = false;
     setFailure(null);
     setNotice(null);
     setDebrief({ status: "idle" });
@@ -179,6 +190,7 @@ export function useOralSession(opts: { diag: boolean }) {
     }
 
     const fail = (view: FailureView) => {
+      if (attemptRef.current !== attempt) return;
       micRef.current?.cancel();
       micRef.current = null;
       setFailure(view);
@@ -186,8 +198,9 @@ export function useOralSession(opts: { diag: boolean }) {
     };
 
     try {
-      const res = await fetch(`/api/oral/session${subjectParam()}`, { cache: "no-store" });
+      const res = await fetch(`/api/oral/session${subjectParam()}`, { cache: "no-store", signal: AbortSignal.timeout(SESSION_FETCH_TIMEOUT_MS) });
       const body = (await res.json().catch(() => null)) as SessionResponse | null;
+      if (attemptRef.current !== attempt) return;
       if (!res.ok || !body?.system_prompt) {
         const code = body?.error?.code ?? "ORAL_UNAVAILABLE";
         const sentence = body?.error?.message ?? voiceMessage(code);
@@ -209,7 +222,9 @@ export function useOralSession(opts: { diag: boolean }) {
           },
           subjectId,
           onState: (m) => {
+            if (attemptRef.current !== attempt) return;
             if (m.sessionId) sessionIdRef.current = m.sessionId;
+            if (m.state === "LISTENING" || m.state === "SPEAKING") reachedListeningRef.current = true;
             setMachine(m);
           },
           onTurn: (turn) => {
@@ -237,7 +252,10 @@ export function useOralSession(opts: { diag: boolean }) {
             showNotice(view, !sticky);
           },
           onEnded: (summary) => {
+            if (attemptRef.current !== attempt) return;
             summaryRef.current = { turns: summary.turns, interruptions: summary.interruptions };
+            // The service can end the session without being asked. Release the microphone either way.
+            micRef.current?.cancel();
             micRef.current = null;
             setPhase("ended");
             logEvent("oral_ended", { turns: summary.turns, tools: summary.toolCalls, dropped: summary.discards });
@@ -257,6 +275,11 @@ export function useOralSession(opts: { diag: boolean }) {
           },
         }
       );
+      if (attemptRef.current !== attempt) {
+        // Type instead or End was chosen while the microphone prompt was open. Do not start the exam.
+        handle.cancel();
+        return;
+      }
       micRef.current = handle;
       setStartedAt(Date.now());
       setPhase("running");
@@ -267,6 +290,8 @@ export function useOralSession(opts: { diag: boolean }) {
   }, [opts.diag, addEntry, showDebrief, showNotice]);
 
   const end = useCallback(async () => {
+    // With no microphone handle yet, End abandons a start that is still waiting on the browser prompt.
+    if (!micRef.current) attemptRef.current += 1;
     const handle = micRef.current;
     micRef.current = null;
     await handle?.stop();
@@ -274,7 +299,9 @@ export function useOralSession(opts: { diag: boolean }) {
   }, []);
 
   const openTyped = useCallback(async () => {
+    attemptRef.current += 1;
     if (micRef.current) await end();
+    else setPhase("idle");
     setFailure(null);
     setNotice(null);
     setDebrief({ status: "idle" });
@@ -297,6 +324,20 @@ export function useOralSession(opts: { diag: boolean }) {
     },
     [begin, openTyped, end]
   );
+
+  // Connect watchdog: token, socket and session.ready have no timeout of their own.
+  useEffect(() => {
+    if (phase !== "running") return;
+    const id = setTimeout(() => {
+      if (reachedListeningRef.current) return;
+      micRef.current?.cancel();
+      micRef.current = null;
+      attemptRef.current += 1;
+      setFailure(failureViewFor("token_timeout"));
+      setPhase("idle");
+    }, CONNECT_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, [phase]);
 
   // Alt+Shift+M starts or ends the exam. Any modifier chord, so it never steals a plain key.
   const latest = useRef({ machine, phase, begin, end });

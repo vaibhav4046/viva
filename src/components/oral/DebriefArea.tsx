@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useEffect } from "react";
 import { DebriefSheet } from "./DebriefSheet";
 import { DEBRIEF_EMPTY } from "./model";
@@ -33,7 +32,6 @@ export function DebriefArea({ state, level = 2, onRetry }: { state: DebriefState
       <section className="debrief" aria-labelledby="debrief-empty">
         <h2 id="debrief-empty" className="debrief-title" style={{ fontSize: "var(--fs-h2)" }}>Nothing to debrief yet</h2>
         <p>{DEBRIEF_EMPTY}</p>
-        <div className="debrief-actions"><Link href="/oral" className="btn-primary">Back to the exam</Link></div>
       </section>
     );
   }

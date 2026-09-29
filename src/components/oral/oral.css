@@ -86,7 +86,7 @@
 .debrief-title { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-h1); line-height: var(--lh-h1); }
 .debrief td[data-label="Standing"] { width: 8.5rem; white-space: nowrap; }
 .debrief .mono { white-space: nowrap; }
-.debrief h3 { font-size: var(--fs-h2); line-height: var(--lh-h2); margin-bottom: var(--space-2); }
+.debrief .debrief-sec { font-size: var(--fs-h2); line-height: var(--lh-h2); margin-bottom: var(--space-2); }
 .debrief-meta { color: var(--text-secondary); }
 .debrief table { width: 100%; border-collapse: collapse; }
 .debrief caption { text-align: left; color: var(--text-secondary); font-size: var(--fs-body-sm); padding-bottom: var(--space-2); }

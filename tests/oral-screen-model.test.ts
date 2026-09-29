@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ORAL_STATES } from "@/lib/oral/machine";
+import { COURSES } from "@/lib/courses";
+import { resolveConceptId } from "@/lib/oral/debrief";
 import { ORAL_FAILURES } from "@/lib/oral/failures";
 import { deriveDiag } from "@/components/oral/diag";
 import { meterLevel, rmsOf, smoothLevel } from "@/components/oral/levels";
@@ -14,7 +16,7 @@ import {
   stateLine,
 } from "@/components/oral/model";
 
-const DASH = /[–—!]/;
+const DASH = /[â€“â€”!]/;
 
 describe("state line", () => {
   it("has words for all twelve states and none is empty", () => {
@@ -141,5 +143,16 @@ describe("diagnostics derive only from events that happened", () => {
     expect(d.turns).toBe(1);
     expect(d.partials).toEqual([{ atMs: 4200, text: "wait can" }]);
     expect(d.socket.map((s) => s.label)).toEqual(["ws.connect", "session.ready"]);
+  });
+});
+
+describe("concept names from verify_claim", () => {
+  it("resolves a spoken concept name to the concept id, and falls back to the learner words", () => {
+    const concepts = COURSES.course_transformers_w4.concepts;
+    const named = outcomeOfTool("verify_claim", { claim: "it runs a single head", concept: "Multi-head attention" }, { verdict: "not_in_material" }, "n1");
+    expect(named.entry).toMatchObject({ conceptId: "Multi-head attention" });
+    expect(resolveConceptId(concepts, "Multi-head attention", "it runs a single head")).toBe("c_multihead");
+    expect(resolveConceptId(concepts, null, "multi-head attention runs one head")).toBe("c_multihead");
+    expect(resolveConceptId(concepts, "no such concept", "nothing relevant here")).toBeNull();
   });
 });

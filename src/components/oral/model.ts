@@ -40,10 +40,10 @@ export function stateHint(state: OralState, phase: Phase = "running"): string {
     case "LISTENING": return "Say your answer. You can interrupt the examiner at any time.";
     case "USER_SPEAKING": return "Keep going. The examiner waits until you stop.";
     case "THINKING": return "The examiner is deciding what to ask next.";
-    case "CHECKING_SOURCE": return "The examiner is reading your own pages before it answers.";
+    case "CHECKING_SOURCE": return "The examiner is reading your own pages before it answers. Anything you say meanwhile is held until the check finishes.";
     case "SPEAKING": return "Talk over the examiner to cut in.";
     case "INTERRUPTED": return "The examiner dropped its sentence. Carry on.";
-    case "RECOVERING": return `The connection dropped. The service holds a session for ${RESUME_WINDOW_SECONDS} seconds. If it cannot resume, VIVA opens a new one and carries on from your last answers.`;
+    case "RECOVERING": return `The connection dropped. VIVA tries to resume the session, which the service holds for ${RESUME_WINDOW_SECONDS} seconds. If it cannot, a new session carries on from your last answers.`;
     case "ERROR": return "The exam stopped. Your answers so far are kept.";
     case "ENDED": return "The exam is over. Your debrief is below.";
     default: return "";
@@ -185,7 +185,8 @@ export function outcomeOfTool(name: string, args: Record<string, unknown>, resul
     const verdict = r.verdict as "supported" | "contradicted" | "not_in_material";
     const quote = typeof r.quote === "string" && r.quote ? r.quote.slice(0, 1400) : null;
     const passageId = typeof r.passage_id === "string" && r.passage_id ? r.passage_id.slice(0, 120) : null;
-    const entry: SessionEntry = { kind: "claim", conceptId: null, learner: claim, verdict, quote, page, passageId };
+    const concept = str(args.concept, 80).trim();
+    const entry: SessionEntry = { kind: "claim", conceptId: concept || null, learner: claim, verdict, quote, page, passageId };
     const spans = Array.isArray(r.quote_spans) ? r.quote_spans.filter((s): s is string => typeof s === "string") : [];
     const source: SourceCard | null =
       verdict !== "not_in_material" && quote

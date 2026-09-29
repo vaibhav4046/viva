@@ -16,6 +16,7 @@ const WORD: Record<Standing, string> = { strong: "Strong", shaky: "Shaky", weak:
 
 export function DebriefSheet({ debrief, level = 2, actions }: { debrief: Debrief; level?: 1 | 2; actions?: ReactNode }) {
   const H = level === 1 ? "h1" : "h2";
+  const S = level === 1 ? "h2" : "h3";
   const date = debrief.generatedAt.slice(0, 10);
   const storage = debrief.storage;
   return (
@@ -28,7 +29,7 @@ export function DebriefSheet({ debrief, level = 2, actions }: { debrief: Debrief
       </header>
 
       <section aria-labelledby="debrief-concepts">
-        <h3 id="debrief-concepts">Concepts covered</h3>
+        <S id="debrief-concepts" className="debrief-sec">Concepts covered</S>
         {debrief.concepts.length === 0 ? (
           <p className="oral-empty">No concept was tied to a checked answer in this exam, so none is marked. Answer a question that names a concept and it appears here with the evidence.</p>
         ) : (
@@ -60,7 +61,7 @@ export function DebriefSheet({ debrief, level = 2, actions }: { debrief: Debrief
       </section>
 
       <section aria-labelledby="debrief-misc">
-        <h3 id="debrief-misc">Misconceptions caught</h3>
+        <S id="debrief-misc" className="debrief-sec">Misconceptions caught</S>
         {debrief.misconceptions.length === 0 ? (
           <p className="oral-empty">Your pages contradicted nothing you said in this exam.</p>
         ) : (
@@ -83,7 +84,7 @@ export function DebriefSheet({ debrief, level = 2, actions }: { debrief: Debrief
       </section>
 
       <section aria-labelledby="debrief-plan">
-        <h3 id="debrief-plan">Tomorrow, {debrief.plan.totalMinutes} minutes</h3>
+        <S id="debrief-plan" className="debrief-sec">Tomorrow, {debrief.plan.totalMinutes} minutes</S>
         {debrief.plan.steps.length === 0 ? (
           <p className="oral-empty">Nothing is due. Come back after your next exam and the plan is built from it.</p>
         ) : (

@@ -36,7 +36,8 @@ try {
   if (slides !== 9) failed = true;
 
   const text = await page.evaluate(() => document.body.innerText);
-  const bad = [...text].filter((c) => c === "—" || c === "–" || c === "!").length;
+  const dashes = new Set([String.fromCharCode(0x2014), String.fromCharCode(0x2013), "!"]);
+  const bad = [...text].filter((c) => dashes.has(c)).length;
   console.log(`${bad === 0 ? "pass" : "FAIL"} no dashes or exclamation marks in slide text (${bad} found)`);
   if (bad) failed = true;
 

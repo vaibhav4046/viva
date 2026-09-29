@@ -14,22 +14,41 @@
  *
  * It spends real AssemblyAI credit (well under a minute of audio). Never run in CI.
  *
- * Prepare two recordings, mono PCM16 at 24 kHz:
+ * Either record two clips yourself (mono PCM16 at 24 kHz):
  *   claim.wav        "We automatically fail over to a replica."
  *   correction.wav   "Wait. I meant manual failover."
  *   ffmpeg -i phone-recording.m4a -ar 24000 -ac 1 -c:a pcm_s16le claim.wav
- *
- * Run (server started with ASSEMBLYAI_API_KEY set, sample document):
- *   npm run build && npm start &
  *   BASE=http://localhost:3000 npx tsx scripts/live-redteam.mts claim.wav correction.wav
+ *
+ * or let the Voice Agent make them (no microphone, no TTS install):
+ *   BASE=http://localhost:3000 npx tsx scripts/live-redteam.mts --synthesize
+ * which opens one short session per sentence with that sentence as the
+ * greeting, records the agent's own speech, and uses it as your voice. About
+ * ten seconds of agent audio in total.
+ *
+ * The server must be started with ASSEMBLYAI_API_KEY set:
+ *   npm run build && ASSEMBLYAI_API_KEY=... npm start &
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createController, type Api, type Controller } from "../src/lib/redteam/controller";
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
-const [claimPath, correctionPath] = process.argv.slice(2);
-if (!claimPath || !correctionPath) {
-  console.error("usage: BASE=http://localhost:3000 npx tsx scripts/live-redteam.mts claim.wav correction.wav");
+
+// One plain line on failure, not a stack trace: the person running this wants
+// to know which step failed and why, e.g. that the server is not running.
+const bail = (e: unknown) => {
+  const err = e as { message?: string; cause?: { code?: string } };
+  const why = err?.cause?.code === "ECONNREFUSED" ? `nothing is listening at ${BASE} — start the app first` : err?.message ?? String(e);
+  console.error(`FAIL  ${why}`);
+  process.exit(1);
+};
+process.on("uncaughtException", bail);
+process.on("unhandledRejection", bail);
+const argv = process.argv.slice(2);
+const SYNTH = argv.includes("--synthesize");
+const [claimPath, correctionPath] = argv.filter((a) => !a.startsWith("--"));
+if (!SYNTH && (!claimPath || !correctionPath)) {
+  console.error("usage: BASE=http://localhost:3000 npx tsx scripts/live-redteam.mts claim.wav correction.wav\n   or: BASE=http://localhost:3000 npx tsx scripts/live-redteam.mts --synthesize");
   process.exit(2);
 }
 
@@ -111,8 +130,94 @@ async function speak(ctrl: Controller, pcm: Int16Array): Promise<void> {
   }
 }
 
-const claim = readWav(claimPath);
-const correction = readWav(correctionPath);
+/** Write mono PCM16 24 kHz as a WAV file. */
+function writeWav(path: string, pcm: Int16Array): void {
+  const data = Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  const h = Buffer.alloc(44);
+  h.write("RIFF", 0, "ascii");
+  h.writeUInt32LE(36 + data.length, 4);
+  h.write("WAVE", 8, "ascii");
+  h.write("fmt ", 12, "ascii");
+  h.writeUInt32LE(16, 16);
+  h.writeUInt16LE(1, 20);
+  h.writeUInt16LE(1, 22);
+  h.writeUInt32LE(24000, 24);
+  h.writeUInt32LE(48000, 28);
+  h.writeUInt16LE(2, 32);
+  h.writeUInt16LE(16, 34);
+  h.write("data", 36, "ascii");
+  h.writeUInt32LE(data.length, 40);
+  writeFileSync(path, Buffer.concat([h, data]));
+}
+
+/**
+ * Have the Voice Agent say `text` and keep the audio: its greeting is spoken
+ * verbatim as soon as the session is ready, so a session whose greeting is the
+ * sentence is a text-to-speech call on the same service under test.
+ */
+async function synthesize(text: string): Promise<Int16Array> {
+  const token = await api.token();
+  const ws = new WebSocket(`wss://agents.assemblyai.com/v1/ws?token=${encodeURIComponent(token)}`);
+  const chunks: Buffer[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`synthesis timed out for "${text}"`)), 30_000);
+    ws.onopen = () =>
+      ws.send(
+        JSON.stringify({
+          type: "session.update",
+          session: {
+            system_prompt: "You say your greeting and nothing else. Never add words.",
+            greeting: text,
+            input: { format: { encoding: "audio/pcm" } },
+            output: { voice: "alba", format: { encoding: "audio/pcm" } },
+          },
+        })
+      );
+    ws.onmessage = (ev) => {
+      const m = JSON.parse(String((ev as MessageEvent).data)) as Record<string, unknown>;
+      if (m.type === "reply.audio" && typeof m.data === "string") chunks.push(Buffer.from(m.data, "base64"));
+      if (m.type === "reply.done") {
+        clearTimeout(timer);
+        try {
+          ws.send(JSON.stringify({ type: "session.end" }));
+        } catch {
+          // Already closing.
+        }
+        resolve();
+      }
+      if (m.type === "session.error") {
+        clearTimeout(timer);
+        reject(new Error(`synthesis refused: ${String(m.code)} ${String(m.message ?? "")}`));
+      }
+    };
+    ws.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("synthesis socket failed"));
+    };
+  });
+  try {
+    ws.close();
+  } catch {
+    // Already closed.
+  }
+  const all = Buffer.concat(chunks);
+  return new Int16Array(all.buffer.slice(all.byteOffset, all.byteOffset + all.byteLength - (all.byteLength % 2)));
+}
+
+let claim: Int16Array;
+let correction: Int16Array;
+if (SYNTH) {
+  mkdirSync(".scratch/live", { recursive: true });
+  console.log("  synthesising the two utterances with the Voice Agent…");
+  claim = await synthesize("We automatically fail over to a replica.");
+  correction = await synthesize("Wait. I meant manual failover.");
+  writeWav(".scratch/live/claim.wav", claim);
+  writeWav(".scratch/live/correction.wav", correction);
+  check("synthesised both utterances", claim.length > 12000 && correction.length > 12000, `${(claim.length / 24000).toFixed(1)} s and ${(correction.length / 24000).toFixed(1)} s`);
+} else {
+  claim = readWav(claimPath);
+  correction = readWav(correctionPath);
+}
 
 const created = await post<{ session: Parameters<typeof createController>[1]; voice: Parameters<Controller["startVoice"]>[0] }>("/api/redteam/session", { mode: "SKEPTIC", sample: true });
 const ctrl = createController(api, created.session);

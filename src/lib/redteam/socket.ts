@@ -119,6 +119,8 @@ export type VoiceSocketOptions = {
   onReplyDone?: (info: { delivered: number }) => void;
   /** The service reported `reply.done` with status "interrupted". Fired after playback is flushed. */
   onInterrupted?: () => void;
+  /** A message was refused but the session carries on. One plain sentence. */
+  onNotice?: (message: string) => void;
   /** Optional session settings were refused and the session was retried without them. */
   onDegraded?: (level: 1 | 2, note: string) => void;
   /** Mint a fresh token. Called before EVERY connection, per the docs. */
@@ -145,11 +147,35 @@ export type VoiceSocket = {
   end: () => Promise<void>;
   /** Tear down without a clean teardown (navigation, unmount). */
   cancel: () => void;
+  /**
+   * Replace the extra instructions appended to the system prompt, mid-session.
+   * `session.system_prompt` is documented as mutable after `session.ready`;
+   * only that field is sent, because greeting, voice and output format are
+   * immutable and resending them is an `immutable_field` error.
+   */
+  setInstructions: (tail: string) => void;
 };
 
 /** Codes meaning "a field you sent in session.update is not acceptable". */
 const CONFIG_REFUSED = new Set(["invalid_config", "invalid_value", "invalid_format"]);
 const RESUME_REFUSED = new Set(["session_not_found", "session_forbidden", "session_expired"]);
+
+/**
+ * Errors about one message we sent, after which the events reference says the
+ * session stays alive. Treating these as fatal once the session is up would
+ * end a review over one rejected frame, so they are reported and survived.
+ */
+const MESSAGE_ERRORS = new Set([
+  "invalid_format",
+  "invalid_audio",
+  "invalid_value",
+  "immutable_field",
+  "invalid_config",
+  "server_error",
+  "agent_id_not_first",
+  "agent_not_found",
+  "audio_rate_violation",
+]);
 
 /** Map a protocol error code to a sentence a person can act on. */
 function errorSentence(code: string): string {
@@ -220,6 +246,11 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
   let deferTimer: ReturnType<typeof setTimeout> | undefined;
   let resumeAttempts = 0;
   let fatalSeen = false;
+  /** Set when a mid-session instruction update was refused; we then stop sending them. */
+  let instructionsDisabled = false;
+  let awaitingInstructionAck = false;
+  /** Extra instructions appended to the system prompt, kept for reconnects. */
+  let instructionTail = "";
 
   const publish = () => opts.onState(m);
 
@@ -289,7 +320,7 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
       if (typeof vad === "number") input.turn_detection = { vad_threshold: vad };
     }
     return {
-      system_prompt: c.system_prompt,
+      system_prompt: instructionTail ? `${c.system_prompt}\n\n${instructionTail}` : c.system_prompt,
       greeting: everReady && opts.reconnectGreeting ? opts.reconnectGreeting : c.greeting,
       input,
       output: { voice: "alba", format: { encoding: "audio/pcm" }, volume: 100 },
@@ -419,6 +450,7 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
         return;
       }
       case "session.updated":
+        awaitingInstructionAck = false;
         return;
       case "input.speech.started":
         // The user spoke while results were held: the reply they were for is gone.
@@ -511,6 +543,16 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
           if (resumeTimer) clearTimeout(resumeTimer);
           retire();
           void connect("fresh");
+          return;
+        }
+        // After the session is up, a rejected message is not the end of it.
+        if (everReady && MESSAGE_ERRORS.has(code)) {
+          if (awaitingInstructionAck) {
+            // Our own mid-session instruction update was refused: stop sending them.
+            instructionsDisabled = true;
+            awaitingInstructionAck = false;
+          }
+          opts.onNotice?.(errorSentence(code));
           return;
         }
         // The server closes after most of these, so the socket is left to
@@ -658,6 +700,17 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
         const guard = setTimeout(settle, 2_500);
         ws.addEventListener("close", settle, { once: true });
       });
+    },
+    setInstructions(tail) {
+      instructionTail = tail.slice(0, 4000);
+      const ws = socket;
+      if (instructionsDisabled || !sessionLive || !ws || ws.readyState !== WebSocket.OPEN) return;
+      try {
+        awaitingInstructionAck = true;
+        ws.send(JSON.stringify({ type: "session.update", session: { system_prompt: `${opts.config.system_prompt}\n\n${instructionTail}` } }));
+      } catch {
+        awaitingInstructionAck = false;
+      }
     },
     cancel() {
       cancelled = true;

@@ -106,13 +106,52 @@ describe("refused optional settings", () => {
     expect(onError).toHaveBeenCalled();
   });
 
-  it("never degrades once the session has been ready", async () => {
-    const { onDegraded, states } = await open();
+  it("never degrades once the session has been ready, and a rejected message does not end it", async () => {
+    const onNotice = vi.fn();
+    const { onDegraded, states } = await open({ onNotice });
     WS.all[0].onopen?.({});
     WS.all[0].emit({ type: "session.ready", session_id: "s1" });
     WS.all[0].emit({ type: "session.error", code: "invalid_value", message: "late" });
     expect(onDegraded).not.toHaveBeenCalled();
-    expect(states.at(-1)).toBe("ERROR");
+    // The events reference: client message errors leave the session alive.
+    expect(states.at(-1)).toBe("LISTENING");
+    expect(onNotice).toHaveBeenCalledTimes(1);
+    expect(WS.all).toHaveLength(1);
+  });
+});
+
+describe("mid-session instructions", () => {
+  it("setInstructions sends ONLY system_prompt, never the immutable greeting or output", async () => {
+    const { socket } = await open();
+    const ws = WS.all[0];
+    ws.onopen?.({});
+    ws.emit({ type: "session.ready", session_id: "s1" });
+    socket.setInstructions("LEDGER: claim 1 SUPPORTED.");
+    const upd = ws.sent.filter((s) => s.type === "session.update");
+    expect(upd).toHaveLength(2);
+    expect(Object.keys(upd[1].session)).toEqual(["system_prompt"]);
+    expect(upd[1].session.system_prompt).toMatch(/^p\n\nLEDGER: claim 1 SUPPORTED\.$/);
+  });
+
+  it("is a no-op before session.ready, and the tail rides along on a reconnect", async () => {
+    const { socket } = await open();
+    socket.setInstructions("LEDGER: early");
+    WS.all[0].onopen?.({});
+    expect(WS.all[0].sent[0].session.system_prompt).toBe("p\n\nLEDGER: early");
+    expect(WS.all[0].sent.filter((s) => s.type === "session.update")).toHaveLength(1);
+  });
+
+  it("stops sending after the service refuses one", async () => {
+    const onNotice = vi.fn();
+    const { socket, states } = await open({ onNotice });
+    const ws = WS.all[0];
+    ws.onopen?.({});
+    ws.emit({ type: "session.ready", session_id: "s1" });
+    socket.setInstructions("LEDGER: a");
+    ws.emit({ type: "session.error", code: "invalid_config", message: "no" });
+    socket.setInstructions("LEDGER: b");
+    expect(ws.sent.filter((s) => s.type === "session.update")).toHaveLength(2);
+    expect(states.at(-1)).toBe("LISTENING");
   });
 });
 

@@ -24,7 +24,7 @@ export function PublicShell({ children, width = "prose" }: { children: ReactNode
       </header>
       <main
         id="main"
-        className="mx-auto w-full flex-1 px-4 py-8 sm:px-6"
+        className="legal mx-auto w-full flex-1 px-4 py-8 sm:px-6"
         style={{ maxWidth: width === "wide" ? "72rem" : "46rem" }}
       >
         {children}

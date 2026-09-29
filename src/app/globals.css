@@ -273,6 +273,12 @@ select:disabled { cursor: not-allowed; color: var(--text-muted); }
 .scroll-pane { scrollbar-gutter: stable; overscroll-behavior: contain; }
 .waveform-bar { transform-origin: 50% 100%; }
 
+/* Reading pages: privacy, terms, accessibility, about, recorded. */
+.legal :is(p, ul, ol) { margin-top: var(--space-3); max-width: var(--measure); }
+.legal :is(li) + li { margin-top: var(--space-1); }
+.legal section > h2 + :is(p, ul) { margin-top: var(--space-2); }
+.legal code { font-family: var(--font-mono); font-size: 0.875em; background: var(--surface-2); padding: 0 4px; border-radius: var(--radius-xs); }
+
 /* The mobile tab bar is fixed to the bottom edge; keep the footer links clear of it. */
 @media (max-width: 767px) {
   body:has([data-tabbar]) .site-footer { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }

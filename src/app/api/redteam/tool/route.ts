@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { handle, persist } from "@/lib/redteam/http";
-import { publicView } from "@/lib/redteam/session";
+import { handle, persist, reviewFields } from "@/lib/redteam/http";
 import { runTool } from "@/lib/redteam/tools";
 
 /**
@@ -25,6 +24,6 @@ export async function POST(req: Request): Promise<Response> {
     const s = session!;
     const out = runTool(s, body.name, body.arguments ?? {});
     if (out.changed) await persist(s);
-    return Response.json({ result: out.result, isError: out.isError, session: publicView(s) });
+    return Response.json({ result: out.result, isError: out.isError, ...reviewFields(s) });
   });
 }

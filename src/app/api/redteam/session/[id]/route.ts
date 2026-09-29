@@ -1,5 +1,4 @@
-import { handle } from "@/lib/redteam/http";
-import { publicView } from "@/lib/redteam/session";
+import { handle, reviewFields } from "@/lib/redteam/http";
 import { buildVoiceConfig } from "@/lib/redteam/prompt";
 import { deleteSession } from "@/lib/redteam/store";
 import { err } from "@/lib/types";
@@ -13,7 +12,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const voice = buildVoiceConfig(s);
     // A resumed review must not replay its opening line as though it were new.
     voice.greeting = last ? `Picking up where we left off. ${last}` : "Picking up where we left off.";
-    return Response.json({ session: publicView(s), voice });
+    return Response.json({ ...reviewFields(s), voice });
   });
 }
 

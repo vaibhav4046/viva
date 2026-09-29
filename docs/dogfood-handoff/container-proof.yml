@@ -1,0 +1,85 @@
+# DOGFOOD 2026 — Linux container proof.
+#
+# COPY THIS INTO THE DOGFOOD REPOSITORY as .github/workflows/container-proof.yml.
+# It does not belong to, and was not run against, the VIVA repository: the
+# DOGFOOD code lives in a separate repo that this session could not reach.
+# It was written from the Dockerfile, docker-compose.yml, package.json and
+# .dogfood.toml recorded in the OpenCode session, and has NEVER been executed.
+# Treat its first run as the test, and do not claim container verification
+# until a run of it is green.
+#
+# What a green run establishes: on a clean Linux runner, the image builds from
+# scratch (including the better-sqlite3 native-module fallback), `docker compose
+# up` becomes healthy on /healthz, the UNMODIFIED official checker passes against
+# the container, and the project's own tests pass. Logs are kept on failure.
+
+name: container-proof
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Project tests (host)
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
+      - name: Official checker files are unmodified
+        run: |
+          sha256sum official/run.py official/fixtures.json
+          echo "aa98963841bc8e18e8e5d76f0499697c093dd3c0055f9d73a459f592f4dcf09d  official/run.py" | sha256sum -c -
+          echo "252896bc45d49fca69ad413be40c6bfde9d9b9f9dd8db702b3ff74eaaa181121  official/fixtures.json" | sha256sum -c -
+
+      - name: Build and start the container from scratch
+        run: docker compose up -d --build
+
+      - name: Wait for /healthz
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/healthz; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "portal never became healthy"
+          exit 1
+
+      - name: Official acceptance suite against the container
+        run: |
+          python official/run.py .dogfood.toml | tee acceptance-report.container.txt
+          # The checker prints one PASS/FAIL line per check; fail the job on any FAIL.
+          ! grep -E "^\s*(FAIL|\[FAIL\])" acceptance-report.container.txt
+
+      - name: Container logs (always kept)
+        if: always()
+        run: |
+          docker compose ps > compose-ps.txt || true
+          docker compose logs --no-color > compose-logs.txt || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-proof-logs
+          path: |
+            acceptance-report.container.txt
+            compose-ps.txt
+            compose-logs.txt
+
+      - name: Shut down
+        if: always()
+        run: docker compose down -v

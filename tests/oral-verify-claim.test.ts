@@ -39,10 +39,10 @@ describe("quote-checked oral verifier", () => {
     for (const key of ['verdict', 'quote', 'passage_id']) expect(system).toContain(key);
   });
 
-  it("accepts an elided quote only when every piece is verbatim and in passage order", () => {
+  it("accepts an elided quote only when every piece is verbatim and in passage order, widened to whole sentences", () => {
     const text = passage.text;
     expect(quoteSpans("Multi-head attention runs several query-key-value ... Different heads can capture different relationships.", text)).toEqual([
-      "Multi-head attention runs several query-key-value",
+      "Multi-head attention runs several query-key-value computations in parallel.",
       "Different heads can capture different relationships.",
     ]);
     expect(quoteSpans("Different heads can capture different relationships. ... Multi-head attention runs several query-key-value", text)).toBeNull();

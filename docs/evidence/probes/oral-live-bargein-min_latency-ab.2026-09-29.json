@@ -1,0 +1,710 @@
+{
+  "measuredOn": "2026-09-29T18:44:45.253Z",
+  "scenario": "bargein",
+  "learner": "synthetic (Windows System.Speech WAVs in fixtures/audio)",
+  "transport": "Node WebSocket through src/lib/oral/socket.ts against the live AssemblyAI Voice Agent API",
+  "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein --runs 3",
+  "runs": 3,
+  "passed": 3,
+  "summary": {
+    "speechDetectedMs": {
+      "median": 1454,
+      "n": 3,
+      "values": [
+        1476,
+        1454,
+        1264
+      ]
+    },
+    "flushAfterSpeechStartedMs": {
+      "median": 0,
+      "n": 3,
+      "values": [
+        0,
+        0,
+        0
+      ]
+    },
+    "stopFromVoiceOnsetMs": {
+      "median": 1454,
+      "n": 3,
+      "values": [
+        1476,
+        1454,
+        1264
+      ]
+    },
+    "interruptedReplyDoneMs": {
+      "median": 3364,
+      "n": 3,
+      "values": [
+        3437,
+        3346,
+        3364
+      ]
+    },
+    "staleAudioChunksPlayedAfterFlush": {
+      "median": 0,
+      "n": 3,
+      "values": [
+        0,
+        0,
+        0
+      ]
+    },
+    "staleAudioChunksDroppedAfterFlush": {
+      "median": 196,
+      "n": 3,
+      "values": [
+        196,
+        189,
+        209
+      ]
+    }
+  },
+  "results": [
+    {
+      "run": 1,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "speechDetectedMs": 1476,
+        "flushAfterSpeechStartedMs": 0,
+        "stopFromVoiceOnsetMs": 1476,
+        "interruptedReplyDoneMs": 3437,
+        "staleAudioChunksPlayedAfterFlush": 0,
+        "staleAudioChunksDroppedAfterFlush": 196
+      },
+      "notes": {
+        "agent": [
+          {
+            "text": "You're being examined. Tell me what you want to",
+            "interrupted": false
+          },
+          {
+            "text": "You're being examined. Tell me what you want to be",
+            "interrupted": true
+          }
+        ],
+        "user": [
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "INTERRUPTED",
+          "LISTENING"
+        ],
+        "machine": {
+          "interruptions": 1,
+          "discards": 0,
+          "toolCalls": 0
+        },
+        "trace": [
+          {
+            "ms": 551,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 587,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 683,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 964,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 998,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 998,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 1000,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 1000,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 1521,
+            "kind": "summary",
+            "of": "ws.recv reply.audio",
+            "count": 766,
+            "firstMs": 1521,
+            "lastMs": 12418
+          },
+          {
+            "ms": 1521,
+            "kind": "summary",
+            "of": "audio.play",
+            "count": 570,
+            "firstMs": 1521,
+            "lastMs": 12418
+          },
+          {
+            "ms": 1998,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 30,
+            "firstMs": 1998,
+            "lastMs": 9579
+          },
+          {
+            "ms": 2550,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 4049,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait."
+          },
+          {
+            "ms": 4049,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 4049,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 4049,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 4049,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 4050,
+            "kind": "summary",
+            "of": "audio.drop",
+            "count": 196,
+            "firstMs": 4050,
+            "lastMs": 5995
+          },
+          {
+            "ms": 5101,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat the"
+          },
+          {
+            "ms": 6002,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 6006,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to"
+          },
+          {
+            "ms": 6009,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "interrupted": true,
+            "text": "You're being examined. Tell me what you want to be"
+          },
+          {
+            "ms": 6010,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "interrupted"
+          },
+          {
+            "ms": 6010,
+            "kind": "interrupted.flush.start"
+          },
+          {
+            "ms": 6010,
+            "kind": "interrupted.flush.end"
+          },
+          {
+            "ms": 6011,
+            "kind": "state",
+            "state": "INTERRUPTED",
+            "reason": null
+          },
+          {
+            "ms": 6011,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 6012,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 12496,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 12496,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "speechDetectedMs": 1454,
+        "flushAfterSpeechStartedMs": 0,
+        "stopFromVoiceOnsetMs": 1454,
+        "interruptedReplyDoneMs": 3346,
+        "staleAudioChunksPlayedAfterFlush": 0,
+        "staleAudioChunksDroppedAfterFlush": 189
+      },
+      "notes": {
+        "agent": [
+          {
+            "text": "You're being examined. Tell me what you want to be asked on, and",
+            "interrupted": false
+          },
+          {
+            "text": "You're being examined. Tell me what you want to be asked on,",
+            "interrupted": true
+          }
+        ],
+        "user": [
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "INTERRUPTED",
+          "LISTENING"
+        ],
+        "machine": {
+          "interruptions": 1,
+          "discards": 0,
+          "toolCalls": 0
+        },
+        "trace": [
+          {
+            "ms": 15622,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 15624,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 15706,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 15946,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 15976,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 15976,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 15980,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 15980,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 16472,
+            "kind": "summary",
+            "of": "ws.recv reply.audio",
+            "count": 951,
+            "firstMs": 16472,
+            "lastMs": 29240
+          },
+          {
+            "ms": 16472,
+            "kind": "summary",
+            "of": "audio.play",
+            "count": 762,
+            "firstMs": 16472,
+            "lastMs": 29240
+          },
+          {
+            "ms": 16942,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 36,
+            "firstMs": 16942,
+            "lastMs": 24548
+          },
+          {
+            "ms": 17490,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 18995,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait."
+          },
+          {
+            "ms": 18996,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 18996,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 18996,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 18996,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 19000,
+            "kind": "summary",
+            "of": "audio.drop",
+            "count": 189,
+            "firstMs": 19000,
+            "lastMs": 20881
+          },
+          {
+            "ms": 20079,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat the"
+          },
+          {
+            "ms": 20880,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 20885,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to be asked on, and"
+          },
+          {
+            "ms": 20886,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "interrupted": true,
+            "text": "You're being examined. Tell me what you want to be asked on,"
+          },
+          {
+            "ms": 20888,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "interrupted"
+          },
+          {
+            "ms": 20888,
+            "kind": "interrupted.flush.start"
+          },
+          {
+            "ms": 20888,
+            "kind": "interrupted.flush.end"
+          },
+          {
+            "ms": 20888,
+            "kind": "state",
+            "state": "INTERRUPTED",
+            "reason": null
+          },
+          {
+            "ms": 20889,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 20889,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 29313,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 29313,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "run": 3,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "speechDetectedMs": 1264,
+        "flushAfterSpeechStartedMs": 0,
+        "stopFromVoiceOnsetMs": 1264,
+        "interruptedReplyDoneMs": 3364,
+        "staleAudioChunksPlayedAfterFlush": 0,
+        "staleAudioChunksDroppedAfterFlush": 209
+      },
+      "notes": {
+        "agent": [
+          {
+            "text": "You're being examined. Tell me what you want to",
+            "interrupted": false
+          },
+          {
+            "text": "You're being examined. Tell me what you want to be asked",
+            "interrupted": true
+          }
+        ],
+        "user": [
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "INTERRUPTED",
+          "LISTENING"
+        ],
+        "machine": {
+          "interruptions": 1,
+          "discards": 0,
+          "toolCalls": 0
+        },
+        "trace": [
+          {
+            "ms": 32049,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 32051,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 32125,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 32350,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 32372,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 32372,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 32375,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 32375,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 32869,
+            "kind": "summary",
+            "of": "ws.recv reply.audio",
+            "count": 767,
+            "firstMs": 32869,
+            "lastMs": 43790
+          },
+          {
+            "ms": 32869,
+            "kind": "summary",
+            "of": "audio.play",
+            "count": 558,
+            "firstMs": 32869,
+            "lastMs": 43790
+          },
+          {
+            "ms": 33344,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 30,
+            "firstMs": 33344,
+            "lastMs": 40859
+          },
+          {
+            "ms": 33984,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 35183,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait."
+          },
+          {
+            "ms": 35183,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 35183,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 35183,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 35183,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 35191,
+            "kind": "summary",
+            "of": "audio.drop",
+            "count": 209,
+            "firstMs": 35191,
+            "lastMs": 37273
+          },
+          {
+            "ms": 36376,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat the"
+          },
+          {
+            "ms": 37281,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 37281,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to"
+          },
+          {
+            "ms": 37281,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "interrupted": true,
+            "text": "You're being examined. Tell me what you want to be asked"
+          },
+          {
+            "ms": 37283,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "interrupted"
+          },
+          {
+            "ms": 37283,
+            "kind": "interrupted.flush.start"
+          },
+          {
+            "ms": 37283,
+            "kind": "interrupted.flush.end"
+          },
+          {
+            "ms": 37283,
+            "kind": "state",
+            "state": "INTERRUPTED",
+            "reason": null
+          },
+          {
+            "ms": 37283,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 37299,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 43958,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 43958,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    }
+  ],
+  "traceNote": "per-chunk audio and transcript-delta rows are collapsed into summary rows (count, first and last ms); metrics are unchanged"
+}

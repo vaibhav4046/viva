@@ -1,0 +1,1410 @@
+{
+  "measuredOn": "2026-09-29T18:32:14.260Z",
+  "what": "verify_claim judge over the labelled claim set, live provider chain, one call per claim",
+  "provider": "openai/gpt-oss-120b",
+  "n": 54,
+  "modelCalls": 53,
+  "latencyMs": {
+    "median": 590,
+    "p95": 2067
+  },
+  "metrics": {
+    "n": 54,
+    "falseSupported": 0,
+    "falseContradicted": 0,
+    "abstainedOnSettled": 3,
+    "supported": {
+      "tp": 19,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "contradicted": {
+      "tp": 24,
+      "fp": 0,
+      "fn": 3,
+      "precision": 1,
+      "recall": 0.889
+    }
+  },
+  "rows": [
+    {
+      "course": "course_transformers_w4",
+      "id": "T01",
+      "kind": "true_paraphrase",
+      "claim": "Self-attention builds a contextual vector for each word as a weighted average of the value vectors.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Self-attention lets every token in a sequence compare itself with every other token. For each pair, the model computes a compatibility score, normalises the scores with a softmax into weights, and returns a weighted average of the value vectors. The result is a contextual representation: the same word gets a different vector depending on its neighbours.",
+        "passage_id": "ch_sa_1",
+        "latencyMs": 900
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Self-attention lets every token in a sequence compare itself with every other token. For each pair, the model computes a compatibility score, normalises the scores with a softmax into weights, and returns a weighted average of the value vectors. The result is a contextual representation: the same word gets a different vector depending on its neighbours.",
+        "page": 4,
+        "passage_id": "ch_sa_1",
+        "quote_spans": [
+          "Self-attention lets every token in a sequence compare itself with every other token. For each pair, the model computes a compatibility score, normalises the scores with a softmax into weights, and returns a weighted average of the value vectors. The result is a contextual representation: the same word gets a different vector depending on its neighbours."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 902
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T02",
+      "kind": "true_paraphrase",
+      "claim": "Without positional information a Transformer cannot tell which token came first.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "A standard Transformer has no recurrence and no convolution, so by itself it cannot tell first from last: without positional information it does not know token order.",
+        "passage_id": "ch_pos_1",
+        "latencyMs": 858
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "A standard Transformer has no recurrence and no convolution, so by itself it cannot tell first from last: without positional information it does not know token order.",
+        "page": 11,
+        "passage_id": "ch_pos_1",
+        "quote_spans": [
+          "A standard Transformer has no recurrence and no convolution, so by itself it cannot tell first from last: without positional information it does not know token order."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 859
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T03",
+      "kind": "true_paraphrase",
+      "claim": "The attention score between two tokens is the dot product of a query and a key, scaled by the square root of the key dimension.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "The attention score between token i and token j is the dot product of query i and key j, scaled by the square root of the key dimension.",
+        "passage_id": "ch_qkv_1",
+        "latencyMs": 433
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "The attention score between token i and token j is the dot product of query i and key j, scaled by the square root of the key dimension.",
+        "page": 7,
+        "passage_id": "ch_qkv_1",
+        "quote_spans": [
+          "The attention score between token i and token j is the dot product of query i and key j, scaled by the square root of the key dimension."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 433
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T04",
+      "kind": "true_paraphrase",
+      "claim": "Two tokens can have similar keys but carry different values.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Two tokens can therefore have similar keys (both match a query) but carry different values (contribute different content).",
+        "passage_id": "ch_qkv_2",
+        "latencyMs": 521
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Two tokens can therefore have similar keys (both match a query) but carry different values (contribute different content).",
+        "page": 8,
+        "passage_id": "ch_qkv_2",
+        "quote_spans": [
+          "Two tokens can therefore have similar keys (both match a query) but carry different values (contribute different content)."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 522
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T05",
+      "kind": "true_paraphrase",
+      "claim": "Multi-head attention runs the attention computation several times in parallel, each in a smaller subspace.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.",
+        "passage_id": "ch_mh_1",
+        "latencyMs": 335
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.",
+        "page": 15,
+        "passage_id": "ch_mh_1",
+        "quote_spans": [
+          "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 336
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T06",
+      "kind": "true_paraphrase",
+      "claim": "One attention head produces a single weighted average, which limits what it can express.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "A single attention head computes one weighted average, which bottlenecks what it can express.",
+        "passage_id": "ch_mh_2",
+        "latencyMs": 536
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "A single attention head computes one weighted average, which bottlenecks what it can express.",
+        "page": 16,
+        "passage_id": "ch_mh_2",
+        "quote_spans": [
+          "A single attention head computes one weighted average, which bottlenecks what it can express."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 537
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T07",
+      "kind": "true_paraphrase",
+      "claim": "Backpropagation computes the gradients and gradient descent uses them to update the weights.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Backpropagation applies the chain rule to compute the gradient of the loss with respect to every weight. Gradient descent then steps each weight against its gradient, scaled by the learning rate.",
+        "passage_id": "ch_bp_1",
+        "latencyMs": 781
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Backpropagation applies the chain rule to compute the gradient of the loss with respect to every weight. Gradient descent then steps each weight against its gradient, scaled by the learning rate.",
+        "page": 19,
+        "passage_id": "ch_bp_1",
+        "quote_spans": [
+          "Backpropagation applies the chain rule to compute the gradient of the loss with respect to every weight. Gradient descent then steps each weight against its gradient, scaled by the learning rate."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 782
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T08",
+      "kind": "true_paraphrase",
+      "claim": "Value iteration applies the Bellman optimality update directly instead of running a separate evaluation step.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Value iteration instead applies the Bellman optimality update directly at every sweep, folding improvement into the update.",
+        "passage_id": "ch_rl_1",
+        "latencyMs": 286
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Value iteration instead applies the Bellman optimality update directly at every sweep, folding improvement into the update.",
+        "page": 23,
+        "passage_id": "ch_rl_1",
+        "quote_spans": [
+          "Value iteration instead applies the Bellman optimality update directly at every sweep, folding improvement into the update."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 287
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T09",
+      "kind": "true_paraphrase",
+      "claim": "Positional encodings can be fixed sinusoidal patterns or learned vectors.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Positional encodings (fixed sinusoidal patterns or learned vectors) are added to the token embeddings",
+        "passage_id": "ch_pos_1",
+        "latencyMs": 247
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Positional encodings (fixed sinusoidal patterns or learned vectors) are added to the token embeddings",
+        "page": 11,
+        "passage_id": "ch_pos_1",
+        "quote_spans": [
+          "Positional encodings (fixed sinusoidal patterns or learned vectors) are added to the token embeddings"
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 248
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T10",
+      "kind": "shipped_misconception",
+      "claim": "Attention weights already encode which words are important, so positional information only adds cosmetic order detail.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Attention weights answer 'how much should this token listen to each other token'. They do not encode order by themselves. If you permute the input tokens and permute the outputs the same way, the computation is unchanged: self-attention without position information is permutation-equivariant.",
+        "passage_id": "ch_sa_2",
+        "latencyMs": 1004
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Attention weights answer 'how much should this token listen to each other token'. They do not encode order by themselves. If you permute the input tokens and permute the outputs the same way, the computation is unchanged: self-attention without position information is permutation-equivariant.",
+        "page": 5,
+        "passage_id": "ch_sa_2",
+        "quote_spans": [
+          "Attention weights answer 'how much should this token listen to each other token'. They do not encode order by themselves. If you permute the input tokens and permute the outputs the same way, the computation is unchanged: self-attention without position information is permutation-equivariant."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 1005
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T11",
+      "kind": "shipped_misconception",
+      "claim": "Backpropagation is the same thing as gradient descent.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Backpropagation computes gradients; gradient descent uses them.",
+        "passage_id": "ch_bp_2",
+        "latencyMs": 769
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Backpropagation computes gradients; gradient descent uses them.",
+        "page": 20,
+        "passage_id": "ch_bp_2",
+        "quote_spans": [
+          "Backpropagation computes gradients; gradient descent uses them."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 769
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T12",
+      "kind": "paraphrased_misconception",
+      "claim": "If you remove positional encodings the model loses track of which words matter most.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "the answer is order, not importance or relevance",
+        "passage_id": "ch_pos_2",
+        "latencyMs": 338
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "the answer is order, not importance or relevance",
+        "page": 12,
+        "passage_id": "ch_pos_2",
+        "quote_spans": [
+          "the answer is order, not importance or relevance"
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 338
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T13",
+      "kind": "paraphrased_misconception",
+      "claim": "Backprop is the step that decides how far to move each weight.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "backprop answers 'which direction', the optimiser answers 'how far'",
+        "passage_id": "ch_bp_2",
+        "latencyMs": 682
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "backprop answers 'which direction', the optimiser answers 'how far'",
+        "page": 20,
+        "passage_id": "ch_bp_2",
+        "quote_spans": [
+          "backprop answers 'which direction', the optimiser answers 'how far'"
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 683
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T14",
+      "kind": "paraphrased_misconception",
+      "claim": "The learning rate is part of how the gradient itself is calculated.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "The learning rate is a step-size choice, not part of the gradient computation itself.",
+        "passage_id": "ch_bp_1",
+        "latencyMs": 2947
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "The learning rate is a step-size choice, not part of the gradient computation itself.",
+        "page": 19,
+        "passage_id": "ch_bp_1",
+        "quote_spans": [
+          "The learning rate is a step-size choice, not part of the gradient computation itself."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 2947
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T15",
+      "kind": "paraphrased_misconception",
+      "claim": "Policy improvement and value iteration are the same thing.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Policy evaluation estimates how good the current behaviour is; policy improvement changes the behaviour. Value iteration skips the full evaluation and always updates toward the optimal value function.",
+        "passage_id": "ch_rl_2",
+        "latencyMs": 404
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Policy evaluation estimates how good the current behaviour is; policy improvement changes the behaviour. Value iteration skips the full evaluation and always updates toward the optimal value function.",
+        "page": 24,
+        "passage_id": "ch_rl_2",
+        "quote_spans": [
+          "Policy evaluation estimates how good the current behaviour is; policy improvement changes the behaviour. Value iteration skips the full evaluation and always updates toward the optimal value function."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 405
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T16",
+      "kind": "paraphrased_misconception",
+      "claim": "Self-attention on its own is sensitive to the order of the tokens.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "They do not encode order by themselves. If you permute the input tokens and permute the outputs the same way, the computation is unchanged: self-attention without position information is permutation-equivariant.",
+        "passage_id": "ch_sa_2",
+        "latencyMs": 617
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "They do not encode order by themselves. If you permute the input tokens and permute the outputs the same way, the computation is unchanged: self-attention without position information is permutation-equivariant.",
+        "page": 5,
+        "passage_id": "ch_sa_2",
+        "quote_spans": [
+          "They do not encode order by themselves. If you permute the input tokens and permute the outputs the same way, the computation is unchanged: self-attention without position information is permutation-equivariant."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 618
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T17",
+      "kind": "false_real_vocabulary",
+      "claim": "Multi-head attention runs a single head over the input.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.",
+        "passage_id": "ch_mh_1",
+        "latencyMs": 488
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.",
+        "page": 15,
+        "passage_id": "ch_mh_1",
+        "quote_spans": [
+          "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 489
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T18",
+      "kind": "false_real_vocabulary",
+      "claim": "In self-attention each token only compares itself with the token right before it.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Self-attention lets every token in a sequence compare itself with every other token.",
+        "passage_id": "ch_sa_1",
+        "latencyMs": 533
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Self-attention lets every token in a sequence compare itself with every other token.",
+        "page": 4,
+        "passage_id": "ch_sa_1",
+        "quote_spans": [
+          "Self-attention lets every token in a sequence compare itself with every other token."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 533
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T19",
+      "kind": "false_real_vocabulary",
+      "claim": "The attention score between two tokens is the sum of the query and the key.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "the attention score between token i and token j is the dot product of query i and key j",
+        "passage_id": "ch_qkv_1",
+        "latencyMs": 541
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 542
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T20",
+      "kind": "false_real_vocabulary",
+      "claim": "Queries carry the content that gets passed forward, and values are what a token is looking for.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Each token is projected into three vectors: a query (what this token is looking for), a key (what this token offers to others), and a value (the content carried forward).",
+        "passage_id": "ch_qkv_1",
+        "latencyMs": 814
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Each token is projected into three vectors: a query (what this token is looking for), a key (what this token offers to others), and a value (the content carried forward).",
+        "page": 7,
+        "passage_id": "ch_qkv_1",
+        "quote_spans": [
+          "Each token is projected into three vectors: a query (what this token is looking for), a key (what this token offers to others), and a value (the content carried forward)."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 816
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T21",
+      "kind": "false_real_vocabulary",
+      "claim": "Value iteration first runs a full policy evaluation and then improves the policy.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Value iteration skips the full evaluation and always updates toward the optimal value function.",
+        "passage_id": "ch_rl_2",
+        "latencyMs": 590
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Value iteration skips the full evaluation and always updates toward the optimal value function.",
+        "page": 24,
+        "passage_id": "ch_rl_2",
+        "quote_spans": [
+          "Value iteration skips the full evaluation and always updates toward the optimal value function."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 590
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T22",
+      "kind": "false_real_vocabulary",
+      "claim": "Each attention head in multi-head attention attends to the whole model dimension with no smaller subspace.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.",
+        "passage_id": "ch_mh_1",
+        "latencyMs": 340
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.",
+        "page": 15,
+        "passage_id": "ch_mh_1",
+        "quote_spans": [
+          "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 341
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T23",
+      "kind": "not_in_material",
+      "claim": "Transformers apply layer normalisation after each sublayer.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 460
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": false,
+        "confirmed": false,
+        "latency_ms": 461
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T24",
+      "kind": "not_in_material",
+      "claim": "The original Transformer used six encoder layers.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 1092
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": false,
+        "confirmed": false,
+        "latency_ms": 1093
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T25",
+      "kind": "not_in_material",
+      "claim": "Adam adapts the learning rate separately for each parameter.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 213
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 213
+      }
+    },
+    {
+      "course": "course_transformers_w4",
+      "id": "T26",
+      "kind": "not_in_material",
+      "claim": "Language models are usually trained with a cross-entropy loss.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 384
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": false,
+        "confirmed": false,
+        "latency_ms": 385
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P01",
+      "kind": "true_paraphrase",
+      "claim": "Conditioning shrinks the sample space to the outcomes where the given event happened and then renormalises.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Conditioning is easiest to picture as shrinking the sample space: instead of all possible outcomes, we only consider the outcomes in B, and then renormalise so that the restricted probabilities add to one.",
+        "passage_id": "ch_pr_cond_1",
+        "latencyMs": 356
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Conditioning is easiest to picture as shrinking the sample space: instead of all possible outcomes, we only consider the outcomes in B, and then renormalise so that the restricted probabilities add to one.",
+        "page": 3,
+        "passage_id": "ch_pr_cond_1",
+        "quote_spans": [
+          "Conditioning is easiest to picture as shrinking the sample space: instead of all possible outcomes, we only consider the outcomes in B, and then renormalise so that the restricted probabilities add to one."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 357
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P02",
+      "kind": "true_paraphrase",
+      "claim": "P of A given B and P of B given A answer different questions and are usually not equal.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Conditional probability is not symmetric: P(A|B) and P(B|A) answer different questions. P(A|B) restricts the sample space to B and asks how much of it lies in A; P(B|A) does the reverse. They are equal only in special cases, for example when P(A) and P(B) happen to be equal.",
+        "passage_id": "ch_pr_cond_2",
+        "latencyMs": 1210
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Conditional probability is not symmetric: P(A|B) and P(B|A) answer different questions. P(A|B) restricts the sample space to B and asks how much of it lies in A; P(B|A) does the reverse. They are equal only in special cases, for example when P(A) and P(B) happen to be equal.",
+        "page": 4,
+        "passage_id": "ch_pr_cond_2",
+        "quote_spans": [
+          "Conditional probability is not symmetric: P(A|B) and P(B|A) answer different questions. P(A|B) restricts the sample space to B and asks how much of it lies in A; P(B|A) does the reverse. They are equal only in special cases, for example when P(A) and P(B) happen to be equal."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 1211
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P03",
+      "kind": "true_paraphrase",
+      "claim": "Two events are independent when learning that one happened does not change the probability of the other.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Two events are independent when knowing that one happened does not change the probability of the other: P(A|B) = P(A), and equivalently P(A and B) = P(A) × P(B).",
+        "passage_id": "ch_pr_indep_1",
+        "latencyMs": 675
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Two events are independent when knowing that one happened does not change the probability of the other: P(A|B) = P(A), and equivalently P(A and B) = P(A) × P(B).",
+        "page": 6,
+        "passage_id": "ch_pr_indep_1",
+        "quote_spans": [
+          "Two events are independent when knowing that one happened does not change the probability of the other: P(A|B) = P(A), and equivalently P(A and B) = P(A) × P(B)."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 676
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P04",
+      "kind": "true_paraphrase",
+      "claim": "Two draws from a deck without replacement are not independent.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Two draws from a deck without replacement are not independent: after the first card is taken, the deck has changed and the second probability depends on the first outcome.",
+        "passage_id": "ch_pr_indep_1",
+        "latencyMs": 1191
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Two draws from a deck without replacement are not independent: after the first card is taken, the deck has changed and the second probability depends on the first outcome.",
+        "page": 6,
+        "passage_id": "ch_pr_indep_1",
+        "quote_spans": [
+          "Two draws from a deck without replacement are not independent: after the first card is taken, the deck has changed and the second probability depends on the first outcome."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 1192
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P05",
+      "kind": "true_paraphrase",
+      "claim": "Mutually exclusive events that both have positive probability are dependent.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "If both events have positive probability, mutual exclusivity implies dependence, not independence.",
+        "passage_id": "ch_pr_indep_2",
+        "latencyMs": 1445
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "If both events have positive probability, mutual exclusivity implies dependence, not independence.",
+        "page": 7,
+        "passage_id": "ch_pr_indep_2",
+        "quote_spans": [
+          "If both events have positive probability, mutual exclusivity implies dependence, not independence."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 1446
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P06",
+      "kind": "true_paraphrase",
+      "claim": "In Bayes theorem the denominator is the total probability of the evidence, and it normalises the posterior.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "The denominator P(evidence) is the total probability of the evidence under all hypotheses; it normalises the posterior so the probabilities add to one.",
+        "passage_id": "ch_pr_bayes_1",
+        "latencyMs": 1808
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "The denominator P(evidence) is the total probability of the evidence under all hypotheses; it normalises the posterior so the probabilities add to one.",
+        "page": 9,
+        "passage_id": "ch_pr_bayes_1",
+        "quote_spans": [
+          "The denominator P(evidence) is the total probability of the evidence under all hypotheses; it normalises the posterior so the probabilities add to one."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 1808
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P07",
+      "kind": "true_paraphrase",
+      "claim": "A positive test for a rare disease can still leave the chance of disease low because the prior is small.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "The posterior is close to 0.019, or about 2%. The evidence raised the probability from 0.1% to about 2%, but the hypothesis is still unlikely because the prior was small.",
+        "passage_id": "ch_pr_bayes_2",
+        "latencyMs": 2032
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "The posterior is close to 0.019, or about 2%. The evidence raised the probability from 0.1% to about 2%, but the hypothesis is still unlikely because the prior was small.",
+        "page": 10,
+        "passage_id": "ch_pr_bayes_2",
+        "quote_spans": [
+          "The posterior is close to 0.019, or about 2%. The evidence raised the probability from 0.1% to about 2%, but the hypothesis is still unlikely because the prior was small."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 2033
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P08",
+      "kind": "true_paraphrase",
+      "claim": "Expected value is the probability-weighted average of the possible outcomes.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "The expected value of a random quantity is the probability-weighted average of its possible outcomes.",
+        "passage_id": "ch_pr_ev_1",
+        "latencyMs": 1184
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "The expected value of a random quantity is the probability-weighted average of its possible outcomes.",
+        "page": 15,
+        "passage_id": "ch_pr_ev_1",
+        "quote_spans": [
+          "The expected value of a random quantity is the probability-weighted average of its possible outcomes."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 1185
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P09",
+      "kind": "true_paraphrase",
+      "claim": "A fair die has an expected value of 3.5 even though no single roll equals 3.5.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "The expected value of a random quantity is the probability-weighted average of its possible outcomes. For a discrete variable X, expected value is the sum over outcomes x of P(x) × x. A fair six-sided die has expected value (1+2+3+4+5+6)/6 = 3.5. No roll ever equals 3.5; the number describes the long-run average if the die were rolled many times.",
+        "passage_id": "ch_pr_ev_1",
+        "latencyMs": 2181
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "The expected value of a random quantity is the probability-weighted average of its possible outcomes. For a discrete variable X, expected value is the sum over outcomes x of P(x) × x. A fair six-sided die has expected value (1+2+3+4+5+6)/6 = 3.5. No roll ever equals 3.5; the number describes the long-run average if the die were rolled many times.",
+        "page": 15,
+        "passage_id": "ch_pr_ev_1",
+        "quote_spans": [
+          "The expected value of a random quantity is the probability-weighted average of its possible outcomes. For a discrete variable X, expected value is the sum over outcomes x of P(x) × x. A fair six-sided die has expected value (1+2+3+4+5+6)/6 = 3.5. No roll ever equals 3.5; the number describes the long-run average if the die were rolled many times."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 2182
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P10",
+      "kind": "true_paraphrase",
+      "claim": "In the Monty Hall problem, switching doors wins with probability two thirds.",
+      "expected": "supported",
+      "raw": {
+        "verdict": "supported",
+        "quote": "Your initial pick is correct with probability 1/3. The host's action does not move the prize, so the probability that your original door hides the prize stays 1/3. The other 2/3 of probability must sit on the single door the host chose not to open, because he avoided opening it for a reason when he could. Switching therefore wins with probability 2/3, while staying wins with probability 1/3.",
+        "passage_id": "ch_pr_monty_1",
+        "latencyMs": 2067
+      },
+      "final": {
+        "verdict": "supported",
+        "quote": "Your initial pick is correct with probability 1/3. The host's action does not move the prize, so the probability that your original door hides the prize stays 1/3. The other 2/3 of probability must sit on the single door the host chose not to open, because he avoided opening it for a reason when he could. Switching therefore wins with probability 2/3, while staying wins with probability 1/3.",
+        "page": 18,
+        "passage_id": "ch_pr_monty_1",
+        "quote_spans": [
+          "Your initial pick is correct with probability 1/3. The host's action does not move the prize, so the probability that your original door hides the prize stays 1/3. The other 2/3 of probability must sit on the single door the host chose not to open, because he avoided opening it for a reason when he could. Switching therefore wins with probability 2/3, while staying wins with probability 1/3."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": true,
+        "latency_ms": 2068
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P11",
+      "kind": "shipped_misconception",
+      "claim": "P(A|B) and P(B|A) are the same thing, so the order of the bar does not matter.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 726
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 728
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P12",
+      "kind": "shipped_misconception",
+      "claim": "Mutually exclusive events are independent.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "If both events have positive probability, mutual exclusivity implies dependence, not independence.",
+        "passage_id": "ch_pr_indep_2",
+        "latencyMs": 392
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "If both events have positive probability, mutual exclusivity implies dependence, not independence.",
+        "page": 7,
+        "passage_id": "ch_pr_indep_2",
+        "quote_spans": [
+          "If both events have positive probability, mutual exclusivity implies dependence, not independence."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 393
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P13",
+      "kind": "shipped_misconception",
+      "claim": "After the host opens a goat door, the two unopened doors are equally likely, so switching does not matter.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize. His choice reveals information about where the prize is not.",
+        "passage_id": "ch_pr_monty_2",
+        "latencyMs": 529
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize. His choice reveals information about where the prize is not.",
+        "page": 19,
+        "passage_id": "ch_pr_monty_2",
+        "quote_spans": [
+          "After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize. His choice reveals information about where the prize is not."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 617
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P14",
+      "kind": "paraphrased_misconception",
+      "claim": "The chance of a positive test given the disease is the same as the chance of the disease given a positive test.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Conditional probability is not symmetric: P(A|B) and P(B|A) answer different questions. P(A|B) restricts the sample space to B and asks how much of it lies in A; P(B|A) does the reverse. They are equal only in special cases, for example when P(A) and P(B) happen to be equal. A useful sanity check is to swap the events in a sentence and notice that the meaning changes: the probability of a positive test given a disease is not the probability of a disease given a positive test.",
+        "passage_id": "ch_pr_cond_2",
+        "latencyMs": 1187
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Conditional probability is not symmetric: P(A|B) and P(B|A) answer different questions. P(A|B) restricts the sample space to B and asks how much of it lies in A; P(B|A) does the reverse. They are equal only in special cases, for example when P(A) and P(B) happen to be equal. A useful sanity check is to swap the events in a sentence and notice that the meaning changes: the probability of a positive test given a disease is not the probability of a disease given a positive test.",
+        "page": 4,
+        "passage_id": "ch_pr_cond_2",
+        "quote_spans": [
+          "Conditional probability is not symmetric: P(A|B) and P(B|A) answer different questions. P(A|B) restricts the sample space to B and asks how much of it lies in A; P(B|A) does the reverse. They are equal only in special cases, for example when P(A) and P(B) happen to be equal. A useful sanity check is to swap the events in a sentence and notice that the meaning changes: the probability of a positive test given a disease is not the probability of a disease given a positive test."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 1188
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P15",
+      "kind": "paraphrased_misconception",
+      "claim": "If two events cannot happen together, learning that one occurred tells you nothing about the other.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Knowing that A happened tells you that B did not happen, which is the strongest possible change in B's probability.",
+        "passage_id": "ch_pr_indep_2",
+        "latencyMs": 756
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Knowing that A happened tells you that B did not happen, which is the strongest possible change in B's probability.",
+        "page": 7,
+        "passage_id": "ch_pr_indep_2",
+        "quote_spans": [
+          "Knowing that A happened tells you that B did not happen, which is the strongest possible change in B's probability."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 757
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P16",
+      "kind": "paraphrased_misconception",
+      "claim": "In Monty Hall the host opens a random door, so the prize splits evenly between the two remaining doors.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize.",
+        "passage_id": "ch_pr_monty_2",
+        "latencyMs": 775
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize.",
+        "page": 19,
+        "passage_id": "ch_pr_monty_2",
+        "quote_spans": [
+          "After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 777
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P17",
+      "kind": "paraphrased_misconception",
+      "claim": "If a test is 99 percent accurate, a positive result means about a 99 percent chance you have the disease.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Of roughly 101 positive results, only about 1 is a true case, so the probability of disease given a positive test is about 1%.",
+        "passage_id": "ch_pr_baserate_1",
+        "latencyMs": 582
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Of roughly 101 positive results, only about 1 is a true case, so the probability of disease given a positive test is about 1%.",
+        "page": 12,
+        "passage_id": "ch_pr_baserate_1",
+        "quote_spans": [
+          "Of roughly 101 positive results, only about 1 is a true case, so the probability of disease given a positive test is about 1%."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 584
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P18",
+      "kind": "paraphrased_misconception",
+      "claim": "Expected value tells you the single most likely outcome of a gamble.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Expected value is not the most likely outcome, and it is not a measure of risk.",
+        "passage_id": "ch_pr_ev_2",
+        "latencyMs": 396
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Expected value is not the most likely outcome, and it is not a measure of risk.",
+        "page": 16,
+        "passage_id": "ch_pr_ev_2",
+        "quote_spans": [
+          "Expected value is not the most likely outcome, and it is not a measure of risk."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 397
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P19",
+      "kind": "paraphrased_misconception",
+      "claim": "Expected value measures how risky a gamble is.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Expected value is not the most likely outcome, and it is not a measure of risk.",
+        "passage_id": "ch_pr_ev_2",
+        "latencyMs": 438
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Expected value is not the most likely outcome, and it is not a measure of risk.",
+        "page": 16,
+        "passage_id": "ch_pr_ev_2",
+        "quote_spans": [
+          "Expected value is not the most likely outcome, and it is not a measure of risk."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 440
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P20",
+      "kind": "false_real_vocabulary",
+      "claim": "Conditioning on B means adding the outcomes outside B to the sample space.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Conditioning is easiest to picture as shrinking the sample space: instead of all possible outcomes, we only consider the outcomes in B, and then renormalise so that the restricted probabilities add to one.",
+        "passage_id": "ch_pr_cond_1",
+        "latencyMs": 414
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Conditioning is easiest to picture as shrinking the sample space: instead of all possible outcomes, we only consider the outcomes in B, and then renormalise so that the restricted probabilities add to one.",
+        "page": 3,
+        "passage_id": "ch_pr_cond_1",
+        "quote_spans": [
+          "Conditioning is easiest to picture as shrinking the sample space: instead of all possible outcomes, we only consider the outcomes in B, and then renormalise so that the restricted probabilities add to one."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 418
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P21",
+      "kind": "false_real_vocabulary",
+      "claim": "Two draws from a deck without replacement are independent because every card is equally likely.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "Two draws from a deck without replacement are not independent: after the first card is taken, the deck has changed and the second probability depends on the first outcome.",
+        "passage_id": "ch_pr_indep_1",
+        "latencyMs": 379
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "Two draws from a deck without replacement are not independent: after the first card is taken, the deck has changed and the second probability depends on the first outcome.",
+        "page": 6,
+        "passage_id": "ch_pr_indep_1",
+        "quote_spans": [
+          "Two draws from a deck without replacement are not independent: after the first card is taken, the deck has changed and the second probability depends on the first outcome."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 380
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P22",
+      "kind": "false_real_vocabulary",
+      "claim": "The prior is the updated belief after seeing the evidence, and the posterior is what we believed beforehand.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "P(hypothesis) is the prior: what we believed before seeing the evidence. P(hypothesis | evidence) is the posterior: the updated belief.",
+        "passage_id": "ch_pr_bayes_1",
+        "latencyMs": 530
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 531
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P23",
+      "kind": "false_real_vocabulary",
+      "claim": "With one hundred doors, after the host opens ninety-eight goat doors the chance the remaining door hides the prize is one percent.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "With 100 doors, your first pick wins 1% of the time. The host then opens 98 goat doors, carefully avoiding the prize. The chance that the remaining unopened door is the prize is 99%",
+        "passage_id": "ch_pr_monty_2",
+        "latencyMs": 626
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "With 100 doors, your first pick wins 1% of the time. The host then opens 98 goat doors, carefully avoiding the prize. The chance that the remaining unopened door is the prize is 99%",
+        "page": 19,
+        "passage_id": "ch_pr_monty_2",
+        "quote_spans": [
+          "With 100 doors, your first pick wins 1% of the time. The host then opens 98 goat doors, carefully avoiding the prize. The chance that the remaining unopened door is the prize is 99%"
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 627
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P24",
+      "kind": "false_real_vocabulary",
+      "claim": "A gamble is fair when its expected value is greater than what you pay to play.",
+      "expected": "contradicted",
+      "raw": {
+        "verdict": "contradicted",
+        "quote": "A gamble is called fair when its expected value equals what you pay to play.",
+        "passage_id": "ch_pr_ev_1",
+        "latencyMs": 808
+      },
+      "final": {
+        "verdict": "contradicted",
+        "quote": "A gamble is called fair when its expected value equals what you pay to play.",
+        "page": 15,
+        "passage_id": "ch_pr_ev_1",
+        "quote_spans": [
+          "A gamble is called fair when its expected value equals what you pay to play."
+        ],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 809
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P25",
+      "kind": "not_in_material",
+      "claim": "The central limit theorem says that sample means become approximately normal.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 703
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": false,
+        "confirmed": false,
+        "latency_ms": 704
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P26",
+      "kind": "not_in_material",
+      "claim": "The variance of a fair six-sided die roll is about 2.92.",
+      "expected": "not_in_material",
+      "raw": null,
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "lexical",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 143
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P27",
+      "kind": "not_in_material",
+      "claim": "The Poisson distribution models counts of rare events.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 207
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": false,
+        "confirmed": false,
+        "latency_ms": 209
+      }
+    },
+    {
+      "course": "course_probability",
+      "id": "P28",
+      "kind": "not_in_material",
+      "claim": "Thomas Bayes never published his theorem during his lifetime.",
+      "expected": "not_in_material",
+      "raw": {
+        "verdict": "not_in_material",
+        "quote": "",
+        "passage_id": "",
+        "latencyMs": 460
+      },
+      "final": {
+        "verdict": "not_in_material",
+        "quote": null,
+        "page": null,
+        "passage_id": null,
+        "quote_spans": [],
+        "method": "llm",
+        "words_present": true,
+        "confirmed": false,
+        "latency_ms": 461
+      }
+    }
+  ]
+}

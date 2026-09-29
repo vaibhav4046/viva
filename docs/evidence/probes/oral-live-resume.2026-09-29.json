@@ -1,0 +1,931 @@
+{
+  "measuredOn": "2026-09-29T18:55:26.631Z",
+  "scenario": "resume",
+  "learner": "synthetic (Windows System.Speech WAVs in fixtures/audio)",
+  "transport": "Node WebSocket through src/lib/oral/socket.ts against the live AssemblyAI Voice Agent API",
+  "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts resume --runs 2",
+  "runs": 2,
+  "passed": 2,
+  "summary": {
+    "recoveryMs": {
+      "median": 986,
+      "n": 2,
+      "values": [
+        921,
+        1050
+      ]
+    }
+  },
+  "results": [
+    {
+      "run": 1,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "recoveryMs": 921
+      },
+      "notes": {
+        "connectModesAfterDrop": [
+          "resume",
+          "fresh"
+        ],
+        "resumeRefusedWith": "session_not_found",
+        "outcome": "resume refused by the service, continued in a new session with the recent turns",
+        "sessionIdChanged": true,
+        "sayingAfterRecovery": "Sorry, the connection dropped. Let'  carry on.",
+        "replyToRepeatRequest": "I  haven't  a ked  a  que tion  yet.  I  wa   waiting  to  verify  your   tatement  about  po itional  encoding.  One  moment.",
+        "userTurnsHeard": [
+          "Positional encoding adds information about token order before the first self attention layer.",
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "CHECKING_SOURCE",
+          "LISTENING",
+          "RECOVERING",
+          "ERROR",
+          "RECOVERING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "CHECKING_SOURCE",
+          "SPEAKING",
+          "LISTENING",
+          "SPEAKING"
+        ],
+        "trace": [
+          {
+            "ms": 759,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 803,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 892,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 892,
+            "kind": "session.update.sent",
+            "continued": false,
+            "historyTurns": 0
+          },
+          {
+            "ms": 1155,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 1181,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 1182,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 1184,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 1184,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 2187,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 41,
+            "firstMs": 2187,
+            "lastMs": 30673
+          },
+          {
+            "ms": 5787,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+          },
+          {
+            "ms": 6268,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 6268,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 6893,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 217
+          },
+          {
+            "ms": 7879,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 7879,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 7879,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional"
+          },
+          {
+            "ms": 9079,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds"
+          },
+          {
+            "ms": 10279,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds information about tokens"
+          },
+          {
+            "ms": 11480,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds information about token order before the first"
+          },
+          {
+            "ms": 12680,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds information about token order before the first self-attention layer."
+          },
+          {
+            "ms": 13086,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 13086,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Positional encoding adds information about token order before the first self attention layer."
+          },
+          {
+            "ms": 13086,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 13086,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 13086,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 16406,
+            "kind": "ws.recv",
+            "type": "tool.call",
+            "name": "verify_claim",
+            "call_id": "chatcmpl-tool-9e8eaa0689347fc4"
+          },
+          {
+            "ms": 16407,
+            "kind": "state",
+            "state": "CHECKING_SOURCE",
+            "reason": null
+          },
+          {
+            "ms": 16407,
+            "kind": "tool.http.start",
+            "call_id": "chatcmpl-tool-9e8eaa0689347fc4",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 16659,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 16659,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 17203,
+            "kind": "test.drop_socket"
+          },
+          {
+            "ms": 17206,
+            "kind": "ws.close",
+            "code": 1006
+          },
+          {
+            "ms": 17206,
+            "kind": "state",
+            "state": "RECOVERING",
+            "reason": "socket closed 1006"
+          },
+          {
+            "ms": 17377,
+            "kind": "ws.connect",
+            "mode": "resume"
+          },
+          {
+            "ms": 17477,
+            "kind": "ws.open",
+            "mode": "resume"
+          },
+          {
+            "ms": 17530,
+            "kind": "ws.recv",
+            "type": "session.error",
+            "code": "session_not_found"
+          },
+          {
+            "ms": 17530,
+            "kind": "state",
+            "state": "ERROR",
+            "reason": "session_not_found"
+          },
+          {
+            "ms": 17586,
+            "kind": "ws.close",
+            "code": 1008
+          },
+          {
+            "ms": 17586,
+            "kind": "state",
+            "state": "RECOVERING",
+            "reason": "session could not be resumed"
+          },
+          {
+            "ms": 17586,
+            "kind": "probe.notice",
+            "text": "That exam session expired. Starting a new one."
+          },
+          {
+            "ms": 17699,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 17776,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 17776,
+            "kind": "session.update.sent",
+            "continued": true,
+            "historyTurns": 2
+          },
+          {
+            "ms": 17959,
+            "kind": "tool.http.end",
+            "call_id": "chatcmpl-tool-9e8eaa0689347fc4",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 17960,
+            "kind": "tool.result.send",
+            "call_id": "chatcmpl-tool-9e8eaa0689347fc4",
+            "is_error": false
+          },
+          {
+            "ms": 18091,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 18125,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 18125,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 18126,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 18126,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 21346,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "Sorry, the connection dropped. Let's carry on."
+          },
+          {
+            "ms": 21675,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 21675,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 23325,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 24508,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 24508,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 24509,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "When"
+          },
+          {
+            "ms": 25109,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 25820,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat?"
+          },
+          {
+            "ms": 26910,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 26910,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 26910,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 26912,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 26912,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 31282,
+            "kind": "ws.recv",
+            "type": "tool.call",
+            "name": "verify_claim",
+            "call_id": "chatcmpl-tool-b23e048d36918251"
+          },
+          {
+            "ms": 31282,
+            "kind": "state",
+            "state": "CHECKING_SOURCE",
+            "reason": null
+          },
+          {
+            "ms": 31282,
+            "kind": "tool.http.start",
+            "call_id": "chatcmpl-tool-b23e048d36918251",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 31286,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 31942,
+            "kind": "tool.http.end",
+            "call_id": "chatcmpl-tool-b23e048d36918251",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 36129,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "I haven't asked a question yet. I was waiting to verify your statement about positional encoding. One moment.\n\n"
+          },
+          {
+            "ms": 36436,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 36437,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 36437,
+            "kind": "tool.result.send",
+            "call_id": "chatcmpl-tool-b23e048d36918251",
+            "is_error": false
+          },
+          {
+            "ms": 36465,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 36465,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "recoveryMs": 1050
+      },
+      "notes": {
+        "connectModesAfterDrop": [
+          "resume",
+          "fresh"
+        ],
+        "resumeRefusedWith": "session_not_found",
+        "outcome": "resume refused by the service, continued in a new session with the recent turns",
+        "sessionIdChanged": true,
+        "sayingAfterRecovery": "Sorry, the connection dropped. Let'  carry on.",
+        "replyToRepeatRequest": "I  have  not  a ked  a  que tion  yet.  Would  you  like  to   tart  with  po itional  encoding,  or  choo e  a  different  topic?",
+        "userTurnsHeard": [
+          "Positional encoding adds information about token order before the first self attention layer.",
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "CHECKING_SOURCE",
+          "LISTENING",
+          "RECOVERING",
+          "ERROR",
+          "RECOVERING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "LISTENING"
+        ],
+        "trace": [
+          {
+            "ms": 39985,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 39987,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 40093,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 40093,
+            "kind": "session.update.sent",
+            "continued": false,
+            "historyTurns": 0
+          },
+          {
+            "ms": 40334,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 40360,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 40360,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 40364,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 40364,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 41339,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 43,
+            "firstMs": 41339,
+            "lastMs": 70066
+          },
+          {
+            "ms": 45109,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+          },
+          {
+            "ms": 45598,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 45598,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 46115,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 217
+          },
+          {
+            "ms": 47171,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 47171,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 47171,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional"
+          },
+          {
+            "ms": 48359,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds"
+          },
+          {
+            "ms": 49659,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds information about token"
+          },
+          {
+            "ms": 50967,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds information about token order before the first"
+          },
+          {
+            "ms": 52161,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Positional encoding adds information about token order before the first self attention layer."
+          },
+          {
+            "ms": 52276,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 52276,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Positional encoding adds information about token order before the first self attention layer."
+          },
+          {
+            "ms": 52276,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 52276,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 52276,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 55602,
+            "kind": "ws.recv",
+            "type": "tool.call",
+            "name": "verify_claim",
+            "call_id": "chatcmpl-tool-93031c2f7c7bf361"
+          },
+          {
+            "ms": 55602,
+            "kind": "state",
+            "state": "CHECKING_SOURCE",
+            "reason": null
+          },
+          {
+            "ms": 55602,
+            "kind": "tool.http.start",
+            "call_id": "chatcmpl-tool-93031c2f7c7bf361",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 55858,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 55858,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 56399,
+            "kind": "test.drop_socket"
+          },
+          {
+            "ms": 56399,
+            "kind": "ws.close",
+            "code": 1006
+          },
+          {
+            "ms": 56399,
+            "kind": "state",
+            "state": "RECOVERING",
+            "reason": "socket closed 1006"
+          },
+          {
+            "ms": 56632,
+            "kind": "ws.connect",
+            "mode": "resume"
+          },
+          {
+            "ms": 56698,
+            "kind": "ws.open",
+            "mode": "resume"
+          },
+          {
+            "ms": 56767,
+            "kind": "ws.recv",
+            "type": "session.error",
+            "code": "session_not_found"
+          },
+          {
+            "ms": 56767,
+            "kind": "state",
+            "state": "ERROR",
+            "reason": "session_not_found"
+          },
+          {
+            "ms": 56788,
+            "kind": "ws.close",
+            "code": 1008
+          },
+          {
+            "ms": 56788,
+            "kind": "state",
+            "state": "RECOVERING",
+            "reason": "session could not be resumed"
+          },
+          {
+            "ms": 56788,
+            "kind": "probe.notice",
+            "text": "That exam session expired. Starting a new one."
+          },
+          {
+            "ms": 57014,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 57092,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 57092,
+            "kind": "session.update.sent",
+            "continued": true,
+            "historyTurns": 2
+          },
+          {
+            "ms": 57424,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 57449,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 57449,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 57452,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 57452,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 58447,
+            "kind": "tool.http.end",
+            "call_id": "chatcmpl-tool-93031c2f7c7bf361",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 58447,
+            "kind": "tool.result.send",
+            "call_id": "chatcmpl-tool-93031c2f7c7bf361",
+            "is_error": false
+          },
+          {
+            "ms": 60938,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "Sorry, the connection dropped. Let's carry on."
+          },
+          {
+            "ms": 61305,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 61305,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 62617,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 64044,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 64044,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 64044,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 65243,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat?"
+          },
+          {
+            "ms": 66349,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 66349,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 66349,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 66349,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 66349,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 75971,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "I have not asked a question yet. Would you like to start with positional encoding, or choose a different topic?"
+          },
+          {
+            "ms": 76281,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 76281,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    }
+  ],
+  "traceNote": "per-chunk audio and transcript-delta rows are collapsed into summary rows (count, first and last ms); metrics are unchanged"
+}

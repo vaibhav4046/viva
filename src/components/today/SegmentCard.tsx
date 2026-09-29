@@ -60,12 +60,12 @@ export function SegmentCard({
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden
-            className="mono inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border hairline text-[11px]"
+            className="mono inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border hairline text-xs"
             style={{ color: kind.color }}
           >
             {index}
           </span>
-          <span className="mono text-[11px] font-semibold tracking-widest" style={{ color: kind.color }}>
+          <span className="mono text-xs font-semibold tracking-widest" style={{ color: kind.color }}>
             {kind.label}
           </span>
         </div>

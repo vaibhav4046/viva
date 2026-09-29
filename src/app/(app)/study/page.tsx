@@ -657,11 +657,11 @@ export default function StudyPage() {
               </p>
               <dl className="mono mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs" style={{ color: "var(--color-ash)" }}>
                 <div>
-                  <dt className="text-[11px] tracking-widest">GOT IT</dt>
+                  <dt className="text-xs tracking-widest">GOT IT</dt>
                   <dd className="tnum" style={{ color: "var(--color-paper)" }}>{selMastery.successfulRecallCount}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] tracking-widest">MISSED</dt>
+                  <dt className="text-xs tracking-widest">MISSED</dt>
                   <dd className="tnum">{selMastery.failedRecallCount}</dd>
                 </div>
               </dl>

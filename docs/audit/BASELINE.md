@@ -193,7 +193,7 @@ closes in roughly 48 hours.**
 
 The brief asks for, on VIVA: Voice Agent API session state machine, barge-in
 with flushed output, typed tool registry, verification layer, layered persistent
-memory, self-improving harness, model routing, a premium GSAP UI rebuild, a
+memory, self-improving loop, model routing, a premium GSAP UI rebuild, a
 landing page, mobile, a11y, instrumentation and benchmarks, 6 test directories,
 a 90-150 s golden demo, a recorded fallback, a video package, and submission
 artifacts.

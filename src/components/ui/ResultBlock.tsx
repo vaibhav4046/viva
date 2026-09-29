@@ -34,7 +34,7 @@ export function ResultBlock({ tone, children }: { tone: keyof typeof TONE | stri
   const t = TONE[tone] ?? TONE.next;
   return (
     <div className="border-t pt-3 first:border-t-0 first:pt-0" style={{ borderColor: "var(--color-hairline)" }}>
-      <p className="mono text-[11px] font-semibold tracking-widest" style={{ color: t.color }}>
+      <p className="mono text-xs font-semibold tracking-widest" style={{ color: t.color }}>
         {t.label}
       </p>
       <div className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>

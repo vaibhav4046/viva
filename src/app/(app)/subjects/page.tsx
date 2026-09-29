@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FileText, Layers, Link2, Sparkles, Type } from "lucide-react";
+import { ArrowRight, FileText, Layers, Link2, Type } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -279,7 +279,7 @@ export default function SubjectsPage() {
     { key: "paste", label: "Paste notes", icon: Type },
     { key: "link", label: "Add a link", icon: Link2 },
     { key: "files", label: "Upload files", icon: FileText },
-    { key: "name", label: "Just name it", icon: Sparkles },
+    { key: "name", label: "Just name it", icon: Layers },
   ];
 
   /*
@@ -359,7 +359,7 @@ export default function SubjectsPage() {
         {credit || licences.length ? (
           <div className="hairline mt-4 border-t pt-3">
             {credit ? (
-              <p className="text-[11px] leading-relaxed" style={{ color: "var(--color-ash)" }}>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--color-ash)" }}>
                 {credit}
               </p>
             ) : null}
@@ -493,7 +493,7 @@ export default function SubjectsPage() {
 
         <div className="mt-4 grid gap-3">
           <label className="grid gap-1.5">
-            <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
+            <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
               {tab === "name" ? "TOPIC" : "NAME IT (OPTIONAL)"}
             </span>
             <input
@@ -508,7 +508,7 @@ export default function SubjectsPage() {
 
           {tab === "paste" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
+              <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
                 YOUR NOTES
               </span>
               <textarea
@@ -519,7 +519,7 @@ export default function SubjectsPage() {
                 className="rounded-lg border px-3 py-2 text-sm leading-relaxed"
                 style={{ background: "var(--color-obsidian)", borderColor: "var(--color-hairline)", color: "var(--color-paper)" }}
               />
-              <span className="mono text-[11px]" style={{ color: "var(--color-ash)" }}>
+              <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
                 <span className="tnum">{text.trim() ? text.trim().split(/\s+/).length : 0}</span> words
               </span>
             </label>
@@ -527,7 +527,7 @@ export default function SubjectsPage() {
 
           {tab === "link" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
+              <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
                 ADDRESS · UP TO {MAX_DOCS}, ONE PER LINE
               </span>
               <textarea
@@ -547,7 +547,7 @@ export default function SubjectsPage() {
 
           {tab === "files" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
+              <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
                 PDF, WORD OR TEXT · UP TO {MAX_DOCS}, {MAX_UPLOAD_MB} MB TOGETHER
               </span>
               <input
@@ -559,7 +559,7 @@ export default function SubjectsPage() {
                 style={{ background: "var(--color-obsidian)", borderColor: "var(--color-hairline)", color: "var(--color-paper)" }}
               />
               {files.length > 1 ? (
-                <span className="mono text-[11px]" style={{ color: "var(--color-ash)" }}>
+                <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
                   <span className="tnum">{files.length}</span> files · one subject built from all of them
                 </span>
               ) : null}

@@ -26,7 +26,7 @@ const write = process.argv.includes("--write");
 const includeDeferred = process.argv.includes("--include-deferred");
 
 const ROOTS = ["src", "tests", "scripts", "docs", "design", "README.md", "SECURITY.md", "THIRD-PARTY.md"];
-const SKIP = [/node_modules/, /[\\/]\.next[\\/]/, /docs[\\/]evidence[\\/]/, /scripts[\\/]e2e-golden\.py$/];
+const SKIP = [/design[\\/]audit-fixtures/, /node_modules/, /[\\/]\.next[\\/]/, /docs[\\/]evidence[\\/]/, /scripts[\\/]e2e-golden\.py$/];
 const DEFERRED = [/src[\\/]lib[\\/]oral[\\/]/, /src[\\/]app[\\/]api[\\/]/, /tests[\\/]oral-/, /scripts[\\/]probes[\\/]/, /docs[\\/]notes[\\/]/];
 const EXT = /\.(ts|tsx|mts|mjs|js|css|md|json|html|svg)$/;
 

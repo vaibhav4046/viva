@@ -166,8 +166,8 @@ every one of them wrong:
 - **Frame size barely matters, and where it does it is the wrong way round.**
   Halving the frame from 100 ms to 50 ms made the first partial *later* on both
   models, not earlier.
-- An earlier draft also cited "two independently written harnesses" giving
-  170-192 ms and 449 ms. Neither harness is in this repository and neither
+- An earlier draft also cited "two independently written scripts" giving
+  170-192 ms and 449 ms. Neither script is in this repository and neither
   result can be reproduced, so both are withdrawn rather than restated.
 
 One difference we did not expect and have not seen documented: **the two models
@@ -366,7 +366,7 @@ audio first   -> 400 {"error":"the `config` part must be sent before the `audio`
 That names the cause and the fix in one line, and the complaint is withdrawn.
 What is left is a documentation ask: a multipart form is not usually
 order-sensitive, so nobody writing the client thinks to check, and the ordering
-requirement is not in the docs, it is only in the 400 you get after guessing.
+requirement appears nowhere in the docs. It shows up only in the 400 you get after guessing.
 
 **A correction we owe you.** This section previously said `Authorization` takes
 the raw key with **no** `Bearer` prefix, "unlike most APIs". That is false. The
@@ -413,7 +413,7 @@ and elsewhere in this codebase it is recorded against the 9.55 s reference clip,
 which would have been read as roughly 57 s.
 
 Since the audio is raw PCM, the declared rate is the only thing that can
-determine duration, so this is not a defect. But the failure is silent and
+determine duration, so this is working as designed. The failure is still silent and
 expensive in the direction that costs the customer money.
 
 What makes it worth an ask is that **the endpoint already does this kind of

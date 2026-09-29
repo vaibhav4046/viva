@@ -144,7 +144,7 @@ export function SourceReader({
             {meta.line}
           </p>
         </div>
-        <span className="mono shrink-0 pt-1 text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }} aria-hidden>
+        <span className="mono shrink-0 pt-1 text-xs tracking-widest" style={{ color: "var(--color-ash)" }} aria-hidden>
           Scroll
         </span>
       </div>
@@ -224,7 +224,7 @@ export function SourceReader({
                             as a page the app has lost rather than a page that
                             never existed. */}
                         {locator ? (
-                          <p className="mono min-w-0 text-[11px]" style={{ color: "var(--color-ash)" }}>
+                          <p className="mono min-w-0 text-xs" style={{ color: "var(--color-ash)" }}>
                             {locator}
                           </p>
                         ) : (

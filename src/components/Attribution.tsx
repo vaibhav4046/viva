@@ -60,13 +60,13 @@ export function Attribution({
         return (
           <div key={`${l.name}-${l.sourceUrl}`} className="min-w-0">
             <p
-              className="text-[11px] leading-relaxed"
+              className="text-xs leading-relaxed"
               style={{ color: "var(--color-ash)", overflowWrap: "anywhere" }}
             >
               {l.attribution}
               {conditions ? ` ${conditions}` : null}
             </p>
-            <p className="mono mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" style={{ color: "var(--color-ash)" }}>
+            <p className="mono mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "var(--color-ash)" }}>
               <a href={l.url} target="_blank" rel="noopener noreferrer" className={LINK}>
                 {l.name}
               </a>

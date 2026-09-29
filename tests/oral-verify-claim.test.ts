@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyClaim, quoteInPassage } from "@/lib/oral/verify-claim";
+import { verifyClaim, quoteInPassage, quoteSpans } from "@/lib/oral/verify-claim";
 import type { SourceChunk } from "@/lib/types";
 
 const passage: SourceChunk = {
@@ -30,5 +30,29 @@ describe("quote-checked oral verifier", () => {
   it("never asserts support when no semantic provider is available", async () => {
     const result = await verifyClaim(claim, [passage], async () => null);
     expect(result).toMatchObject({ verdict: "not_in_material", method: "lexical", confirmed: false });
+  });
+
+  it('asks for a JSON object by name, because json_object mode returns HTTP 400 without the word JSON', async () => {
+    let system = '';
+    await verifyClaim(claim, [passage], async (input) => { system = input.system; return null; });
+    expect(system).toMatch(/JSON object/);
+    for (const key of ['verdict', 'quote', 'passage_id']) expect(system).toContain(key);
+  });
+
+  it("accepts an elided quote only when every piece is verbatim and in passage order", () => {
+    const text = passage.text;
+    expect(quoteSpans("Multi-head attention runs several query-key-value ... Different heads can capture different relationships.", text)).toEqual([
+      "Multi-head attention runs several query-key-value",
+      "Different heads can capture different relationships.",
+    ]);
+    expect(quoteSpans("Different heads can capture different relationships. ... Multi-head attention runs several query-key-value", text)).toBeNull();
+    expect(quoteSpans("Multi-head attention runs several query-key-value ... and one head is enough for all of it", text)).toBeNull();
+    expect(quoteSpans("...", text)).toBeNull();
+  });
+
+  it("passes the named concept to the judge so a spoken \"it\" has a subject", async () => {
+    let user = "";
+    await verifyClaim("it runs a single head over the input", [passage], async (input) => { user = input.user; return null; }, "multi-head attention");
+    expect(JSON.parse(user).claim).toBe("multi-head attention: it runs a single head over the input");
   });
 });

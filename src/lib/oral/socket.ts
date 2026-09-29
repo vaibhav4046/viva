@@ -73,6 +73,33 @@ import {
 /** The Voice Agent host, per the docs. Not the streaming host. */
 const WS_BASE = "wss://agents.assemblyai.com/v1/ws";
 
+/**
+ * How long the service keeps a session after any disconnect. From the official
+ * events reference: "Sessions are preserved for 30 seconds after every
+ * disconnection before expiring." Read 2026-09-29. The UI copy uses this too.
+ */
+export const RESUME_WINDOW_SECONDS = 30;
+/** Give up on resume a little before the service does, so the fresh session starts in time. */
+const RESUME_GIVE_UP_MS = (RESUME_WINDOW_SECONDS - 5) * 1000;
+
+/**
+ * Test-only trace. Inert unless a page (or a Node probe) creates
+ * `globalThis.__VIVA_ORAL_TRACE__ = []` before the socket opens. Records event
+ * names and small scalar fields, never audio data or transcript text beyond what
+ * a probe asks for, and adds `dropSocket()` so a probe can force a real
+ * disconnect without touching page code.
+ */
+export type OralTraceEvent = { t: number; kind: string; [field: string]: unknown };
+type TraceSink = OralTraceEvent[] & { dropSocket?: () => void };
+function traceSink(): TraceSink | null {
+  const sink = (globalThis as { __VIVA_ORAL_TRACE__?: unknown }).__VIVA_ORAL_TRACE__;
+  return Array.isArray(sink) ? (sink as TraceSink) : null;
+}
+function trace(kind: string, fields: Record<string, unknown> = {}): void {
+  const sink = traceSink();
+  if (sink) sink.push({ t: performance.now(), kind, ...fields });
+}
+
 /** The API's input format. Not a preference: the STT model is tuned for it. */
 export const ORAL_SAMPLE_RATE = 24_000;
 
@@ -190,7 +217,16 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   let sawEnded = false;
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const publish = () => opts.onState(m);
+  let lastTracedState = "";
+  const publish = () => {
+    if (m.state !== lastTracedState) {
+      lastTracedState = m.state;
+      trace("state", { state: m.state, reason: m.reason });
+    }
+    opts.onState(m);
+  };
+  const sink = traceSink();
+  if (sink) sink.dropSocket = () => { trace("test.drop_socket"); socket?.close(); };
 
   /**
    * Audio leaves only after `session.ready`, never on open.
@@ -249,8 +285,10 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       return;
     }
     socket = ws;
+    trace("ws.connect", { mode });
 
     ws.onopen = () => {
+      trace("ws.open", { mode });
       if (mode === "resume" && resumeId) {
         // session.resume is the first message on a resumed connection, and
         // session.update is the first message on a fresh one. Never both.
@@ -288,6 +326,14 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       } catch {
         return; // An unparseable frame is not worth killing an exam over.
       }
+      trace("ws.recv", {
+        type: String(msg.type),
+        ...(msg.status ? { status: msg.status } : {}),
+        ...(msg.interrupted ? { interrupted: true } : {}),
+        ...(msg.name ? { name: msg.name } : {}),
+        ...(msg.call_id ? { call_id: msg.call_id } : {}),
+        ...(msg.code ? { code: msg.code } : {}),
+      });
       handle(msg);
     };
 
@@ -296,6 +342,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     };
 
     ws.onclose = (ev) => {
+      trace("ws.close", { code: ev.code });
       // A closed socket has no live session, whatever the state machine says.
       // Frames arriving now go to the buffer for the resume.
       sessionLive = false;
@@ -315,7 +362,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
           m = onRecovering(m, "grace window expired");
           publish();
           void connect("fresh");
-        }, 25_000);
+        }, RESUME_GIVE_UP_MS);
         void connect("resume");
         return;
       }
@@ -341,6 +388,14 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       case "session.updated":
         return;
       case "input.speech.started":
+        // The events reference calls this "the snappiest barge-in": stop and
+        // clear queued audio the moment the student starts, without waiting for
+        // reply.done(interrupted). Flushing an idle queue is harmless.
+        if (m.state === "SPEAKING") {
+          trace("barge_in.flush.start");
+          flushAudio?.();
+          trace("barge_in.flush.end");
+        }
         m = onSpeechStarted(m);
         publish();
         return;
@@ -366,6 +421,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       case "reply.audio":
         m = onReplyAudio(m);
         publish();
+        trace("audio.play", { chars: String(msg.data ?? "").length });
         playAudio?.(String(msg.data ?? ""));
         return;
       case "transcript.agent.delta":
@@ -380,7 +436,9 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         if (status === "interrupted") {
           // The protocol is explicit: flush playback first, then drop anything
           // queued for the reply that just died.
+          trace("interrupted.flush.start");
           flushAudio?.();
+          trace("interrupted.flush.end");
         }
         const { machine, send } = onReplyDone(m, { status, reply_id: msg.reply_id as string });
         m = machine;
@@ -419,6 +477,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     const ws = socket;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     try {
+      trace("tool.result.send", { call_id: r.callId, is_error: r.isError });
       ws.send(JSON.stringify({ type: "tool.result", call_id: r.callId, result: r.result, is_error: r.isError }));
     } catch {
       // A result that cannot be sent is the end of that turn's tool work; the
@@ -430,10 +489,13 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     const callId = String(msg.call_id ?? "");
     const name = String(msg.name ?? "");
     const args = (msg.arguments ?? {}) as Record<string, unknown>;
+    trace("tool.http.start", { call_id: callId, name });
     try {
       const result = await opts.runTool(name, args, callId);
+      trace("tool.http.end", { call_id: callId, name });
       m = withToolResult(m, callId, result);
     } catch {
+      trace("tool.http.error", { call_id: callId, name });
       m = withToolResult(m, callId, { error: "That check could not be run." }, true);
     }
     const released = drainReleasedResults(m);

@@ -295,7 +295,7 @@ const verifySpec: ToolSpec = {
   async run(ctx, raw) {
     const args = verifyArgs.safeParse(raw);
     if (!args.success) return bad("I need the learner's exact claim to check.");
-    const result = await verifyClaim(args.data.claim, ctx.chunks);
+    const result = await verifyClaim(args.data.claim, ctx.chunks, undefined, args.data.concept);
     return {
       ...result,
       say: result.verdict === "contradicted"

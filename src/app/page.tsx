@@ -56,7 +56,7 @@ export default async function Home() {
               Upload your lecture notes. Get examined on them out loud.
             </h1>
             <p className="vv-lede">
-              VIVA asks you questions, listens to your answers, checks each one against your own pages, and tells you what to revise tomorrow.
+              VIVA asks you questions, listens to your answers, checks them against your own pages, and tells you what to revise tomorrow.
             </p>
             <p className="vv-who">
               For students who can recognise the right answer on the page but have not yet tried to explain it aloud.
@@ -126,7 +126,7 @@ export default async function Home() {
               <span className="vv-step-n mono" aria-hidden>1</span>
               <div>
                 <h3 className="vv-h3">You load material</h3>
-                <p>Pick the sample course, or upload your own notes. VIVA shows how many passages it read, their titles and page numbers before you start.</p>
+                <p>Pick the sample course, or upload your own notes. After an upload, VIVA shows how many concepts, questions and passages it found before you start.</p>
               </div>
             </li>
             <li>
@@ -140,7 +140,7 @@ export default async function Home() {
               <span className="vv-step-n mono" aria-hidden>3</span>
               <div>
                 <h3 className="vv-h3">You leave with a sheet</h3>
-                <p>A debrief lists which concepts were strong, shaky or weak, each tied to a page, and a plan for what to revise tomorrow. It prints.</p>
+                <p>A debrief lists which concepts were strong, shaky or weak with the answers behind each mark, the misconceptions caught against your pages, and a plan for what to revise tomorrow. You can print it or save it as a PDF.</p>
               </div>
             </li>
           </ol>

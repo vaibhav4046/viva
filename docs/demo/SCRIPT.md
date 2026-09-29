@@ -10,7 +10,7 @@ Rules for the take:
 - The examiner is a live model. Its wording changes on every run. What must happen is listed under "Must happen". If it does not happen, stop and retake. Do not edit around it.
 - Do not narrate anything the screen does not show. If the screen shows "Checking your material", say that. Do not say "Checking page 19" unless the screen says it.
 - Do not describe a debrief or a revision plan unless the debrief sheet is on screen in the take (see 2:15).
-- Do not say "adapts", "remembers" or "learns from you". The promise trace does not support those words yet (`docs/PROMISE-TRACE.md`, clauses 3 and 6).
+- Do not say "learns from you". Say "adapts" or "remembers" only as far as `docs/PROMISE-TRACE.md` clauses 3 and 6 go: the next question follows your last verdict and your weakest concept, and a second exam in the same browser opens on the weakest concept in the stored map. Show it on screen or do not say it.
 
 ## Storyboard
 

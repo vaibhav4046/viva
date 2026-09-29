@@ -129,5 +129,7 @@
   "landingCls": { "value": 0.0001, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
   "landingLcpMsThrottled": { "value": 1080, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
   "oralGzipJsKB": { "value": 178.4, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
-  "oralCls": { "value": 0, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" }
+  "oralCls": { "value": 0, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
+  "oral.memory.runsOpenedOnStoredWeakest": { "value": 3, "n": 3, "date": "2026-09-29", "evidence": "docs/evidence/probes/oral-memory-live.2026-09-29.json", "cmd": "ORAL_PROBE_BASE=http://localhost:3161 npx tsx scripts/probes/oral-memory-live.mts --runs 3" },
+  "oral.followup.runsNamingChosenConcept": { "value": 2, "n": 3, "date": "2026-09-29", "evidence": "docs/evidence/probes/oral-memory-live.2026-09-29.json", "cmd": "ORAL_PROBE_BASE=http://localhost:3161 npx tsx scripts/probes/oral-memory-live.mts --runs 3" }
 }

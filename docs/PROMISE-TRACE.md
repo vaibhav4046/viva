@@ -2,7 +2,7 @@
 
 The promise: "Give VIVA your material. Close the notes and talk. VIVA asks questions that adapt, catches a misconception against your own pages, lets you interrupt, remembers what you got wrong, and hands you tomorrow's revision plan."
 
-This file breaks the promise into seven clauses. Each row names the code, the test, the live evidence and the demo moment. The status is computed from what exists in the repository at branch `oral`, commit `c21726e`, on 2026-09-29. It is not a forecast.
+This file breaks the promise into seven clauses. Each row names the code, the test, the live evidence and the demo moment. The status is computed from what exists in the repository at branch `oral`, commit `c21726e`, on 2026-09-29, and re-computed for clauses 3 and 6 on branch `wt/core2` at commit `96074cb` (clause 1 and 7 copy corrected in the commit after it). It is not a forecast.
 
 Status rules:
 
@@ -18,13 +18,13 @@ Live evidence in this repository means: the real AssemblyAI Voice Agent API, a N
 |---|---|---|
 | 1 | Give VIVA your material | amber |
 | 2 | Close the notes and talk | amber |
-| 3 | Adaptive follow-ups | red |
+| 3 | Adaptive follow-ups | amber |
 | 4 | Misconception caught against source passages | green |
 | 5 | Natural interruption | green |
-| 6 | Remembered weaknesses | red |
+| 6 | Remembered weaknesses | amber |
 | 7 | Tomorrow's revision plan | amber |
 
-Tests were run alone, per clause, on 2026-09-29 (`npx vitest run <files>`), and the full oral group passed: `tests/oral-*.test.ts` 11 files, 193 tests, 0 failed.
+Tests were run alone, per clause, on 2026-09-29 (`npx vitest run <files>`). On branch `wt/core2` the oral group passed: `tests/oral-*.test.ts` 14 files, 225 tests, 0 failed; the full suite passed: 80 files, 1228 passed, 1 skipped.
 
 ## 1. Give VIVA your material: amber
 
@@ -41,7 +41,7 @@ What is missing:
 - The sample path opens `/oral` directly. No screen lists what was ingested.
 - Upload has no live evidence against production. Production does not yet run the oral build.
 
-Public copy consequence: the landing sentence "VIVA shows how many passages it read, their titles and page numbers before you start" (`src/app/page.tsx`, step 1) is not true today. State only the passage count for uploads. Owned by the UI worker; listed in the removal list at the end.
+Public copy consequence: the landing sentence "VIVA shows how many passages it read, their titles and page numbers before you start" was not true. `src/app/page.tsx`, step 1, now says that after an upload VIVA shows how many concepts, questions and passages it found.
 
 ## 2. Close the notes and talk: amber
 
@@ -54,18 +54,18 @@ Public copy consequence: the landing sentence "VIVA shows how many passages it r
 
 What is missing: the click-to-first-sentence path in a real browser with a real microphone has not been recorded. The probes drive the socket code from Node. `README.md` states the audio path has not run on a phone. The Plan A take is the first browser run that will count. Cold-click timing against production (ledger V13) does not exist because production does not serve `/oral` yet.
 
-## 3. Adaptive follow-ups: red
+## 3. Adaptive follow-ups: amber
 
 | Item | Where |
 |---|---|
-| Code | One instruction in the examiner prompt: "After each answer, choose the weakest concept so far for the next question. Alternate recall, why, and application questions." (`src/lib/oral/prompt.ts`). The `grade_my_answer` tool returns a grade the model can read. |
-| Tests | `tests/oral-prompt.test.ts` pins the prompt text with a snapshot. It proves the sentence is in the prompt. It does not prove any question changed because of an answer. |
-| Live evidence | None. The live probes run one to three turns and check for the tool call and the spoken citation, not the choice of the next question. |
-| Demo moment | 0:35 to 1:15: the correct answer, then the next question. |
+| Code | `src/lib/oral/next-concept.ts` (`chooseNext`, pure): first question on the weakest concept as a recall question; after an incorrect or partial answer it stays on that concept for at most two questions in a row (recall after incorrect, the next kind after partial); after a correct or unsettled answer it moves to the weakest concept; kinds rotate recall, why, apply; a concept asked three times is skipped while others remain. `src/lib/oral/steering.ts` rebuilds this exam's turns from the stored events and folds the just-checked answer with the learner-map reducer. `src/app/api/oral/tool/route.ts` returns the result as `next_focus` (concept, kind, reason) with every checked answer. `src/lib/oral/prompt.ts` (version `2026-09-29.3`) tells the examiner to ask a question of that kind on that concept. |
+| Tests | `tests/oral-next-concept.test.ts` (16), `tests/oral-tool-focus.test.ts` (2, real tool route on a temp file store), `tests/oral-prompt.test.ts` (5). Run alone: 16, 2 and 5 passed. Mutation: with the stay rule disabled, 4 of these tests failed; restored, they passed. |
+| Live evidence | `docs/evidence/probes/oral-memory-live.2026-09-29.json`, n=3, 2026-09-29, real AssemblyAI Voice Agent, synthetic learner voice, local server. In 3 of 3 runs the learner's correct positional answer was graded partial, the tool result carried `next_focus` = Positional information, kind why, and the examiner asked a why question about positional encodings next. The spoken question contained the chosen concept's name in 2 of 3 runs; in the third it asked about positional encodings without those two words. |
+| Demo moment | 0:35 to 1:15: the answer, then the next question. |
 
-Nothing in the code computes the weakest concept. The server does not send stored weakness to the model (the session route builds the prompt from the subject, the concept names and the sources only). The behaviour rests on the model following one sentence.
+What is still missing: the model chooses the words, so the spoken question follows `next_focus` by instruction and not by construction (2 of 3 name-matched, n=3). The probe drives the socket from Node; no browser take with a human microphone shows it. The screen does not display `next_focus`.
 
-Public copy consequence: do not write "adaptive". Say "the examiner is instructed to pick the weakest concept so far". If the Plan A take visibly shows the next question following the previous answer, quote that take instead, with its date. Until then this clause is not demonstrable.
+Public copy consequence: "the next question is chosen from your last answer and your weakest concept" is supported. Do not say "adapts to you" without the qualifier that the wording is the model's.
 
 ## 4. Misconception caught against source passages: green
 
@@ -92,21 +92,18 @@ Read the number honestly: the 1.3 to 1.5 s is the provider's detection of speech
 
 Not proven live: discarding a tool result that is still pending when the learner interrupts. The probe for it (`oral-live-interrupt-during-pending-tool-negative.2026-09-29.json`) failed 3 of 3 with "timeout waiting for input.speech.started" and is kept as a negative result. That rule is unit-tested only. In the live tool-plus-interruption runs, `discards` was 0.
 
-## 6. Remembered weaknesses: red
+## 6. Remembered weaknesses: amber
 
 | Item | Where |
 |---|---|
-| Code | `src/app/api/oral/tool/route.ts` writes each tool verdict to the learner store with `recordLearning` (same event shape as the written study loop, folded by `src/lib/mastery.ts`). |
-| Tests | `tests/mastery.test.ts`, `tests/daily-path.test.ts`, `tests/store.test.ts`. Run alone with `tests/oral-debrief.test.ts`: 32 passed. They prove the fold and the planner. No test drives the oral tool route and then reads the map. |
-| Live evidence | None for persistence across two sessions. |
-| Demo moment | None recorded. |
+| Code | `src/app/api/oral/tool/route.ts` writes each tool verdict to the learner store (`recordLearning`, folded by `src/lib/mastery.ts`). `src/app/api/oral/session/route.ts` now reads that map for the subject before the exam: `src/lib/oral/learner-brief.ts` builds a brief (touched concepts of this subject, weakest first, or an explicit "none stored" statement, and a warning when the store is the temporary file store), and `buildOralSystemPrompt` and `oralGreeting` in `src/lib/oral/prompt.ts` put it in the prompt and the spoken greeting. The exam opens on the weakest concept by the same ranking `chooseNext` uses. The session config also returns a `memory` block for the screen. |
+| Tests | `tests/oral-memory.test.ts` (14): a map folded from a first session gives a second prompt that differs from the first and lists Multi-head attention first; empty map, ephemeral with an empty map, ephemeral with a stored map, all-solid map, other subject's concepts ignored; the session route on a real temp file store gives a different prompt and greeting after two recorded wrong answers, with `VERCEL` set (not durable) and unset (durable). Run alone: 14 passed. Mutation: session route reading an empty map, the route test failed; restored, passed. |
+| Live evidence | `docs/evidence/probes/oral-memory-live.2026-09-29.json`, n=3: empty store reports `empty`; two real `verify_claim` calls (contradicted on multi-head attention, page 15; supported on positional information, page 11) seed the map; the next session config reports `stored`, opens on Multi-head attention, and the live service spoke that greeting in 3 of 3 runs. |
+| Demo moment | None recorded. Needs two exams in one identity. |
 
-Two gaps make the clause as worded untrue:
+What is still missing: the probe used the file store on a local server. The Postgres path is the same `getMastery` call but was not exercised by this probe. On the deployed URL the stored map lives in Postgres (`/api/health/ready` reported `durable: true`, backend postgres at 23:02 UTC on 2026-09-29, `docs/evidence/live-url-check.2026-09-29.txt`), and that deploy predates this branch, so the steering is not live there until the release deploy. With no `DATABASE_URL`, or on Vercel without a database, history is lost on restart and the prompt and screen say so. The map holds evidence from the written study loop as well as oral exams, and the prompt says "your recorded answers", not "your earlier exams".
 
-1. The next oral session does not read stored weakness. `src/app/api/oral/session/route.ts` gives the model concept names, not mastery.
-2. Persistence needs `DATABASE_URL`. Without it storage is a file on the server's temporary disk and is wiped on restart (`docs/evidence/data-inventory.md`, `README.md` known limits). The 2026-09-28 baseline recorded the production database as unreachable, and production has not been redeployed with `/oral`.
-
-Public copy consequence: remove "remembered weaknesses shape the next session". True and allowed: "each checked answer is written to your map, which drives the Today page; on the demo server this resets on restart".
+Public copy consequence: "the exam opens on the concept your recorded answers show as weakest" is supported. "Remembers you across sessions" needs the durable store and the release deploy.
 
 ## 7. Tomorrow's revision plan: amber
 
@@ -119,15 +116,15 @@ Public copy consequence: remove "remembered weaknesses shape the next session". 
 
 What is missing: no client code calls `/api/oral/debrief` at this commit (`grep` over `src` finds the route and the library only), so no debrief sheet is shown after an exam. The debrief is derived, not stored, so "saved" is true only through the learner map, with the durability limit from clause 6. The landing sentence "It prints" and "You leave with a sheet" depend on the UI worker's sheet.
 
-Public copy consequence: state the debrief only if the sheet is on screen in the take. Do not say "saved".
+Public copy consequence: state the debrief only if the sheet is on screen in the take. Do not say "saved". The landing sentence for step 3 no longer says "each tied to a page" (only checked claims carry a page) and says the sheet prints or saves as a PDF, which is true once `wt/ui2` (it renders `/api/oral/debrief` and has the print button) is merged.
 
 ## Clauses that are not demonstrable today, and copy to remove
 
 | Clause | Remove from public copy | Where the words live |
 |---|---|---|
-| 3 Adaptive follow-ups | "adapts", "the next question depends on your answer" | check `src/app/(app)/oral/page.tsx` description and any deck or submission text |
-| 6 Remembered weaknesses | "remembers what you got wrong and shapes your next session" | not in the landing page today; keep it out of the submission |
-| 1 (part) | "titles and page numbers before you start" | `src/app/page.tsx`, step 1 |
-| 7 (part) | "It prints", "You leave with a sheet" until the sheet ships | `src/app/page.tsx`, step 3 |
+| 3 Adaptive follow-ups | "adapts to you" without the qualifier that the examiner's wording is the model's | none in `src/app/page.tsx`; check `docs/demo/SCRIPT.md` |
+| 6 Remembered weaknesses | "remembers you" until the release deploy runs on the durable store | none in the landing page; keep it out of the submission until then |
+| 1 (part) | "titles and page numbers before you start" | removed from `src/app/page.tsx`, step 1; the uploads card shows concept, question and passage counts |
+| 7 (part) | "each tied to a page" and "It prints" | `src/app/page.tsx`, step 3, now says what the sheet holds and that it prints or saves as a PDF. That is true only once branch `wt/ui2` (the debrief screen and its print button) is merged |
 
-`docs/SUBMISSION.md` and `docs/deck/` follow this table. They do not claim any of the four items above.
+`docs/SUBMISSION.md` and `docs/deck/` follow this table.

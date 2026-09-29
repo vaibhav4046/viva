@@ -35,7 +35,9 @@ VIVA Oral asks you exam questions out loud on your own lecture notes, using Asse
 
 **Why the quote can be trusted.** A language model proposes the verdict. Code decides whether the citation is allowed: a quoted line is accepted only if every piece of it is an exact substring of the passage the model named, in order, after whitespace is normalised. A fabricated or altered quote is downgraded to "not in the material". This is tested with a mutation: change one word of a real quote and the verdict is downgraded (`tests/oral-verify-claim-set.test.ts`).
 
-**What it does not do yet.** It does not choose your next question by a computed weakness score; that is one instruction in the prompt and is not measured. It does not carry your weak concepts into your next oral session. On the deployed build the debrief sheet may not be on screen. See the limits below and `docs/PROMISE-TRACE.md`.
+**What it does about your weak concepts.** Before an exam the server reads your stored map for the subject and opens on the weakest concept in it, or says there is no history. After each checked answer, code (`src/lib/oral/next-concept.ts`) picks the next concept and question kind from that verdict and your weakest concept, and hands it to the examiner as `next_focus`. Both are unit-tested and were run live 3 times with a synthetic learner (`docs/evidence/probes/oral-memory-live.2026-09-29.json`).
+
+**What it does not do yet.** The examiner's wording is the model's: it followed `next_focus` by name in 2 of 3 live runs. History survives a restart only on the Postgres store. On the deployed build the debrief sheet may not be on screen. See the limits below and `docs/PROMISE-TRACE.md`.
 
 **Who it is for, and who it is not.** For students revising from their own text notes who want to rehearse explaining out loud. Not for scans without a text layer (there is nothing to quote), not for checking whether your notes are right (it only checks your answer against them), and not a substitute for an examiner's marking.
 
@@ -84,7 +86,7 @@ All from live sessions against the real AssemblyAI Voice Agent API on 2026-09-29
 | Front page, throttled mobile profile, local production build | 139.5 KB gzip JS, LCP 1080 ms, CLS 0.0001 | 5 | `docs/evidence/perf/perf.2026-09-29.json` |
 | `/oral`, same profile | 178.4 KB gzip JS, CLS 0 | 5 | same file |
 | Accessibility, axe wcag2a and wcag2aa, local production build | 0 serious or critical violations on 13 routes; 15 of 15 checks passed | 13 routes | `docs/evidence/a11y/axe-2026-09-29.txt` |
-| Unit tests, `npx vitest run` on this branch, 2026-09-29 | 1196 passed, 1 skipped, 77 files | n/a | run output |
+| Unit tests, `npx vitest run` on branch `wt/core2`, 2026-09-29 | 1228 passed, 1 skipped, 80 files | n/a | run output |
 
 The 1.3 to 1.5 s barge-in figure is the service detecting speech. VIVA's own step, the flush, takes 0 ms after the event arrives. A second run (`oral-live-bargein-min_latency-ab.2026-09-29.json`) gave a median of 1454 ms, n=3.
 
@@ -103,7 +105,8 @@ The 1.3 to 1.5 s barge-in figure is the service detecting speech. VIVA's own ste
 | Debrief builder and plan | n/a | n/a | yes (`tests/oral-debrief.test.ts`) |
 | Whole exam in a real browser with a real microphone | not done | not done | n/a |
 | Debrief sheet on screen after an exam | not done | not done | n/a |
-| Two exams in a row where the second uses the first | not done | not done | n/a |
+| Two exams in a row where the second uses the first | yes, n=3, local server on the file store (`oral-memory-live.2026-09-29.json`) | not run; the deployed build predates this | yes (`tests/oral-memory.test.ts`) |
+| Next question chosen from the last verdict and the weakest concept | yes, n=3: `next_focus` returned, examiner named the concept in 2 of 3 | not run | yes (`tests/oral-next-concept.test.ts`, `tests/oral-tool-focus.test.ts`) |
 
 ## Known limits
 
@@ -111,7 +114,7 @@ The 1.3 to 1.5 s barge-in figure is the service detecting speech. VIVA's own ste
 - The judge on 2026-09-29 was `openai/gpt-oss-120b` through a chain of model providers. Passage text is sent to the providers in the configured chain. `docs/evidence/data-inventory.md` shows where the chain is set and the privacy page describes it.
 - Barge-in stop is 1.3 to 1.5 s from the learner's first word, dominated by the service's detection. Discarding a pending tool result on interruption is unit-tested only.
 - Reconnect is a new session with the recent turns. The service refused `session.resume` in every live trial.
-- Adaptive questioning is one prompt instruction, not a computed weakness score, and there is no test or live run that shows the next question changing because of an answer. Weak concepts are written to the learner map, but the next oral session does not read them. Neither is claimed in this submission.
+- Adaptive questioning is a computed choice of concept and kind, and the examiner's wording is still the model's: it named the chosen concept in 2 of 3 live runs (n=3, one seeded map, one synthetic learner utterance). The live runs did not exercise a move to a different concept after a correct answer; that path is unit-tested only. The stored map also holds evidence from the written study loop, and the exam prompt calls it "recorded answers". Without a Postgres store the history is lost on restart, and the prompt and the config's `memory` block say so.
 - The debrief is built from the session record by `/api/oral/debrief` and is derived, not stored. No screen calls it at this commit.
 - Storage: without `DATABASE_URL` the store is a file on the server's temporary disk and is wiped on restart. With it the store is Postgres. On 2026-09-29 at 22:30 UTC `/api/health/ready` on the production URL reported `durable: true`, backend postgres, "reachable, schema present". The 2026-09-28 baseline had recorded that database as unreachable, so this can change; check `/api/health/ready` before relying on it.
 - Production deployment: the URL serves an `/oral` build that is older than branch `oral` (three trust and recording pages return 404). The final build is not deployed as of this file.

@@ -1,0 +1,12 @@
+Live URL check, run by hand from the oral-core worktree. Times are UTC.
+Commands: curl -s -o /dev/null -w '%{http_code}' <url>; curl -s <url>/api/health/ready
+
+23:02:47 GET / -> 200
+23:02:47 GET /oral -> 200
+23:02:48 GET /api/oral/session -> 200
+
+GET /api/health/ready (ready, durable, database.backend, store.mode):
+{"ready":true,"durable":true,"degraded":false,"backend":"postgres","store":"durable","ts":"2026-09-29T23:02:50.820Z"}
+
+Deployed prompt mentions next_focus (this branch): 0
+Deployed prompt mentions STORED HISTORY (this branch): 0

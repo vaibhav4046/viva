@@ -1,12 +1,12 @@
 # VIVA
 
-An oral exam on your own lecture notes. VIVA asks the questions out loud, checks each answer against your own pages, and tells you what to revise tomorrow.
+An oral exam on your own lecture notes. VIVA asks the questions out loud, checks your answers against your own pages, and tells you what to revise tomorrow.
 
 ![The VIVA front page at 1440 px: headline and start buttons on the left, a scripted exam excerpt with a quoted page on the right](docs/evidence/visual/2026-09-29/landing-1440.png)
 
 ## Try it
 
-Live: https://viva-five-murex.vercel.app (the oral exam ships there with the release deploy; until then run it locally).
+Live: https://viva-five-murex.vercel.app. On 2026-09-29 at 23:02 UTC `/`, `/oral` and `/api/oral/session` returned 200 there ([check](docs/evidence/live-url-check.2026-09-29.txt)). That deploy predates the stored-map steering described below, so run it locally to see that.
 Open it, press **Try a sample exam**, allow the microphone or type your answers. No sign-in, no upload, under a minute.
 No microphone: `/recorded` plays a recorded exam once one is published (it shows an empty state until then).
 Locally: `npm install`, `npm run dev`, open http://localhost:3000.
@@ -24,17 +24,19 @@ Numbers come from `numbers.json`; each row has a command and a file.
 | 0 failing design-rule findings, self-test passes | verified | `node scripts/audit-vibe.mjs && node scripts/audit-vibe.mjs --self-test` | [audit](docs/evidence/audit-vibe.json) |
 | Privacy page matches what the code stores | generated from code | `node scripts/data-inventory.mjs --check` | [inventory](docs/evidence/data-inventory.md) |
 | Copy has no dashes, exclamation marks or banned phrases | verified (oral and API paths deferred) | `npm run lint:copy` | [rules](scripts/lint-copy-voice.mjs) |
-| Unit tests | 1135 passed, 1 skipped | `npx vitest run` | run output |
+| Unit tests, 2026-09-29 | 1228 passed, 1 skipped, 80 files | `npx vitest run` | run output |
+| A second oral session opens on the weakest concept in the stored map, and the next question follows the last verdict | live probe n=3 against the real Voice Agent (synthetic learner, local server, file store); unit-tested | `ORAL_PROBE_BASE=http://localhost:3161 npx tsx scripts/probes/oral-memory-live.mts --runs 3` | [probe](docs/evidence/probes/oral-memory-live.2026-09-29.json), `tests/oral-memory.test.ts`, `tests/oral-next-concept.test.ts` |
 | A live recorded session with audio, transcript and source checks | not done | none yet | none |
-| Production deploy with durable storage | not done | none yet | none |
+| Production storage is Postgres and reachable | `/api/health/ready` reported `durable: true`, backend postgres, 2026-09-29 23:02 UTC | `curl -s https://viva-five-murex.vercel.app/api/health/ready` | [check](docs/evidence/live-url-check.2026-09-29.txt) |
+| Production runs the final oral build | not done: the deployed prompt lacks the stored-map lines | `curl -s https://viva-five-murex.vercel.app/api/oral/session` and look for `STORED HISTORY` | [check](docs/evidence/live-url-check.2026-09-29.txt) |
 
 ## How it works
 
-1. The browser asks `/api/oral/session` for the exam config and `/api/voice-agent/token` for a short-lived token.
+1. The browser asks `/api/oral/session` for the exam config and `/api/voice-agent/token` for a short-lived token. The config is built from your stored map: the exam opens on the weakest concept in it, or says there is no history.
 2. It opens a WebSocket to AssemblyAI's Voice Agent API and streams microphone audio.
 3. The examiner speaks and listens with the provider's turn detection. When you make a claim, it calls the `verify_claim` tool.
 4. `/api/oral/tool` looks the claim up in your passages. A quotation is accepted only if it is a substring of a passage.
-5. The examiner reads the line and names the page. The debrief lists strong, shaky and weak concepts and tomorrow's plan.
+5. The examiner reads the line and names the page. Each checked answer returns `next_focus`, the concept and question kind chosen by code from the last verdict and your weakest concept. The debrief lists strong, shaky and weak concepts and tomorrow's plan.
 
 ```
 browser mic -> AssemblyAI Voice Agent (wss) -> tool call -> /api/oral/tool -> your passages -> quoted line -> spoken reply

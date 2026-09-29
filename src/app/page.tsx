@@ -23,6 +23,9 @@ import "./landing.css";
  * copy; none exist yet, so there is no evidence strip.
  */
 
+/** The internal passage id stays in the fixture for the test; a reader sees the page number and section. */
+const { passageId: _internalId, ...visiblePassage } = EXCERPT.passage;
+
 export const metadata = {
   title: "VIVA: an oral exam on your own lecture notes",
 };
@@ -93,7 +96,7 @@ export default async function Home() {
               </p>
             </div>
 
-            <PassageCard {...EXCERPT.passage} />
+            <PassageCard {...visiblePassage} />
 
             <div className="vv-turn">
               <p className="eyebrow">Examiner</p>

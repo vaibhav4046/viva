@@ -29,7 +29,7 @@ export const VOICE = [
   [/\bharness(es|ed|ing)?\b/i, "banned word"],
   [/\bleverag(e|es|ed|ing)\b/i, "banned word (verb)"],
   [/\bdelv(e|es|ed|ing)\b/i, "banned word"],
-  [/\belevat(e|es|ed|ing)\b/i, "banned word"],
+  [/\belevate(s)?\b|\belevating\b/i, "banned word"],
   [/\bempower(s|ed|ing|ment)?\b/i, "banned word"],
   [/\btapestry\b/i, "banned word"],
   [/in today'?s fast-paced world/i, "banned phrase"],

@@ -3,7 +3,7 @@ import { withIdentityCookie } from "@/lib/http";
 import { getStore, storeDurability } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { toolDefsForWire } from "@/lib/oral/tools";
-import { buildOralSystemPrompt, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
+import { buildOralSystemPrompt, oralGreeting, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
 import { buildLearnerBrief } from "@/lib/oral/learner-brief";
 import { err } from "@/lib/types";
 
@@ -67,7 +67,7 @@ export async function GET(req: Request): Promise<Response> {
           system_prompt,
           promptVersion: ORAL_PROMPT_VERSION,
           memory: { status: brief.status, durable: brief.durable, note: brief.note, opening: brief.opening?.name ?? null },
-          greeting: "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+          greeting: oralGreeting(brief),
           // Only the fields the turn-detection reference documents. An earlier
           // version sent undocumented names (silence_duration_ms, interrupt_*),
           // which the service accepted and ignored, so the settings looked

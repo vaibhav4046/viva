@@ -51,3 +51,19 @@ export function buildOralSystemPrompt(input: {
     .filter((line, i, all) => line !== "" || all[i - 1] !== "")
     .join("\n");
 }
+
+/**
+ * The first thing the examiner says, spoken as written. With a stored map it
+ * names the concept the exam opens on and why; without one it hands the choice
+ * to the student. It never refers to history the store does not hold.
+ */
+export function oralGreeting(brief: LearnerBrief): string {
+  const start = "You're being examined.";
+  if (brief.status === "stored" && brief.opening) {
+    const why = brief.opening.examinedBefore
+      ? "which your recorded answers show as your weakest"
+      : "which you have not been examined on yet";
+    return `${start} I will start with ${brief.opening.name}, ${why}. In your own words, what is it?`;
+  }
+  return `${start} Tell me what you want to be asked on, and I'll start there.`;
+}

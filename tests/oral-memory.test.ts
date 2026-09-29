@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { blankMastery, reduceMastery } from "@/lib/mastery";
 import type { ConceptMastery } from "@/lib/types";
 import { buildLearnerBrief, EPHEMERAL_HISTORY_NOTE } from "@/lib/oral/learner-brief";
-import { buildOralSystemPrompt, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
+import { buildOralSystemPrompt, oralGreeting, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
 import { chooseNext } from "@/lib/oral/next-concept";
 import { turnsFromEvents } from "@/lib/oral/steering";
 
@@ -92,6 +92,21 @@ describe("the second session reads the stored map", () => {
     expect(brief.status).toBe("stored");
     expect(brief.opening).toMatchObject({ conceptId: "c_qkv", examinedBefore: false });
     expect(promptFor(true, solid)).toContain("which their record does not cover yet");
+  });
+});
+
+describe("the spoken greeting", () => {
+  const brief = (mastery: Record<string, ConceptMastery>) => buildLearnerBrief({ concepts: CONCEPTS, mastery, durable: true });
+
+  it("hands the choice to the student when nothing is stored", () => {
+    expect(oralGreeting(brief({}))).toBe("You're being examined. Tell me what you want to be asked on, and I'll start there.");
+  });
+
+  it("names the weakest stored concept when there is history", () => {
+    const g = oralGreeting(brief(AFTER_SESSION_ONE));
+    expect(g).toContain("Multi-head attention");
+    expect(g).toContain("your recorded answers show as your weakest");
+    expect(g).not.toMatch(/[!]|—|–/);
   });
 });
 
@@ -210,6 +225,8 @@ describe("GET /api/oral/session with a real store", () => {
     expect(after.system_prompt).toContain("Open the exam with one recall question on Multi-head attention.");
     expect(after.system_prompt).toContain(EPHEMERAL_HISTORY_NOTE);
     expect(after.memory).toMatchObject({ status: "stored", durable: false, opening: "Multi-head attention" });
+    expect(after.greeting).toContain("Multi-head attention");
+    expect(before.greeting).not.toContain("Multi-head attention");
 
 
     // The same map on a disk that survives restarts: same steering, no warning about losing it.

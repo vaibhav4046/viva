@@ -7,7 +7,7 @@ import { ORAL_EXAMINER_RULES } from "@/lib/oral/prompt";
 import { err } from "@/lib/types";
 
 /**
- * GET /api/oral/session — the session config the client sends as its
+ * GET /api/oral/session, the session config the client sends as its
  * `session.update`.
  *
  * The system prompt is built here rather than in the browser for one reason: it

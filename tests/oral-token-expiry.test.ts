@@ -13,7 +13,7 @@ import { clampVoiceAgentExpiry, MAX_EXPIRY_SEC, DEFAULT_EXPIRY_SEC } from "@/app
  *   expires_in_seconds=3600 -> 422 {"type":"less_than_equal","le":600}
  *   expires_in_seconds=600  -> 200 {"token":"…2486 chars…","expires_in_seconds":600}
  *
- * So the clamp is not defensive tidiness — it is the only thing standing
+ * So the clamp is not defensive tidiness, it is the only thing standing
  * between a client and a 422, and the test is what stops someone "simplifying"
  * the query away.
  */
@@ -50,7 +50,7 @@ describe("voice agent token expiry", () => {
   it("treats a leading-number string as that number, not as junk", () => {
     // `parseInt` stops at the first non-digit, so "1e999" is 1 and "12;drop"
     // is 12. Both land on the floor, which is a legal value the endpoint
-    // accepts — safer than echoing an unparseable value into the query.
+    // accepts, safer than echoing an unparseable value into the query.
     expect(clampVoiceAgentExpiry("1e999")).toBe(60);
     expect(clampVoiceAgentExpiry("12;drop")).toBe(60);
     expect(clampVoiceAgentExpiry("600abc")).toBe(600);

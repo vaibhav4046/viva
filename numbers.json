@@ -1,27 +1,27 @@
 {
   "oral.roundtrip.sessionReadyMs": {
-    "value": 401,
+    "value": 444,
     "n": 3,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
     "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
   },
   "oral.roundtrip.firstAudioMs": {
-    "value": 905,
+    "value": 958,
     "n": 3,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
     "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
   },
   "oral.roundtrip.toolHttpMs": {
-    "value": 1518,
+    "value": 2469,
     "n": 3,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
     "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
   },
   "oral.roundtrip.toolCallToResultMs": {
-    "value": 1519,
+    "value": 2470,
     "n": 3,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",

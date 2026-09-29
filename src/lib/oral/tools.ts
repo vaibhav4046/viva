@@ -162,7 +162,7 @@ const searchSpec: ToolSpec = {
     if (hits.length === 0) {
       return {
         found: false,
-        say: "I could not find that in your material. Say so — do not answer from general knowledge.",
+        say: "I could not find that in your material. Say so, do not answer from general knowledge.",
       };
     }
     return {
@@ -178,7 +178,7 @@ const quoteSpec: ToolSpec = {
   definition: {
     type: "function",
     name: "quote_my_material",
-    description: "Check whether the student's material stands behind a sentence, and return the relevant lines with their locations. Reports two separate facts: words_present (the words are in the material) and confirmed (the material actually supports the sentence). A claim can have the first and not the second — a near-miss paraphrase built from real vocabulary. Only confirmed:true may be presented to the student as supported.",
+    description: "Check whether the student's material stands behind a sentence, and return the relevant lines with their locations. Reports two separate facts: words_present (the words are in the material) and confirmed (the material actually supports the sentence). A claim can have the first and not the second, a near-miss paraphrase built from real vocabulary. Only confirmed:true may be presented to the student as supported.",
     parameters: {
       type: "object",
       properties: {
@@ -199,7 +199,7 @@ const quoteSpec: ToolSpec = {
      *
      * `verifyEvidence` counts how many of the claim's words appear in a chunk.
      * A near-miss paraphrase scores at the threshold: "multi-head attention
-     * runs a single head over the input" hit coverage 0.25 — every content word
+     * runs a single head over the input" hit coverage 0.25, every content word
      * in it is real and the sentence is still wrong. Worse, `checkClaim` is
      * lexical too and returned `consistent` for the same claim, so neither
      * existing function can catch it. Measured live, not assumed.
@@ -207,8 +207,8 @@ const quoteSpec: ToolSpec = {
      * So the tool reports the two facts separately and refuses to invent a
      * third:
      *
-     *   `words_present` — the words are in the material. A fact.
-     *   `confirmed`     — the material actually stands behind the sentence.
+     *   `words_present`, the words are in the material. A fact.
+     *   `confirmed`, the material actually stands behind the sentence.
      *                     True only when `checkClaim` says `supported`.
      *
      * Everything else is `consistent`, and a lexical system that cannot
@@ -249,7 +249,7 @@ const checkSpec: ToolSpec = {
   definition: {
     type: "function",
     name: "check_my_understanding",
-    description: "Check a statement the student made against their own material. Returns contradicted, supported, unsupported, or consistent. 'consistent' means no contradiction was found — it does NOT mean the student is right.",
+    description: "Check a statement the student made against their own material. Returns contradicted, supported, unsupported, or consistent. 'consistent' means no contradiction was found, it does NOT mean the student is right.",
     parameters: {
       type: "object",
       properties: {
@@ -339,8 +339,8 @@ const gradeSpec: ToolSpec = {
     const args = gradeArgs.safeParse(raw);
     if (!args.success) return bad("I need both the question and the answer.");
     if (!ctx.course) return bad("I cannot grade that without the subject's map.");
-    // Match on the question text the agent read back. A miss is normal — it may
-    // have rephrased — and `assessAnswer` falls back to the course's first
+    // Match on the question text the agent read back. A miss is normal, it may
+    // have rephrased, and `assessAnswer` falls back to the course's first
     // question, so the grade degrades to a less targeted one rather than
     // failing. The agent is told the marking key in the result, so a
     // rephrased question still gets feedback about the right points.
@@ -459,13 +459,13 @@ export function isOralTool(name: unknown): name is OralToolName {
  * The published tools overview describes two modes and names this one
  * `conversational`; that spelling is rejected. The first version of this file
  * sent `conversational`, and the consequence was that every live session
- * failed at the handshake with a field name and no accepted value — found by
+ * failed at the handshake with a field name and no accepted value, found by
  * probing the real service, not by any test, because a fake socket accepts
  * whatever it is told.
  *
  * `hold` is also the semantically right choice here. It means the agent waits
  * for the result instead of speaking over it, and while it waits the user's
- * transcript is held rather than discarded — which is what you want when a
+ * transcript is held rather than discarded, which is what you want when a
  * student keeps talking through a source lookup.
  */
 export function toolDefsForWire(): (ToolDefinition & { execution_mode: "hold" })[] {

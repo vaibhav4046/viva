@@ -199,13 +199,13 @@ export function onStartStreaming(m: OralMachine): OralMachine {
   return { ...transition(m, "LISTENING"), streaming: true };
 }
 
-/** `input.speech.started` — turn detection says the student began. */
+/** `input.speech.started`, turn detection says the student began. */
 export function onSpeechStarted(m: OralMachine): OralMachine {
   return { ...transition(m, "USER_SPEAKING"), userPartial: "" };
 }
 
 /**
- * `transcript.user.delta` — the text is the FULL transcript so far for this
+ * `transcript.user.delta`, the text is the FULL transcript so far for this
  * item, so it replaces. A note says this twice because the wrong reading
  * produces a transcript that looks like a recognition failure.
  */
@@ -213,7 +213,7 @@ export function onUserDelta(m: OralMachine, ev: { item_id?: string; text?: strin
   return { ...m, userItemId: ev.item_id ?? m.userItemId, userPartial: ev.text ?? "" };
 }
 
-/** `transcript.user` — the turn is closed and the final text is known. */
+/** `transcript.user`, the turn is closed and the final text is known. */
 export function onUserFinal(m: OralMachine, ev: { item_id?: string; text?: string }): OralMachine {
   return {
     ...m,
@@ -224,12 +224,12 @@ export function onUserFinal(m: OralMachine, ev: { item_id?: string; text?: strin
   };
 }
 
-/** `reply.started` — the agent is composing. */
+/** `reply.started`, the agent is composing. */
 export function onReplyStarted(m: OralMachine): OralMachine {
   return transition(m, "SPEAKING");
 }
 
-/** `reply.audio` — speech is arriving. Also means we are speaking. */
+/** `reply.audio`, speech is arriving. Also means we are speaking. */
 export function onReplyAudio(m: OralMachine): OralMachine {
   return transition(m, "SPEAKING");
 }
@@ -248,7 +248,7 @@ export function onCheckingSource(m: OralMachine): OralMachine {
 }
 
 /**
- * `tool.call` — queue it. Nothing is sent back yet: the protocol wants
+ * `tool.call`, queue it. Nothing is sent back yet: the protocol wants
  * `tool.result` delivered once `reply.done` is the latest event.
  */
 export function onToolCall(m: OralMachine, ev: { call_id?: string; name?: string; arguments?: unknown }): OralMachine {
@@ -355,8 +355,8 @@ export function onRecovering(m: OralMachine, reason?: string): OralMachine {
 
 export function onError(m: OralMachine, reason: string, fatal = false): OralMachine {
   const next = transition(m, "ERROR", { reason, fatal });
-  // If ERROR is not reachable from the current state — which can happen from
-  // IDLE, which is terminal — record the failure anyway. A dead session that
+  // If ERROR is not reachable from the current state, which can happen from
+  // IDLE, which is terminal, record the failure anyway. A dead session that
   // still claims to be IDLE is worse than one that admits it errored.
   if (next.state === "ERROR") {
     return { ...next, fatal, reason };

@@ -6,7 +6,7 @@ import { rid, serverLog } from "@/lib/observe";
 import { voiceMessage } from "@/lib/audio/messages";
 
 /**
- * GET /api/voice-agent/token — mint a short-lived Voice Agent session token.
+ * GET /api/voice-agent/token, mint a short-lived Voice Agent session token.
  *
  * This is the whole security model of the oral exam in one route: the browser
  * gets a token scoped to one socket, never the account key. Nothing else in the
@@ -31,7 +31,7 @@ import { voiceMessage } from "@/lib/audio/messages";
  *
  * So the expiry is required, it is capped at 600 s, and the response echoes it.
  * The first version of this route sent no parameter and answered 502 for every
- * caller — a failure with no local clue, which is why the probe above is
+ * caller, a failure with no local clue, which is why the probe above is
  * recorded here rather than left in a scratch file.
  */
 

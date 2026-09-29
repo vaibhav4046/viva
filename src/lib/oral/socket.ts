@@ -41,7 +41,7 @@ import { voiceMessage } from "@/lib/audio/messages";
  * pin: `tool.result` is sent when `reply.done` is the latest event received.
  * Replying the instant `tool.call` arrives is a protocol error. And when
  * `reply.done` carries `status: "interrupted"`, any pending tool results from
- * that reply must be discarded — the student has already moved on.
+ * that reply must be discarded, the student has already moved on.
  *
  * Both of those decisions live in `@/lib/oral/machine.ts`, which is pure. This
  * file is the I/O around it, and it does no protocol thinking of its own.
@@ -145,7 +145,7 @@ export function voiceAgentUrl(token: string): string {
 export function pcm16ToBase64(frame: Int16Array): string {
   // A copy into a fresh ArrayBuffer: the worklet transfers the frame's buffer
   // to us, and a view over a transferred buffer is detached. String.fromCharCode
-  // is applied in slices because its argument list is a stack argument — one
+  // is applied in slices because its argument list is a stack argument, one
   // 4096-character call, not one argument per sample.
   const bytes = new Uint8Array(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength));
   let binary = "";
@@ -284,7 +284,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
    *
    * The API is explicit: "Start sending input.audio only after this event."
    * A socket being open is not the same as a session being ready, and flushing
-   * on `onopen` puts the first frames in a window the server rejects —
+   * on `onopen` puts the first frames in a window the server rejects, 
    * `invalid_format` at best, a dropped call at worst. The handshake measured
    * 700-950 ms on the streaming socket, so buffering across it is the cost of
    * being correct, and `sendAudio` bounds the buffer.
@@ -408,7 +408,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       }
       // The 30-second grace window is the whole point of keeping resumeId.
       // Past it, the session is unrecoverable and a fresh one is the honest
-      // outcome — the conversation is not silently "resumed" from nothing.
+      // outcome, the conversation is not silently "resumed" from nothing.
       if (resumeId) {
         // Measured live 2026-09-29: a resume the service refuses answers
         // session.error(session_not_found) and closes 1008, and the old loop

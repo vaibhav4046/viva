@@ -8,7 +8,7 @@
  *
  *   ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip|bargein|bargein_tool|resume [--runs N]
  *
- * Output: docs/evidence/probes/oral-live-<scenario>.<date>.json. Run scripts/probes/oral-numbers.mjs to refresh numbers.json.
+ * Output: docs/evidence/probes/oral-live-<scenario>.<date>.json. Then run scripts/probes/oral-compact-evidence.mjs (shrinks raw audio rows) and scripts/probes/oral-numbers.mjs (refreshes numbers.json).
  */
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";

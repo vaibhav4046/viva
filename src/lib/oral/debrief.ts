@@ -74,7 +74,9 @@ export type Debrief = {
 };
 
 /** The planner's copy uses long dashes; the sheet does not. */
-const plain = (text: string) => text.replace(/s*[—–]s*/g, ", ");
+const EM = String.fromCharCode(0x2014);
+const EN = String.fromCharCode(0x2013);
+const plain = (text: string) => text.split(" " + EM + " ").join(", ").split(" " + EN + " ").join(", ").split(EM).join(", ").split(EN).join("-");
 
 const SNIPPET = 140;
 const snippet = (text: string) => (text.length > SNIPPET ? `${text.slice(0, SNIPPET - 1).trimEnd()}...` : text);

@@ -61,7 +61,7 @@ export type Harness = {
   /**
    * The *current* socket. A getter, not a snapshot: `connect()` replaces it,
    * and a captured reference would silently keep asserting against the dead
-   * one after a resume — which is exactly the case these tests exist for.
+   * one after a resume, which is exactly the case these tests exist for.
    */
   readonly socket: FakeSocket;
   machine: () => OralMachine;
@@ -93,7 +93,7 @@ export function harness(opts: { toolRunner?: (name: string, args: Record<string,
   /**
    * `resume` is deliberately not a flag here. The API is strict that
    * `session.resume` is the FIRST message on a new connection, and
-   * `session.update` is the first message on a fresh one — never both, and
+   * `session.update` is the first message on a fresh one, never both, and
    * never in the other order. Handing `connect()` a mode keeps that ordering
    * in one place instead of leaving the caller to remember it.
    */

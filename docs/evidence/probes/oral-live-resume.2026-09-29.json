@@ -114,99 +114,11 @@
           },
           {
             "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "You're"
-          },
-          {
-            "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "being"
-          },
-          {
-            "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "examined."
-          },
-          {
-            "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Tell"
-          },
-          {
-            "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "me"
-          },
-          {
-            "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "what"
-          },
-          {
-            "ms": 2187,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "you"
-          },
-          {
-            "ms": 2188,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "want"
-          },
-          {
-            "ms": 2189,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "to"
-          },
-          {
-            "ms": 2189,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "be"
-          },
-          {
-            "ms": 2189,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "asked"
-          },
-          {
-            "ms": 2189,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "on,"
-          },
-          {
-            "ms": 2189,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "and"
-          },
-          {
-            "ms": 2190,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "I'll"
-          },
-          {
-            "ms": 2191,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "start"
-          },
-          {
-            "ms": 2191,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "there."
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 41,
+            "firstMs": 2187,
+            "lastMs": 30673
           },
           {
             "ms": 5787,
@@ -440,48 +352,6 @@
             "reason": null
           },
           {
-            "ms": 18978,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Sorry,"
-          },
-          {
-            "ms": 18978,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "the"
-          },
-          {
-            "ms": 18978,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "connection"
-          },
-          {
-            "ms": 18979,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "dropped."
-          },
-          {
-            "ms": 18979,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Let's"
-          },
-          {
-            "ms": 18980,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "carry"
-          },
-          {
-            "ms": 18980,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "on."
-          },
-          {
             "ms": 21346,
             "kind": "ws.recv",
             "type": "transcript.agent",
@@ -560,114 +430,6 @@
             "kind": "state",
             "state": "SPEAKING",
             "reason": null
-          },
-          {
-            "ms": 30534,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "I "
-          },
-          {
-            "ms": 30534,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "haven't "
-          },
-          {
-            "ms": 30534,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "asked "
-          },
-          {
-            "ms": 30534,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "a "
-          },
-          {
-            "ms": 30535,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "question "
-          },
-          {
-            "ms": 30535,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "yet. "
-          },
-          {
-            "ms": 30669,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "I "
-          },
-          {
-            "ms": 30669,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "was "
-          },
-          {
-            "ms": 30669,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "waiting "
-          },
-          {
-            "ms": 30669,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "to "
-          },
-          {
-            "ms": 30669,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "verify "
-          },
-          {
-            "ms": 30669,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "your "
-          },
-          {
-            "ms": 30670,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "statement "
-          },
-          {
-            "ms": 30670,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "about "
-          },
-          {
-            "ms": 30671,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "positional "
-          },
-          {
-            "ms": 30671,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "encoding. "
-          },
-          {
-            "ms": 30673,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "One "
-          },
-          {
-            "ms": 30673,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "moment.\n\n"
           },
           {
             "ms": 31282,
@@ -832,99 +594,11 @@
           },
           {
             "ms": 41339,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "You're"
-          },
-          {
-            "ms": 41339,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "being"
-          },
-          {
-            "ms": 41339,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "examined."
-          },
-          {
-            "ms": 41339,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Tell"
-          },
-          {
-            "ms": 41340,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "me"
-          },
-          {
-            "ms": 41340,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "what"
-          },
-          {
-            "ms": 41340,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "you"
-          },
-          {
-            "ms": 41340,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "want"
-          },
-          {
-            "ms": 41340,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "to"
-          },
-          {
-            "ms": 41340,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "be"
-          },
-          {
-            "ms": 41341,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "asked"
-          },
-          {
-            "ms": 41341,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "on,"
-          },
-          {
-            "ms": 41341,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "and"
-          },
-          {
-            "ms": 41341,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "I'll"
-          },
-          {
-            "ms": 41341,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "start"
-          },
-          {
-            "ms": 41341,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "there."
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 43,
+            "firstMs": 41339,
+            "lastMs": 70066
           },
           {
             "ms": 45109,
@@ -1146,48 +820,6 @@
             "reason": null
           },
           {
-            "ms": 58343,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Sorry,"
-          },
-          {
-            "ms": 58343,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "the"
-          },
-          {
-            "ms": 58343,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "connection"
-          },
-          {
-            "ms": 58343,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "dropped."
-          },
-          {
-            "ms": 58344,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Let's"
-          },
-          {
-            "ms": 58345,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "carry"
-          },
-          {
-            "ms": 58345,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "on."
-          },
-          {
             "ms": 58447,
             "kind": "tool.http.end",
             "call_id": "chatcmpl-tool-93031c2f7c7bf361",
@@ -1274,126 +906,6 @@
             "reason": null
           },
           {
-            "ms": 69924,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "I "
-          },
-          {
-            "ms": 69924,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "have "
-          },
-          {
-            "ms": 69924,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "not "
-          },
-          {
-            "ms": 69926,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "asked "
-          },
-          {
-            "ms": 69926,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "a "
-          },
-          {
-            "ms": 69926,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "question "
-          },
-          {
-            "ms": 69926,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "yet. "
-          },
-          {
-            "ms": 70062,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "Would "
-          },
-          {
-            "ms": 70062,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "you "
-          },
-          {
-            "ms": 70062,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "like "
-          },
-          {
-            "ms": 70062,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "to "
-          },
-          {
-            "ms": 70063,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "start "
-          },
-          {
-            "ms": 70064,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "with "
-          },
-          {
-            "ms": 70064,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "positional "
-          },
-          {
-            "ms": 70064,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "encoding, "
-          },
-          {
-            "ms": 70064,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "or "
-          },
-          {
-            "ms": 70064,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "choose "
-          },
-          {
-            "ms": 70064,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "a "
-          },
-          {
-            "ms": 70065,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "different "
-          },
-          {
-            "ms": 70066,
-            "kind": "ws.recv",
-            "type": "transcript.agent.delta",
-            "delta": "topic?"
-          },
-          {
             "ms": 75971,
             "kind": "ws.recv",
             "type": "transcript.agent",
@@ -1414,5 +926,6 @@
         ]
       }
     }
-  ]
+  ],
+  "traceNote": "per-chunk audio and transcript-delta rows are collapsed into summary rows (count, first and last ms); metrics are unchanged"
 }

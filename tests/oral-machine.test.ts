@@ -120,7 +120,7 @@ describe("oral state machine", () => {
   });
 });
 
-describe("tool result queue — the interrupted-turn rule", () => {
+describe("tool result queue, the interrupted-turn rule", () => {
   it("queues on tool.call and sends nothing until reply.done", () => {
     // The protocol wants tool.result delivered once reply.done is the latest
     // event. Returning on tool.call is a protocol error, so onToolCall must not

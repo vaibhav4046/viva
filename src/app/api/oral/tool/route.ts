@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { after } from "next/server";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
 import { clientIp, withIdentityCookie } from "@/lib/http";
@@ -11,7 +12,7 @@ import { resolveConceptId } from "@/lib/oral/debrief";
 import { err } from "@/lib/types";
 
 /**
- * POST /api/oral/tool — run one grounded tool on the caller's behalf.
+ * POST /api/oral/tool, run one grounded tool on the caller's behalf.
  *
  * The agent calls tools from the browser, and the browser cannot be the thing
  * that holds a database handle. So a `tool.call` becomes a POST here, the
@@ -21,7 +22,7 @@ import { err } from "@/lib/types";
  * subject id that changes which material this route reads.
  *
  * `sessionId` is a client-generated label used for idempotency. It is not an
- * AssemblyAI session id and grants no authority — the learner bucket below is
+ * AssemblyAI session id and grants no authority, the learner bucket below is
  * what actually bounds spend.
  */
 
@@ -50,7 +51,7 @@ export async function POST(req: Request): Promise<Response> {
       serverLog("oral_tool.rate_limited", traceId, {});
       return done(
         Response.json(
-          { error: { code: "RATE_LIMITED", message: "Slow down a little — try again in a moment.", retryable: true } },
+          { error: { code: "RATE_LIMITED", message: "Slow down a little, try again in a moment.", retryable: true } },
           { status: 429, headers: { "Retry-After": String(rl.retryAfterSec), "Cache-Control": "no-store" } }
         )
       );
@@ -87,7 +88,9 @@ export async function POST(req: Request): Promise<Response> {
           const claim = (v.kind === "claim" ? v.claim : v.answer).slice(0, MAX_ANSWER);
           const conceptId = resolveConceptId(subject.concepts, v.kind === "claim" ? v.concept : null, claim);
           const assessment = v.kind === "claim" ? (v.verdict === "supported" ? "correct" : "incorrect") : v.grade;
-          await store.recordLearning(identity.userId, {
+          // After the response: the store write measured about a second, and the
+          // agent is waiting on this result to speak. A failed write is logged.
+          after(async () => { try { await store.recordLearning(identity.userId, {
             idempotencyKey: `oral_${sessionId ?? traceId}_${callId}`.slice(0, 120),
             sessionId: sessionId ?? `oral_${traceId}`,
             courseId: subject.id,
@@ -111,7 +114,7 @@ export async function POST(req: Request): Promise<Response> {
             assessment,
             masterySignal: assessment === "correct" ? "up" : assessment === "incorrect" ? "down" : "flat",
             hint: null,
-          });
+          }); } catch (e) { serverLog("oral_tool.verdict_write_failed", traceId, { err: (e as Error).message?.slice(0, 160) }); } });
         },
         onNote: async ({ claim, conceptId, correct }) => {
           // Only a claim the material actually supports is filed as right, and
@@ -122,7 +125,7 @@ export async function POST(req: Request): Promise<Response> {
           // the written study loop uses for a graded answer, which is the only
           // path `mastery.ts` has a case for. Filing the oral exchange as
           // `"confusion"` instead would drop it as a process turn and the
-          // learner's spoken exam would leave no trace on their map — the one
+          // learner's spoken exam would leave no trace on their map, the one
           // place the oral exam must not be a second-class citizen.
           const capped = claim.slice(0, MAX_ANSWER);
           await store.recordLearning(identity.userId, {

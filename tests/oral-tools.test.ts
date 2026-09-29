@@ -8,8 +8,8 @@ import { SOURCE_CHUNKS } from "@/lib/course";
 
 /**
  * The oral exam's tools, tested against the same course data the written study
- * loop uses. The point of these tests is not that the functions work — the
- * existing tutor suite covers that — but that the oral path cannot drift away
+ * loop uses. The point of these tests is not that the functions work, the
+ * existing tutor suite covers that, but that the oral path cannot drift away
  * from the written one, and that a tool can never assert something its
  * passages do not contain.
  */
@@ -138,7 +138,7 @@ describe("quote_my_material", () => {
   it("confirms a sentence the material genuinely stands behind", async () => {
     const { result } = await runOralTool(ctx(), "quote_my_material", { claim: "positional encoding adds position to the input embedding" });
     // Confirmation is earned by `checkClaim` saying `supported`, not by word
-    // overlap, so this is asserted as the pairing rather than as a literal —
+    // overlap, so this is asserted as the pairing rather than as a literal , 
     // that way a change to either signal shows up as a failure here instead of
     // silently re-granting confirmations.
     expect(result.words_present).toBe(true);
@@ -155,7 +155,7 @@ describe("quote_my_material", () => {
   it("does not confirm a near-miss paraphrase that is still wrong", async () => {
     // Regression, found by running the app rather than by a test. Every
     // content word here is real, so lexical coverage passed at the threshold
-    // and the tool answered `supported: true` for a false sentence — which is
+    // and the tool answered `supported: true` for a false sentence, which is
     // the exact failure the product exists to prevent. `checkClaim` is lexical
     // too and returned `consistent`, so nothing downstream would have caught it.
     const { result } = await runOralTool(ctx(COURSE_CHUNKS), "quote_my_material", {

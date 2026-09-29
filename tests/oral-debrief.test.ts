@@ -91,7 +91,9 @@ describe("debrief from a recorded session", () => {
     expect(text).toContain("page 15");
     expect(text).toContain("Tomorrow, ");
     expect(text).toContain("Demo storage resets when the server restarts.");
-    expect(text).not.toMatch(/—|–/);
+    expect(text).not.toContain(String.fromCharCode(0x2014));
+    expect(text).not.toContain(String.fromCharCode(0x2013));
+    expect(text).not.toContain(" ,");
   });
 
   it("handles a session with no entries without inventing a history", () => {

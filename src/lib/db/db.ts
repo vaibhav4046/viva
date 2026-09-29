@@ -65,6 +65,8 @@ export function describeFailure(message: string): "auth_failed" | "schema_missin
   return "unreachable";
 }
 
+export type DbStatus = { ok: boolean; durable: boolean; backend: string; detail: string };
+
 /**
  * `ok` = the app can serve from this backend right now.
  * `durable` = data written here survives a redeploy / a new serverless
@@ -72,7 +74,7 @@ export function describeFailure(message: string): "auth_failed" | "schema_missin
  * readiness endpoint once reported a healthy durable store while the file
  * fallback underneath it was ephemeral.
  */
-export async function dbStatus(): Promise<{ ok: boolean; durable: boolean; backend: string; detail: string }> {
+export async function dbStatus(): Promise<DbStatus> {
   if (isDbConfigured()) {
     try {
       const rows = await dbQuery<{ ok: boolean }>("SELECT true AS ok");

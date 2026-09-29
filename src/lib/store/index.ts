@@ -1,4 +1,5 @@
 import { backendKind, dbStatus } from "@/lib/db/db";
+import type { DbStatus } from "@/lib/db/db";
 import { FileEventStore } from "./file";
 import { PgEventStore } from "./pg";
 import type { EventStore } from "./repo";
@@ -136,8 +137,21 @@ export function withFallback(durable: EventStore, kind: string): EventStore {
  * questions: this app is always ready (the file store is in-process) and is
  * only durable when a reachable database is behind it.
  */
-export async function storeDurability(): Promise<{ durable: boolean; backend: string; detail: string }> {
-  const db = await dbStatus();
+export async function storeDurability(
+  known?: DbStatus,
+): Promise<{ durable: boolean; backend: string; detail: string }> {
+  /*
+   * Accepts the caller's existing probe so a caller that already asked the
+   * database how it is does not get a second, independent sample.
+   *
+   * This existed to answer the same question in two places — the readiness
+   * probe and the subject builder — and each used to run its own `dbStatus()`.
+   * Against a flapping pool the two disagreed, and /api/health/ready published
+   * both: `database.durable: false` beside a top-level `durable: true`. The
+   * endpoint whose only job is honest disclosure was the one place that could
+   * not be trusted. One probe per request; every field derives from it.
+   */
+  const db = known ?? (await dbStatus());
   const degraded = storeDegradation();
   if (degraded.degraded) {
     return {

@@ -1,0 +1,1 @@
+﻿Synthetic speech, generated with Windows System.Speech. Spoken text: Positional encoding adds information about token order before the first self-attention layer.

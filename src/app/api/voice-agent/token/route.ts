@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
-import { withIdentityCookie } from "@/lib/http";
-import { callerAddress } from "@/lib/redteam/http";
+import { clientIp, withIdentityCookie } from "@/lib/http";
 import { rid, serverLog } from "@/lib/observe";
 import { voiceMessage } from "@/lib/audio/messages";
 
 /**
- * GET /api/voice-agent/token — mint a short-lived Voice Agent session token.
+ * GET /api/voice-agent/token, mint a short-lived Voice Agent session token.
  *
  * This is the whole security model of the oral exam in one route: the browser
  * gets a token scoped to one socket, never the account key. Nothing else in the
@@ -32,7 +31,7 @@ import { voiceMessage } from "@/lib/audio/messages";
  *
  * So the expiry is required, it is capped at 600 s, and the response echoes it.
  * The first version of this route sent no parameter and answered 502 for every
- * caller — a failure with no local clue, which is why the probe above is
+ * caller, a failure with no local clue, which is why the probe above is
  * recorded here rather than left in a scratch file.
  */
 
@@ -75,7 +74,7 @@ async function mint(req: Request, userId: string): Promise<Response> {
   // Same two buckets as the streaming token: the address bounds a stranger,
   // the learner bounds a cookie. A token is a licence to spend AssemblyAI
   // minutes, so it must not be cheaper to get than a recorded clip.
-  for (const bucket of [["voice-agent-token", callerAddress(req)], ["voice-agent-token-did", userId]]) {
+  for (const bucket of [["voice-agent-token", clientIp(req)], ["voice-agent-token-did", userId]]) {
     const rl = checkLimit(limitKey(bucket), "transcribe");
     if (!rl.ok) {
       serverLog("voice_agent_token.rate_limited", traceId, {});

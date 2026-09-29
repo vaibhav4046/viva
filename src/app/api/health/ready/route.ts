@@ -38,9 +38,16 @@ export async function GET() {
    * Collapsing these is what produced the original bug: a probe that reported
    * a healthy store while every write path returned 500.
    */
-  // One answer to "will a write survive", shared with /api/subjects/create so
-  // the two screens cannot disagree about it.
-  const { durable } = await storeDurability();
+  /*
+   * One probe per request. The `database` block and the top-level `durable`
+   * flag are two renderings of the same fact, so they must come from the same
+   * sample. This route used to call `dbStatus()` and then `storeDurability()`,
+   * which probed again on its own; against a flapping pool the second sample
+   * disagreed with the first and the endpoint published both — `database:
+   * {ok:false, durable:false}` beside `durable:true, degraded:false`. The
+   * database answer is passed in so `durable` cannot drift from it.
+   */
+  const { durable } = await storeDurability(database);
   const degraded = !durable;
 
   return Response.json(

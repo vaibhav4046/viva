@@ -1,0 +1,1280 @@
+{
+  "measuredOn": "2026-09-29T19:00:14.720Z",
+  "scenario": "bargein_tool",
+  "learner": "synthetic (Windows System.Speech WAVs in fixtures/audio)",
+  "transport": "Node WebSocket through src/lib/oral/socket.ts against the live AssemblyAI Voice Agent API",
+  "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein_tool --runs 3",
+  "runs": 3,
+  "passed": 3,
+  "summary": {
+    "speechDetectedMs": {
+      "median": 1456,
+      "n": 3,
+      "values": [
+        1739,
+        1456,
+        1316
+      ]
+    },
+    "flushAfterSpeechStartedMs": {
+      "median": 0,
+      "n": 3,
+      "values": [
+        0,
+        0,
+        0
+      ]
+    },
+    "stopFromVoiceOnsetMs": {
+      "median": 1456,
+      "n": 3,
+      "values": [
+        1739,
+        1456,
+        1316
+      ]
+    },
+    "interruptedReplyDoneMs": {
+      "median": 3347,
+      "n": 3,
+      "values": [
+        3819,
+        3347,
+        3303
+      ]
+    },
+    "staleAudioChunksPlayedAfterFlush": {
+      "median": 0,
+      "n": 3,
+      "values": [
+        0,
+        0,
+        0
+      ]
+    },
+    "staleAudioChunksDroppedAfterFlush": {
+      "median": 197,
+      "n": 3,
+      "values": [
+        208,
+        188,
+        197
+      ]
+    }
+  },
+  "results": [
+    {
+      "run": 1,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "speechDetectedMs": 1739,
+        "flushAfterSpeechStartedMs": 0,
+        "stopFromVoiceOnsetMs": 1739,
+        "interruptedReplyDoneMs": 3819,
+        "staleAudioChunksPlayedAfterFlush": 0,
+        "staleAudioChunksDroppedAfterFlush": 208
+      },
+      "notes": {
+        "agent": [
+          {
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+            "interrupted": false
+          },
+          {
+            "text": "\"Multi-head attention runs the query-key-value",
+            "interrupted": true
+          },
+          {
+            "text": "\"Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace,\" on page 15. Please restate that fact in your own words.",
+            "interrupted": false
+          }
+        ],
+        "user": [
+          "Examine me on multi-head attention.",
+          "I think it runs a single head over the input.",
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "CHECKING_SOURCE",
+          "LISTENING",
+          "SPEAKING",
+          "INTERRUPTED",
+          "LISTENING"
+        ],
+        "machine": {
+          "interruptions": 1,
+          "discards": 0,
+          "toolCalls": 1
+        },
+        "toolResultsSent": 1,
+        "trace": [
+          {
+            "ms": 1118,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 1172,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 1287,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 1287,
+            "kind": "session.update.sent",
+            "continued": false,
+            "historyTurns": 0
+          },
+          {
+            "ms": 1693,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 1694,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 1694,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 1893,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 1902,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 2185,
+            "kind": "summary",
+            "of": "ws.recv reply.audio",
+            "count": 1930,
+            "firstMs": 2185,
+            "lastMs": 39362
+          },
+          {
+            "ms": 2185,
+            "kind": "summary",
+            "of": "audio.play",
+            "count": 1722,
+            "firstMs": 2185,
+            "lastMs": 39362
+          },
+          {
+            "ms": 2566,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 67,
+            "firstMs": 2566,
+            "lastMs": 29526
+          },
+          {
+            "ms": 6003,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+          },
+          {
+            "ms": 6463,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 6463,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 7612,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 116
+          },
+          {
+            "ms": 8397,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 8397,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 8397,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Exactly."
+          },
+          {
+            "ms": 9589,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Examine me on multi-head attention."
+          },
+          {
+            "ms": 10495,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 10495,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Examine me on multi-head attention."
+          },
+          {
+            "ms": 10495,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 10495,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 10495,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 11189,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 11189,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 11189,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 11189,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I"
+          },
+          {
+            "ms": 12489,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think it runs a single"
+          },
+          {
+            "ms": 13799,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think it runs a single head over the input,"
+          },
+          {
+            "ms": 15004,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 15004,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "I think it runs a single head over the input."
+          },
+          {
+            "ms": 19139,
+            "kind": "ws.recv",
+            "type": "tool.call",
+            "name": "verify_claim",
+            "call_id": "chatcmpl-tool-bd4f7c839a5328d7"
+          },
+          {
+            "ms": 19139,
+            "kind": "state",
+            "state": "CHECKING_SOURCE",
+            "reason": null
+          },
+          {
+            "ms": 19140,
+            "kind": "tool.http.start",
+            "call_id": "chatcmpl-tool-bd4f7c839a5328d7",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 19402,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 19403,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 20650,
+            "kind": "tool.http.end",
+            "call_id": "chatcmpl-tool-bd4f7c839a5328d7",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 20651,
+            "kind": "tool.result.send",
+            "call_id": "chatcmpl-tool-bd4f7c839a5328d7",
+            "is_error": false
+          },
+          {
+            "ms": 20689,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 20689,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 21936,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 23719,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait."
+          },
+          {
+            "ms": 23719,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 23719,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 23719,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 23726,
+            "kind": "summary",
+            "of": "audio.drop",
+            "count": 208,
+            "firstMs": 23726,
+            "lastMs": 25794
+          },
+          {
+            "ms": 23991,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 24689,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat that?"
+          },
+          {
+            "ms": 25794,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 25796,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "interrupted": true,
+            "text": "\"Multi-head attention runs the query-key-value"
+          },
+          {
+            "ms": 25800,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "interrupted"
+          },
+          {
+            "ms": 25800,
+            "kind": "interrupted.flush.start"
+          },
+          {
+            "ms": 25800,
+            "kind": "interrupted.flush.end"
+          },
+          {
+            "ms": 25800,
+            "kind": "state",
+            "state": "INTERRUPTED",
+            "reason": null
+          },
+          {
+            "ms": 25800,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 25800,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 39123,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "\"Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace,\" on page 15. Please restate that fact in your own wo"
+          },
+          {
+            "ms": 39432,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 39432,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "speechDetectedMs": 1456,
+        "flushAfterSpeechStartedMs": 0,
+        "stopFromVoiceOnsetMs": 1456,
+        "interruptedReplyDoneMs": 3347,
+        "staleAudioChunksPlayedAfterFlush": 0,
+        "staleAudioChunksDroppedAfterFlush": 188
+      },
+      "notes": {
+        "agent": [
+          {
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+            "interrupted": false
+          },
+          {
+            "text": "On page 15, the material says:",
+            "interrupted": true
+          },
+          {
+            "text": "On page 15, the material says: \"Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.\" Please restate this in your own words.",
+            "interrupted": false
+          }
+        ],
+        "user": [
+          "Examine me on multi-head attention.",
+          "I think it runs a single head over the input.",
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "CHECKING_SOURCE",
+          "LISTENING",
+          "SPEAKING",
+          "INTERRUPTED",
+          "LISTENING"
+        ],
+        "machine": {
+          "interruptions": 1,
+          "discards": 0,
+          "toolCalls": 1
+        },
+        "toolResultsSent": 1,
+        "trace": [
+          {
+            "ms": 42566,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 42568,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 42659,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 42659,
+            "kind": "session.update.sent",
+            "continued": false,
+            "historyTurns": 0
+          },
+          {
+            "ms": 42985,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 42986,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 42986,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 42987,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 42987,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 43438,
+            "kind": "summary",
+            "of": "ws.recv reply.audio",
+            "count": 1999,
+            "firstMs": 43438,
+            "lastMs": 79760
+          },
+          {
+            "ms": 43438,
+            "kind": "summary",
+            "of": "audio.play",
+            "count": 1811,
+            "firstMs": 43438,
+            "lastMs": 79760
+          },
+          {
+            "ms": 43920,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 73,
+            "firstMs": 43920,
+            "lastMs": 68929
+          },
+          {
+            "ms": 47452,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+          },
+          {
+            "ms": 47940,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 47940,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 48358,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 116
+          },
+          {
+            "ms": 49543,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 49543,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 49543,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Example:"
+          },
+          {
+            "ms": 50832,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Examine me on multi-head"
+          },
+          {
+            "ms": 51733,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 51734,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Examine me on multi-head attention."
+          },
+          {
+            "ms": 51734,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 51735,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 51735,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 52333,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 52333,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 52333,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 52333,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I"
+          },
+          {
+            "ms": 53545,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think it runs a single"
+          },
+          {
+            "ms": 54832,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think it runs a single head over the input,"
+          },
+          {
+            "ms": 55036,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 55037,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "I think it runs a single head over the input."
+          },
+          {
+            "ms": 59181,
+            "kind": "ws.recv",
+            "type": "tool.call",
+            "name": "verify_claim",
+            "call_id": "chatcmpl-tool-99e84c424a509db4"
+          },
+          {
+            "ms": 59181,
+            "kind": "state",
+            "state": "CHECKING_SOURCE",
+            "reason": null
+          },
+          {
+            "ms": 59181,
+            "kind": "tool.http.start",
+            "call_id": "chatcmpl-tool-99e84c424a509db4",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 59430,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 59430,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 60433,
+            "kind": "tool.http.end",
+            "call_id": "chatcmpl-tool-99e84c424a509db4",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 60433,
+            "kind": "tool.result.send",
+            "call_id": "chatcmpl-tool-99e84c424a509db4",
+            "is_error": false
+          },
+          {
+            "ms": 60465,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 60465,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 61745,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 63250,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait."
+          },
+          {
+            "ms": 63250,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 63250,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 63250,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 63250,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 63259,
+            "kind": "summary",
+            "of": "audio.drop",
+            "count": 188,
+            "firstMs": 63259,
+            "lastMs": 65128
+          },
+          {
+            "ms": 64432,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 65133,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 65141,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "interrupted": true,
+            "text": "On page 15, the material says:"
+          },
+          {
+            "ms": 65141,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "interrupted"
+          },
+          {
+            "ms": 65141,
+            "kind": "interrupted.flush.start"
+          },
+          {
+            "ms": 65141,
+            "kind": "interrupted.flush.end"
+          },
+          {
+            "ms": 65141,
+            "kind": "state",
+            "state": "INTERRUPTED",
+            "reason": null
+          },
+          {
+            "ms": 65143,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 65143,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 79520,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "On page 15, the material says: \"Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.\" Please restate this "
+          },
+          {
+            "ms": 79833,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 79833,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "run": 3,
+      "ok": true,
+      "failures": [],
+      "metrics": {
+        "speechDetectedMs": 1316,
+        "flushAfterSpeechStartedMs": 0,
+        "stopFromVoiceOnsetMs": 1316,
+        "interruptedReplyDoneMs": 3303,
+        "staleAudioChunksPlayedAfterFlush": 0,
+        "staleAudioChunksDroppedAfterFlush": 197
+      },
+      "notes": {
+        "agent": [
+          {
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+            "interrupted": false
+          },
+          {
+            "text": "Multi-head attention runs the query-key-value",
+            "interrupted": true
+          },
+          {
+            "text": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace, on page fifteen. Please restate that in your own words.",
+            "interrupted": false
+          }
+        ],
+        "user": [
+          "Examine me on multi-head attention.",
+          "I think it runs a single head over the input.",
+          "Wait, can you repeat the question?"
+        ],
+        "states": [
+          "CONNECTING",
+          "LISTENING",
+          "SPEAKING",
+          "LISTENING",
+          "USER_SPEAKING",
+          "THINKING",
+          "SPEAKING",
+          "CHECKING_SOURCE",
+          "LISTENING",
+          "SPEAKING",
+          "INTERRUPTED",
+          "LISTENING"
+        ],
+        "machine": {
+          "interruptions": 1,
+          "discards": 0,
+          "toolCalls": 1
+        },
+        "toolResultsSent": 1,
+        "trace": [
+          {
+            "ms": 82856,
+            "kind": "state",
+            "state": "CONNECTING",
+            "reason": null
+          },
+          {
+            "ms": 82858,
+            "kind": "ws.connect",
+            "mode": "fresh"
+          },
+          {
+            "ms": 82940,
+            "kind": "ws.open",
+            "mode": "fresh"
+          },
+          {
+            "ms": 82940,
+            "kind": "session.update.sent",
+            "continued": false,
+            "historyTurns": 0
+          },
+          {
+            "ms": 83194,
+            "kind": "ws.recv",
+            "type": "session.updated"
+          },
+          {
+            "ms": 83216,
+            "kind": "ws.recv",
+            "type": "session.ready"
+          },
+          {
+            "ms": 83216,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 83218,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 83218,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 83711,
+            "kind": "summary",
+            "of": "ws.recv reply.audio",
+            "count": 1774,
+            "firstMs": 83711,
+            "lastMs": 118496
+          },
+          {
+            "ms": 83711,
+            "kind": "summary",
+            "of": "audio.play",
+            "count": 1577,
+            "firstMs": 83711,
+            "lastMs": 118496
+          },
+          {
+            "ms": 84187,
+            "kind": "summary",
+            "of": "ws.recv transcript.agent.delta",
+            "count": 66,
+            "firstMs": 84187,
+            "lastMs": 109818
+          },
+          {
+            "ms": 87703,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+          },
+          {
+            "ms": 88177,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 88177,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 88647,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 116
+          },
+          {
+            "ms": 89508,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 89508,
+            "kind": "state",
+            "state": "USER_SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 89508,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Exactly."
+          },
+          {
+            "ms": 90707,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Examine me on multi-head"
+          },
+          {
+            "ms": 91708,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 91708,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Examine me on multi-head attention."
+          },
+          {
+            "ms": 91708,
+            "kind": "state",
+            "state": "THINKING",
+            "reason": null
+          },
+          {
+            "ms": 91709,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 91709,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 92408,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 92408,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 92408,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 92408,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think"
+          },
+          {
+            "ms": 93616,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think it runs a single"
+          },
+          {
+            "ms": 95007,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "I think it runs a single head over the input,"
+          },
+          {
+            "ms": 96014,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 96015,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "I think it runs a single head over the input."
+          },
+          {
+            "ms": 100172,
+            "kind": "ws.recv",
+            "type": "tool.call",
+            "name": "verify_claim",
+            "call_id": "chatcmpl-tool-a6cfaad7a699d193"
+          },
+          {
+            "ms": 100172,
+            "kind": "state",
+            "state": "CHECKING_SOURCE",
+            "reason": null
+          },
+          {
+            "ms": 100172,
+            "kind": "tool.http.start",
+            "call_id": "chatcmpl-tool-a6cfaad7a699d193",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 100426,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 100426,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          },
+          {
+            "ms": 101454,
+            "kind": "tool.http.end",
+            "call_id": "chatcmpl-tool-a6cfaad7a699d193",
+            "name": "verify_claim"
+          },
+          {
+            "ms": 101454,
+            "kind": "tool.result.send",
+            "call_id": "chatcmpl-tool-a6cfaad7a699d193",
+            "is_error": false
+          },
+          {
+            "ms": 101485,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 101485,
+            "kind": "state",
+            "state": "SPEAKING",
+            "reason": null
+          },
+          {
+            "ms": 102794,
+            "kind": "probe.clip.start",
+            "voiceOnsetMs": 128
+          },
+          {
+            "ms": 104141,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait."
+          },
+          {
+            "ms": 104141,
+            "kind": "ws.recv",
+            "type": "input.speech.started"
+          },
+          {
+            "ms": 104141,
+            "kind": "barge_in.flush.start"
+          },
+          {
+            "ms": 104141,
+            "kind": "barge_in.flush.end"
+          },
+          {
+            "ms": 104146,
+            "kind": "summary",
+            "of": "audio.drop",
+            "count": 197,
+            "firstMs": 104146,
+            "lastMs": 106106
+          },
+          {
+            "ms": 104307,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait,"
+          },
+          {
+            "ms": 105208,
+            "kind": "ws.recv",
+            "type": "transcript.user.delta",
+            "text": "Wait, can you repeat"
+          },
+          {
+            "ms": 106127,
+            "kind": "ws.recv",
+            "type": "input.speech.stopped"
+          },
+          {
+            "ms": 106127,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "interrupted": true,
+            "text": "Multi-head attention runs the query-key-value"
+          },
+          {
+            "ms": 106127,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "interrupted"
+          },
+          {
+            "ms": 106127,
+            "kind": "interrupted.flush.start"
+          },
+          {
+            "ms": 106127,
+            "kind": "interrupted.flush.end"
+          },
+          {
+            "ms": 106127,
+            "kind": "state",
+            "state": "INTERRUPTED",
+            "reason": null
+          },
+          {
+            "ms": 106127,
+            "kind": "ws.recv",
+            "type": "transcript.user",
+            "text": "Wait, can you repeat the question?"
+          },
+          {
+            "ms": 106127,
+            "kind": "ws.recv",
+            "type": "reply.started"
+          },
+          {
+            "ms": 118253,
+            "kind": "ws.recv",
+            "type": "transcript.agent",
+            "text": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace, on page fifteen. Please restate that in your own word"
+          },
+          {
+            "ms": 118577,
+            "kind": "ws.recv",
+            "type": "reply.done",
+            "status": "completed"
+          },
+          {
+            "ms": 118577,
+            "kind": "state",
+            "state": "LISTENING",
+            "reason": null
+          }
+        ]
+      }
+    }
+  ],
+  "traceNote": "per-chunk audio and transcript-delta rows are collapsed into summary rows (count, first and last ms); metrics are unchanged"
+}

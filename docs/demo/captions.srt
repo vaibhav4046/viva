@@ -1,0 +1,95 @@
+1
+00:00:00,000 --> 00:00:04,000
+Sample course: VIVA's own Transformers notes,
+written for this demo.
+
+2
+00:00:04,000 --> 00:00:15,000
+VIVA gives you an oral exam on your own lecture notes.
+It asks out loud, checks each answer against your pages,
+and tells you what to revise tomorrow.
+
+3
+00:00:15,000 --> 00:00:30,000
+This is the sample course: twelve passages
+over pages four to twenty-four.
+One click and the examiner is on.
+
+4
+00:00:30,000 --> 00:00:38,000
+[EXAMINER, from the transcript of the take:
+You're being examined. Tell me what you want
+to be asked on, and I'll start there.]
+
+5
+00:00:38,000 --> 00:00:42,000
+Examine me on self-attention.
+
+6
+00:00:42,000 --> 00:00:52,000
+[EXAMINER: the question about self-attention,
+exact words from the take]
+
+7
+00:00:52,000 --> 00:01:00,000
+Every token compares itself with every other token.
+The scores go through a softmax into weights,
+and the output is a weighted average of the value vectors.
+
+8
+00:01:00,000 --> 00:01:15,000
+[EXAMINER: reply to the answer and the next question,
+exact words from the take]
+
+9
+00:01:15,000 --> 00:01:19,000
+Now examine me on multi-head attention.
+
+10
+00:01:19,000 --> 00:01:28,000
+[EXAMINER: the question about multi-head attention,
+exact words from the take]
+
+11
+00:01:28,000 --> 00:01:33,000
+I think it runs a single head over the input.
+
+12
+00:01:33,000 --> 00:01:40,000
+[STATE LINE on screen while the tool runs:
+copy the exact words shown]
+
+13
+00:01:40,000 --> 00:01:55,000
+[EXAMINER: the correction with the quoted line and the page,
+exact words from the take]
+
+14
+00:01:55,000 --> 00:02:00,000
+Wait, can you repeat the question?
+
+15
+00:02:00,000 --> 00:02:15,000
+[EXAMINER: cut off mid-sentence, then repeats the question,
+exact words from the take]
+
+16
+00:02:15,000 --> 00:02:40,000
+[Debrief scene. Caption only what the sheet on screen says.
+If there is no debrief sheet, delete this cue.]
+
+17
+00:02:40,000 --> 00:02:47,000
+Built on AssemblyAI's Voice Agent API.
+Measured 29 September 2026, three runs each,
+synthetic learner voice, local server.
+
+18
+00:02:47,000 --> 00:02:51,000
+Session ready 444 ms. First examiner audio 958 ms.
+Interruption stop 1.3 s, mostly the service detecting speech.
+
+19
+00:02:51,000 --> 00:02:55,000
+Claim check: 54 labelled claims, 0 false confirmations.
+A small set, and the judge model can be wrong.

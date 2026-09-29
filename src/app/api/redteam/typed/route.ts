@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { handle, persist } from "@/lib/redteam/http";
-import { askNext, beginExplanation, markInterrupted, publicView, recordUtterance } from "@/lib/redteam/session";
+import { handle, persist, reviewFields } from "@/lib/redteam/http";
+import { askNext, beginExplanation, markInterrupted, recordUtterance } from "@/lib/redteam/session";
 
 /**
  * POST /api/redteam/typed — the typed fallback.
@@ -40,6 +40,6 @@ export async function POST(req: Request): Promise<Response> {
     }
     if (body.next) askNext(s);
     await persist(s);
-    return Response.json({ claimId, previousStatus: previous, corrected, session: publicView(s) });
+    return Response.json({ claimId, previousStatus: previous, corrected, ...reviewFields(s) });
   });
 }

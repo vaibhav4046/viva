@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { handle, persist } from "@/lib/redteam/http";
-import { endExplanation, markInterrupted, publicView, recordUtterance } from "@/lib/redteam/session";
+import { handle, persist, reviewFields } from "@/lib/redteam/http";
+import { endExplanation, markInterrupted, recordUtterance } from "@/lib/redteam/session";
 
 /**
  * POST /api/redteam/turn — what the browser saw on the socket.
@@ -28,7 +28,7 @@ const Body = z
 export async function POST(req: Request): Promise<Response> {
   return handle(req, { limit: "exam", schema: Body, needsSession: true }, async ({ body, session }) => {
     const s = session!;
-    if (s.status === "ended") return Response.json({ changed: false, session: publicView(s) });
+    if (s.status === "ended") return Response.json({ changed: false, ...reviewFields(s) });
     let changed = false;
     let claimId: string | null = null;
     let statusBefore: string | null = null;
@@ -53,6 +53,6 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
     if (changed || dirty) await persist(s);
-    return Response.json({ changed, claimId, statusBefore, session: publicView(s) });
+    return Response.json({ changed, claimId, statusBefore, ...reviewFields(s) });
   });
 }

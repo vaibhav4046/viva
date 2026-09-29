@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-29T15:19:56.355Z",
+  "at": "2026-09-29T16:04:47.981Z",
   "base": "http://localhost:3210",
   "results": [
     {
@@ -146,6 +146,26 @@
       "name": "mobile: tap targets are at least 40px tall",
       "ok": true,
       "detail": ""
+    },
+    {
+      "name": "a Markdown file imports into the text box, headings kept",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the imported document is what the review reads",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a claim about the imported document is checked against it (3 vs 5 → Contradicted)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a link to a private address is refused in a plain sentence",
+      "ok": true,
+      "detail": "VIVA will only read pages on the public web, and that address is not one."
     },
     {
       "name": "hostile document: markup is shown as text and never runs",

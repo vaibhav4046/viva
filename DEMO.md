@@ -4,7 +4,7 @@ There are two ways to see it. Only the first one is the Voice Agent.
 
 ## A. The real thing: voice, with barge-in
 
-Use a server that has an AssemblyAI key: the deployed app (⟨LIVE_URL⟩), or locally:
+Use a server that has an AssemblyAI key: the deployed app (https://viva-five-murex.vercel.app/redteam), or locally:
 
 ```bash
 npm ci

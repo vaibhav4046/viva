@@ -183,7 +183,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), fullP
   await page.getByRole("button", { name: "Type instead" }).focus();
   await page.keyboard.press("Enter");
   await page.getByTestId("typed-input").focus();
-  await page.keyboard.type("We keep data for 30 days.");
+  await page.keyboard.type("We retain evaluation inputs for 30 days.");
   await page.keyboard.press("Enter");
   await page.locator('[data-testid="band-CONTRADICTED"] [data-testid="claim-1"]').waitFor();
   check("a review can be run with the keyboard alone", true);
@@ -245,10 +245,10 @@ const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), fullP
     "# Payments service design",
     "",
     "## Storage",
-    "All payments are written to one primary database. There is no automatic failover for that database.",
+    "All payments are written to one primary database in a single region. There is no automatic failover for that database; an operator promotes a standby by hand.",
     "",
     "## Webhooks",
-    "Failed webhook deliveries are retried up to 5 times with exponential backoff.",
+    "Failed webhook deliveries are retried up to 5 times with exponential backoff. Deliveries that still fail are kept for 7 days and can be replayed from the dashboard.",
     "",
   ].join("\n");
   await page.getByTestId("import-file").setInputFiles({ name: "payments-design.md", mimeType: "text/markdown", buffer: Buffer.from(md) });

@@ -51,7 +51,7 @@ Three review modes turn the same challenge policy toward different weak points: 
   - "only", which it treats as exclusive
   - refusals ("rejected before they are returned")
   - each sentence of an utterance on its own
-- ⟨CORPUS_LINE⟩ Most of those claims were written by an adversarial reviewer to break the checker.
+- The rules are held to 178 adversarial claims over seven documents (a technical design, security notes, a thesis chapter, a PRD, a data policy, an investor memo and an SLA): none gets a SUPPORTED or CONTRADICTED the document does not justify. On the second corpus of 124, 82 get exactly the expected verdict; the other 42 are answered more cautiously (PARTIAL or UNSUPPORTED where CONTRADICTED was possible), and a ratchet test stops that number falling. Most of those claims were written by an adversarial reviewer to break the checker.
 - The document is data, not instructions. It never enters the system prompt, and instruction-shaped phrases are removed from what the agent reads. Only you can end the review: `finish` is refused unless you have asked for it.
 
 ## Who it is for
@@ -63,12 +63,12 @@ Next.js 16, React 19, TypeScript, AssemblyAI Voice Agent API, Web Audio (`AudioW
 ## Honest limits
 - The claim check is lexical. A paraphrase that shares no words with your document comes back **Unsupported**, which is worded as "not found" and never as "false".
 - Voice is configured for English.
-- ⟨LIVE_STATUS_LINE⟩
+- The live Voice Agent flow has not been run from this build environment: its network policy blocks agents.assemblyai.com. The socket client, state machine, tool loop, resume and barge-in are tested against a protocol-faithful fake, and `npm run test:redteam-live -- --synthesize` checks the same six steps against the real service in one command.
 
 ## Links
 - **Repository**: https://github.com/vaibhav4046/viva — the RedTeam work is on branch `claude/hackathon-dogfood-viva-submission-xd7cor` in PR #1. **[YOU]** Merge it to `main` and make sure the repository is public.
-- **Live app**: ⟨LIVE_URL⟩ — **[YOU]** Set `ASSEMBLYAI_API_KEY` on the Vercel project (Production and Preview) and redeploy. The submission link should point at `/redteam`.
-- **Video**: ⟨VIDEO_URL⟩ — **[YOU]** Record it following `docs/submission/VIDEO-SCRIPT.md` (with voice and headphones), upload it, and paste the link here.
+- **Live app**: https://viva-five-murex.vercel.app/redteam (production, serves `main` — live once PR #1 is merged; branch preview: https://viva-git-claude-hackathon-dogfood-f9701a-vaibhav4046s-projects.vercel.app/redteam) — **[YOU]** Set `ASSEMBLYAI_API_KEY` on the Vercel project (Production and Preview) and redeploy. The submission link should point at `/redteam`.
+- **Video**: not recorded yet — the captioned typed-path walkthrough is `docs/submission/demo-typed-walkthrough.webm` (says on screen it is not the Voice Agent); the voice video follows `docs/submission/VIDEO-SCRIPT.md` — **[YOU]** Record it following `docs/submission/VIDEO-SCRIPT.md` (with voice and headphones), upload it, and paste the link here.
 - **Slides**: `docs/submission/slides.pdf`
 - **Cover image**: `docs/submission/cover.png`
 - **Screenshots**: `docs/submission/screenshots/` (`hero-*.png` for desktop, `m1-review.png`, `m2-map.png` and `m3-source.png` for phone)

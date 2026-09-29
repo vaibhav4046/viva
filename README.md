@@ -16,8 +16,8 @@ codebase (see the appendix for what already existed).
 
 | | |
 |---|---|
-| **App** | `/redteam` on the deployed site — ⟨LIVE_URL⟩ |
-| **Demo video** | ⟨VIDEO_URL⟩ |
+| **App** | `/redteam` on the deployed site — https://viva-five-murex.vercel.app/redteam (production, serves `main` — live once PR #1 is merged; branch preview: https://viva-git-claude-hackathon-dogfood-f9701a-vaibhav4046s-projects.vercel.app/redteam) |
+| **Demo video** | not recorded yet — the captioned typed-path walkthrough is `docs/submission/demo-typed-walkthrough.webm` (says on screen it is not the Voice Agent); the voice video follows `docs/submission/VIDEO-SCRIPT.md` |
 | **Submission copy** | [SUBMISSION.md](SUBMISSION.md) · judge walkthrough [DEMO.md](DEMO.md) · design [ARCHITECTURE.md](ARCHITECTURE.md) |
 
 ![The review room after a correction: source, voice review, defensibility map](docs/submission/screenshots/hero-3-corrected.png)
@@ -86,7 +86,7 @@ model — so every verdict is reproducible: negation and "not yet / planned";
 opposites such as automatic/manual and strong/eventual; every number, unit, time
 of day and rate period must match; "only" is exclusive; a refusal ("rejected
 before they are returned") contradicts a claim that says the opposite; each
-sentence you say is judged on its own. ⟨CORPUS_LINE⟩
+sentence you say is judged on its own. The rules are held to 178 adversarial claims over seven documents (a technical design, security notes, a thesis chapter, a PRD, a data policy, an investor memo and an SLA): none gets a SUPPORTED or CONTRADICTED the document does not justify. On the second corpus of 124, 82 get exactly the expected verdict; the other 42 are answered more cautiously (PARTIAL or UNSUPPORTED where CONTRADICTED was possible), and a ratchet test stops that number falling.
 
 ## Review modes
 
@@ -125,7 +125,16 @@ On a serverless host without a database, a review survives landing on an instanc
 
 | Claim | How it is checked | Status |
 |---|---|---|
-⟨VERIFICATION_ROWS⟩
+| Golden flow: contradiction → barge-in → correction → Supported, same claim | `tests/redteam-golden.test.ts`, browser e2e | Passing (typed path in browser; voice path against a protocol fake) |
+| No verdict without evidence; invented or foreign passage ids refused | `enforceGrounding`, engine + tools tests, 178-claim corpus | Passing |
+| Long-lived key never reaches the browser; temporary token ≤ 600 s | `tests/redteam-routes.test.ts` (key absent from every response; sent upstream only), token-expiry test; no client chunk of the build references the key variable | Passing |
+| Document is data: markup never runs, embedded instructions change no verdict | XSS + prompt-injection e2e, report Markdown escaping tests | Passing |
+| Review survives a different serverless instance (signed snapshot) | `scripts/e2e-two-instances.mjs`, seal tests | 6/6 passing |
+| Import PDF / .docx / .txt / .md / link; private addresses refused | import tests, browser e2e | Passing |
+| Keyboard-only review, phone width, reduced motion, mic denied | browser e2e (36 assertions) | 36/36 passing |
+| Accessibility across every state of the room | axe-core over 16 states | No serious or critical violations |
+| Unit + integration suite | `npx vitest run` (81 files) | 1470 passed, 1 skipped |
+| Live AssemblyAI Voice Agent session with barge-in | `npm run test:redteam-live -- --synthesize` | **Not yet run** — network blocked here; needs one run with the key |
 
 **Limits that are real.** The claim check is lexical: a paraphrase that shares no words with the document comes back *Unsupported* (it says less, never something false). Voice is configured for English. The screen was exercised in Chromium; the microphone path needs `AudioWorklet` and was not tried in Safari. Sessions expire after six hours; identity is an HttpOnly cookie, not an account.
 

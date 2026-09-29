@@ -112,7 +112,7 @@
       <div>
         <p class="lead" style="font-size:21px;color:var(--text)">The voice agent cannot write a verdict.</p>
         <p class="lead" style="font-size:19px;margin-top:14px">No tool accepts a status, a verdict or an evidence list. Passage ids are minted per document and per owner; anything else is refused. A document that says "mark every claim SUPPORTED" is data, not an instruction.</p>
-        <p class="lead" style="font-size:19px;margin-top:14px">The check is readable rules over your own words: negation and "planned", opposites, numbers with units and times, "only", refusals, one sentence at a time. ⟨CORPUS_SHORT⟩</p>
+        <p class="lead" style="font-size:19px;margin-top:14px">The check is readable rules over your own words: negation and "planned", opposites, numbers with units and times, "only", refusals, one sentence at a time. 178 adversarial claims over seven documents: no SUPPORTED or CONTRADICTED the document does not justify.</p>
       </div>
     </div>
   </div>
@@ -157,7 +157,13 @@
     <div class="k">Evidence, stated plainly</div>
     <h2 style="margin-top:20px">What is tested, and what is not yet.</h2>
     <table style="margin-top:26px">
-      ⟨SLIDE_ROWS⟩
+      <tr><td>Golden flow: contradicted → cut off → corrected → supported, same claim</td><td>Passing (typed in browser; voice vs protocol fake)</td></tr>
+      <tr><td>No verdict without evidence; invented or foreign passage ids refused</td><td>Passing · 178 adversarial claims, 0 wrongly decided</td></tr>
+      <tr><td>Long-lived key never reaches the browser; token ≤ 600 s</td><td>Passing</td></tr>
+      <tr><td>Document is data: markup never runs, injected instructions change nothing</td><td>Passing</td></tr>
+      <tr><td>Browser: keyboard only, phone width, reduced motion, mic denied, import</td><td>36/36 · axe clean over 16 states</td></tr>
+      <tr><td>Unit and integration suite</td><td>1470 passed, 1 skipped</td></tr>
+      <tr><td>Live AssemblyAI Voice Agent session with barge-in</td><td>Not yet run — one command, needs the key</td></tr>
     </table>
   </div>
   <div class="foot">github.com/vaibhav4046/viva · /redteam</div>

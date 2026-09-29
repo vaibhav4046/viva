@@ -236,6 +236,47 @@ const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), fullP
   await ctx.close();
 }
 
+/* --------------------------------------------------------------- import */
+{
+  const { ctx, page } = await newPage({ width: 1280, height: 800 });
+  await page.goto(`${BASE}/redteam`);
+  await page.getByTestId("source-paste").check();
+  const md = [
+    "# Payments service design",
+    "",
+    "## Storage",
+    "All payments are written to one primary database. There is no automatic failover for that database.",
+    "",
+    "## Webhooks",
+    "Failed webhook deliveries are retried up to 5 times with exponential backoff.",
+    "",
+  ].join("\n");
+  await page.getByTestId("import-file").setInputFiles({ name: "payments-design.md", mimeType: "text/markdown", buffer: Buffer.from(md) });
+  await page.waitForFunction(() => document.querySelector('[data-testid="doc-text"]')?.value.includes("Failed webhook deliveries"), null, { timeout: 15000 });
+  const imported = await page.getByTestId("doc-text").inputValue();
+  check("a Markdown file imports into the text box, headings kept", /Storage/.test(imported) && /Webhooks/.test(imported));
+  await shot(page, "09-import.png");
+  await begin(page);
+  const source = await page.getByTestId("source-body").innerText();
+  check("the imported document is what the review reads", /Failed webhook deliveries/.test(source) && /webhooks/i.test(source));
+  await page.getByRole("button", { name: "Type instead" }).click();
+  await page.getByTestId("typed-input").fill("Failed webhook deliveries are retried up to 3 times.");
+  await page.getByTestId("typed-input").press("Enter");
+  await page.locator('[data-testid="band-CONTRADICTED"] [data-testid="claim-1"]').waitFor();
+  check("a claim about the imported document is checked against it (3 vs 5 → Contradicted)", true);
+  await ctx.close();
+
+  const second = await newPage({ width: 1280, height: 800 });
+  await second.page.goto(`${BASE}/redteam`);
+  await second.page.getByTestId("source-paste").check();
+  await second.page.getByTestId("import-url").fill("http://169.254.169.254/latest/meta-data/");
+  await second.page.getByTestId("import-url-go").click();
+  await second.page.getByTestId("import-error").waitFor({ timeout: 15000 });
+  const refusal = await second.page.getByTestId("import-error").innerText();
+  check("a link to a private address is refused in a plain sentence", refusal.length > 10 && !/stack|Error:|ECONN|169\.254/.test(refusal), refusal.slice(0, 90));
+  await second.ctx.close();
+}
+
 /* ------------------------------------------------------- hostile document */
 {
   const { ctx, page } = await newPage({ width: 1280, height: 800 });
@@ -257,7 +298,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), fullP
 
 await browser.close();
 
-const console_ = problems.filter((p) => !/Failed to load resource.*(401|404|503)|favicon|\/api\/voice-agent\/token/i.test(p));
+const console_ = problems.filter((p) => !/Failed to load resource.*(400|401|403|404|413|415|422|503)|favicon|\/api\/voice-agent\/token/i.test(p));
 check("no unexpected console errors or page errors", console_.length === 0, console_.slice(0, 3).join(" | "));
 
 const failed = results.filter((r) => !r.ok);

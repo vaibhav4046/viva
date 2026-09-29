@@ -64,7 +64,9 @@ npm run test:redteam-e2e -- http://localhost:3000     # the golden flow, keyboar
 npm run test:redteam-a11y -- http://localhost:3000    # axe over every state of the room
 ```
 
-⟨IMPORT_DEMO⟩
+## C. Your own document
+
+Choose **Paste your own**, then paste the text, or use **Import a file** (PDF, .docx, .txt or .md) or **Import from a link**. The text appears in the box for you to check before you press **Begin the review**. Headings become the section names that citations show.
 
 ## Troubleshooting
 

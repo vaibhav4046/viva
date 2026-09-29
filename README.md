@@ -101,7 +101,9 @@ something you already said.
 
 *Claims that held · Claims that needed qualification · Contradictions found (including those you fixed in the session) · Unsupported claims · Questions you still cannot answer · Source sections to review.* Copy as Markdown, download, or print. No overall score.
 
-⟨IMPORT_SECTION⟩
+## Bring your own document
+
+Paste text or Markdown, or **import a PDF, a Word file (.docx), a text or Markdown file, or a web page by link**. Import runs through VIVA's existing intake layer, the one the study product already trusts: it reads the bytes rather than trusting the file name, caps what a zip may inflate to, times out a slow PDF, and refuses a link to a private or internal address before fetching it. The text lands in the box first, so you can read and trim it before the review starts; nothing is stored until you begin. Documents are capped at 60,000 characters. A longer one is cut at a paragraph boundary, and the screen tells you how much was kept.
 
 ## Run it
 

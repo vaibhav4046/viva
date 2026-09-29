@@ -1,201 +1,133 @@
 /*
- * Landing-only styles. Everything else on the site uses globals.css.
+ * Landing-only layout. Everything else uses globals.css and the tokens.
  *
- * What survives from the previous file is the dot-matrix headline treatment
- * and the hero's vertical rhythm. The cream pill nav, the burger menu, the
- * vanity stat row and the scroll lock are gone: there is one nav in the app
- * now, and this page scrolls.
+ * Asymmetric on purpose: an 11-column copy side and a wider working sheet on
+ * the right, so the eye lands on the product doing its job. Below 960 px the
+ * columns stack, copy first, so the headline, the sentence for the student and
+ * the primary button sit inside the first 844 px of a phone.
  */
 
 .vv-page {
-  --vv-paper-rgb: 242 240 234;
-  --vv-obsidian-rgb: 11 11 12;
-  --vv-ease: cubic-bezier(0.22, 1, 0.36, 1);
-
-  position: relative;
-  z-index: 1;
-  font-family: var(--font-sans);
-  color: var(--color-paper);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* --- hero ---------------------------------------------------------- */
-
-.vv-hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   min-height: 100dvh;
-  padding: clamp(20px, 4vh, 48px) clamp(16px, 4vw, 32px);
-  text-align: center;
-  /* The glow deliberately bleeds past the viewport; clip it here so it never
-     widens the document on a phone. */
-  overflow: hidden;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
-.vv-hero-inner {
+.vv-top {
   display: flex;
-  width: 100%;
-  min-width: 0;
-  max-width: 900px;
-  flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-4);
+}
+.vv-brand { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; font-size: 1.25rem; }
+.vv-top-nav { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 599px) {
+  .vv-top-nav .nav-link:first-child { display: none; }
+  .vv-top-nav .nav-link { padding: 0 8px; }
 }
 
-/* A single soft pool of light behind the type. No raster, no video. */
-.vv-glow {
-  position: absolute;
-  top: 42%;
-  left: 50%;
-  width: min(760px, 120vw);
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgb(184 255 90 / 0.10) 0%, rgb(184 255 90 / 0.03) 38%, transparent 68%);
-  pointer-events: none;
-  z-index: -1;
+.vv-fold {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-7);
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+}
+@media (min-width: 960px) {
+  .vv-fold {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: var(--space-8);
+    align-items: start;
+    padding-top: var(--space-7);
+  }
+  .vv-excerpt { margin-top: var(--space-5); }
 }
 
-.vv-orb {
-  width: clamp(132px, 21vh, 228px);
-  aspect-ratio: 1;
-  margin-bottom: clamp(8px, 2vh, 22px);
-  /* Reserved before three.js arrives, so the headline never jumps. */
-  contain: strict;
-}
+.vv-copy { display: flex; flex-direction: column; }
 
-@keyframes vvHeadlineFade {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
-}
-
-.vv-headline {
-  margin: 0;
-  overflow: hidden;
-}
-
-.vv-headline span {
-  display: block;
+.vv-h1 {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(34px, 8.6vw, 84px);
-  line-height: 1.12;
-  letter-spacing: -0.04em;
-  white-space: nowrap;
-  color: var(--color-paper);
-  opacity: 0;
-  animation: vvHeadlineFade 0.7s var(--vv-ease) forwards;
+  font-weight: 500;
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  letter-spacing: -0.015em;
+  max-width: 16ch;
+  margin: 0;
 }
-.vv-headline span:nth-child(1) { animation-delay: 0.08s; }
-.vv-headline span:nth-child(2) { animation-delay: 0.24s; }
+@media (min-width: 960px) { .vv-h1 { max-width: 14ch; } }
 
-/*
- * Dot-matrix display treatment.
- *
- * A real LED panel rather than a pixel font: the glyph is clipped out of a
- * dot lattice, so it stays vector-crisp at any density — 4K and 8K included —
- * and costs zero font bytes. Pitch is in `em`, so the dot count per letter is
- * identical at 30px and at 84px. Solid paper white on both lines; the accent
- * is spent on the button, not the type.
- */
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .vv-dot {
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    background-image: radial-gradient(circle at 50% 50%, var(--color-paper) 0 40%, transparent 42%);
-    background-size: 0.052em 0.052em;
-    background-position: 0 0;
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
+.vv-lede {
+  margin: var(--space-5) 0 0;
+  max-width: 42ch;
+  font-size: 1.1875rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.vv-who {
+  margin: var(--space-3) 0 0;
+  max-width: 44ch;
+  color: var(--text-secondary);
 }
 
-/*
- * Floor the effect below the size where it stops being legible.
- *
- * `em` pitch keeps the dots-per-letter constant, which is right, but it also
- * means the tile shrinks with the type: at the 30px mobile size the lattice is
- * 1.56px, and on a 1x display that averages to nothing — the headline rendered
- * as an empty gap on a phone at deviceScaleFactor 1. It only looked fine on the
- * 2x screens it was tested on.
- *
- * So: solid type wherever the display size is small, dots only where there are
- * enough device pixels to resolve them. A headline must never depend on a
- * rendering trick to be readable.
- */
-@media (max-width: 900px) {
-  .vv-dot {
-    background-image: none !important;
-    -webkit-text-fill-color: var(--color-paper);
-    color: var(--color-paper);
-  }
-}
+.vv-cta { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+.vv-cta .btn-primary, .vv-cta .btn-ghost { min-height: 48px; padding-left: 22px; padding-right: 22px; }
 
-/* Same guard for low-density displays at any width. */
-@media (max-resolution: 1.5dppx) and (max-width: 1200px) {
-  .vv-dot {
-    background-image: none !important;
-    -webkit-text-fill-color: var(--color-paper);
-    color: var(--color-paper);
-  }
+.vv-note {
+  margin: var(--space-4) 0 0;
+  max-width: 50ch;
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body-sm);
+  color: var(--text-secondary);
 }
+.vv-note + .vv-note { margin-top: var(--space-2); }
 
-/* Windows high-contrast: drop the stipple, keep the words. */
-@media (forced-colors: active) {
-  .vv-dot {
-    background-image: none;
-    -webkit-text-fill-color: currentColor;
-    color: CanvasText;
-  }
-}
-
-.vv-sub {
-  max-width: min(58ch, 92%);
-  margin: clamp(16px, 2.4vh, 24px) auto 0;
-  font-size: clamp(16px, 1.55vw, 18px);
-  line-height: 1.55;
-  color: var(--color-mist);
-}
-
-.vv-cta-row {
+/* The working sheet: a stack of the real components. */
+.vv-excerpt {
+  margin-left: 0;
+  margin-right: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: clamp(20px, 3vh, 32px);
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.vv-excerpt-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.vv-turn { padding: 0 var(--space-1); }
+.vv-learner { margin: var(--space-1) 0 0; max-width: 46ch; }
+.vv-examiner { margin: var(--space-1) 0 0; max-width: 52ch; }
+.vv-caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+  max-width: 60ch;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
 }
 
-.vv-scroll-hint {
-  position: absolute;
-  bottom: clamp(16px, 3vh, 28px);
-  left: 50%;
-  translate: -50% 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-ash);
+.vv-run, .vv-limits {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--space-4) var(--space-8);
 }
+.vv-h2 { font-size: var(--fs-h2); line-height: var(--lh-h2); margin: 0 0 var(--space-4); }
+.vv-h3 { font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: 600; margin: 0; }
 
-/*
- * Phone tracking. -0.075em at the 34 px floor is -2.55 px a gap, and a word
- * space in this face is about 0.25em — so a third of it disappeared and
- * "VIVA REMEMBERS." read as one word. Display type still wants to be tight;
- * -0.03em (-1.02 px at 34 px) is tight without eating the space between the
- * product's own name and the next word.
- */
-@media (max-width: 480px) {
-  .vv-headline span { letter-spacing: -0.03em; line-height: 1.06; }
+.vv-steps { list-style: none; margin: 0; padding: 0; max-width: 46rem; border-top: 1px solid var(--border); }
+.vv-steps li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
 }
+.vv-steps p { margin: var(--space-1) 0 0; max-width: var(--measure); color: var(--text-secondary); }
+.vv-step-n { font-size: var(--fs-h3); color: var(--text-muted); padding-top: 2px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .vv-headline span {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-}
+.vv-limits p { max-width: var(--measure); color: var(--text-secondary); margin: 0; }
+.vv-limits { padding-bottom: var(--space-9); }

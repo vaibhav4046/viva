@@ -1,0 +1,11 @@
+[
+  { "name": "landing", "path": "/" },
+  { "name": "oral", "path": "/oral" },
+  { "name": "recorded", "path": "/recorded" },
+  { "name": "subjects", "path": "/subjects" },
+  { "name": "privacy", "path": "/privacy" },
+  { "name": "terms", "path": "/terms" },
+  { "name": "accessibility", "path": "/accessibility" },
+  { "name": "about", "path": "/about" },
+  { "name": "kitchen-sink", "path": "/dev/kitchen-sink" }
+]

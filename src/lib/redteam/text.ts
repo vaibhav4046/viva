@@ -18,7 +18,7 @@ const STOP = new Set(
 );
 
 /** Words that flip what a clause asserts. Kept separate from STOP on purpose. */
-export const NEGATION = /\b(?:not|no|never|neither|nor|without|cannot|cant|isnt|arent|doesnt|dont|didnt|wont|wasnt|werent|hasnt|havent|lack|lacks|lacking|absent|missing|disabled|excluded|nonexistent|unsupported|unimplemented|unconfigured)\b/i;
+export const NEGATION = /\b(?:not|no|never|neither|nor|cannot|cant|isnt|arent|doesnt|dont|didnt|wont|wasnt|werent|hasnt|havent|lack|lacks|lacking|absent|missing|disabled|excluded|nonexistent|unsupported|unimplemented|unconfigured)\b/i;
 
 /** "Planned", "TBD", "future work": the document says it is not true today. */
 export const NOT_YET = /\b(?:planned|future work|roadmap|tbd|todo|not yet|intend(?:s|ed)? to|will eventually|proposed|considering|out of scope|non-goal)\b/i;
@@ -27,7 +27,10 @@ export const NOT_YET = /\b(?:planned|future work|roadmap|tbd|todo|not yet|intend
 export const HEDGE = /\b(?:maybe|perhaps|probably|possibly|i think|i guess|i believe|not sure|kind of|sort of|might|i suppose)\b/i;
 
 export const CORRECTION_CUE =
-  /\b(?:i meant|i mean|what i meant|i said|i should have said|correction|let me correct|to be clear|rather|sorry,? i|no,? i|wait,? i|actually,? (?:it|we|i|that|the|its|it's))\b|^\s*(?:wait|hold on|sorry|actually|no)[,.!\s]/i;
+  /\b(?:i meant|i mean|what i meant|i said|i should have said|correction|let me correct|to be clear|rather)\b|^\s*(?:wait|hold on|sorry|actually)[,.!\s]/i;
+
+/** Verbs that say a thing is refused or stopped. A passage that has one the claim lacks is not agreeing with it. */
+export const NEG_VERBS: ReadonlySet<string> = new Set(["reject", "block", "refus", "deny", "drop", "prevent", "forbid", "disallow", "discard", "skip", "ignor", "abort"]);
 
 /** Pairs where each word is the other's opposite in an engineering document. */
 const OPPOSITES: [string, string][] = [
@@ -46,13 +49,9 @@ const OPPOSITES: [string, string][] = [
 ];
 
 const OPPOSITE = new Map<string, string>();
-for (const [a, b] of OPPOSITES) {
-  OPPOSITE.set(a, b);
-  OPPOSITE.set(b, a);
-}
 
 /** Words that qualify HOW a thing is done. A claim about one is a claim about the qualifier. */
-export const QUALIFIERS: ReadonlySet<string> = new Set(OPPOSITE.keys());
+export const QUALIFIERS: Set<string> = new Set();
 
 export function oppositeOf(stem: string): string | null {
   return OPPOSITE.get(stem) ?? null;
@@ -105,6 +104,9 @@ const ALIAS: Record<string, string> = {
   crash: "unavailable",
   crashes: "unavailable",
   one: "single",
+  postgres: "database",
+  postgresql: "database",
+  mysql: "database",
   keep: "retain",
   keeps: "retain",
   kept: "retain",
@@ -124,24 +126,45 @@ const ALIAS: Record<string, string> = {
 };
 
 /** Cheap suffix stripping. Wrong stems are fine so long as both sides get the same one. */
+const dropE = (w: string) => (w.length > 4 && w.endsWith("e") ? w.slice(0, -1) : w);
+
 export function stem(raw: string): string {
   let w = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (ALIAS[w]) return ALIAS[w];
+  if (ALIAS[w]) return dropE(ALIAS[w]);
   if (w.length <= 3) return w;
   if (w.endsWith("ically")) w = w.slice(0, -6) + "ic";
   else if (w.endsWith("ally") && w.length > 6) w = w.slice(0, -2);
   else if (w.endsWith("ily")) w = w.slice(0, -3) + "y";
   else if (w.endsWith("ly") && w.length > 5) w = w.slice(0, -2);
-  if (ALIAS[w]) return ALIAS[w];
+  if (ALIAS[w]) return dropE(ALIAS[w]);
   if (w.length > 5 && w.endsWith("ing")) w = w.slice(0, -3);
   else if (w.length > 4 && w.endsWith("ed")) w = w.slice(0, -2);
-  else if (w.length > 4 && w.endsWith("es") && !w.endsWith("ses")) w = w.slice(0, -2);
+  else if (w.length > 4 && w.endsWith("ies")) w = w.slice(0, -3) + "y";
+  else if (w.length > 4 && /(?:ss|sh|ch|x|z|o)es$/.test(w)) w = w.slice(0, -2);
   else if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) w = w.slice(0, -1);
-  return ALIAS[w] ?? w;
+  // A trailing "e" is dropped so cite / cites / cited / citing meet at one stem.
+  return dropE(ALIAS[w] ?? w);
+}
+
+// The opposite pairs are stemmed exactly as claims and passages are, so
+// "single", "automatically" and "eventually" meet their entries here. Built
+// after `stem` and `ALIAS` exist.
+for (const [a, b] of OPPOSITES) {
+  const sa = stem(a);
+  const sb = stem(b);
+  OPPOSITE.set(sa, sb);
+  OPPOSITE.set(sb, sa);
+  QUALIFIERS.add(sa);
+  QUALIFIERS.add(sb);
 }
 
 export function compact(text: string): string {
-  let t = text.toLowerCase().replace(/[’']/g, "");
+  // Country and bloc codes before lowercasing, or "US" becomes the stopword "us".
+  let t = text
+    .replace(/\bU\.?S\.?A?\b(?!\w)/g, " usa ")
+    .replace(/\bU\.?K\.?\b(?!\w)/g, " uk ")
+    .toLowerCase()
+    .replace(/[’']/g, "");
   for (const [re, to] of COMPOUNDS) t = t.replace(re, to);
   return t;
 }
@@ -163,12 +186,25 @@ export function stemSet(text: string): Set<string> {
   return new Set(contentStems(text));
 }
 
-/** Split text into clauses, the scope inside which a negation applies. */
+/**
+ * Split text into clauses, the scope inside which a negation applies.
+ *
+ * "X is hashed, and Y is never stored" is two statements: the negation belongs
+ * to the second only. A clause is therefore also split at "and" when exactly
+ * one side carries a negation cue.
+ */
 export function clauses(sentence: string): string[] {
-  return sentence
+  const base = sentence
     .split(/[;:]|,\s*(?:but|and then|so)\s+|\s+(?:but|however|although|whereas|instead)\s+|\s+—\s+|\s+-\s+/i)
     .map((c) => c.trim())
     .filter(Boolean);
+  const out: string[] = [];
+  for (const c of base) {
+    const parts = c.split(/,?\s+and\s+/i).map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 2 && NEGATION.test(compact(parts[0])) !== NEGATION.test(compact(parts[1]))) out.push(...parts);
+    else out.push(c);
+  }
+  return out;
 }
 
 /** Sentences, without splitting on "e.g.", version numbers or decimals. */
@@ -184,30 +220,89 @@ export function sentences(paragraph: string): string[] {
 
 export type Figure = { value: number; unit: string; raw: string };
 
-/** "3 retries", "30 minutes", "90 days": a number and the word it counts. */
+const NUMBER_WORDS: Record<string, number> = {
+  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  twenty: 20, thirty: 30, fifty: 50, hundred: 100, thousand: 1000, twice: 2, thrice: 3,
+};
+
+/** "3 retries", "30 minutes", "90 days", "one year": a number and the word it counts. */
 export function figures(text: string): Figure[] {
   const out: Figure[] = [];
   const t = compact(text);
-  const words: Record<string, number> = {
-    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-    twice: 2, thrice: 3,
-  };
-  const re = /\b(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|twice|thrice)\s*(?:x\s+)?([a-z][a-z-]*)/g;
+  const re = /\b(\d+(?:\.\d+)?|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|fifty|hundred|thousand|twice|thrice)\s*(?:x\s+)?([a-z][a-z-]*)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(t))) {
-    const value = words[m[1]] ?? Number(m[1]);
+    const value = NUMBER_WORDS[m[1]] ?? Number(m[1]);
     if (!Number.isFinite(value)) continue;
     out.push({ value, unit: stem(m[2]), raw: m[2] });
   }
   return out;
 }
 
-/** Strip anything from a document that reads as an instruction to the agent. */
+/**
+ * Every number a text states, as strings ("3", "1.2", "90"), clock times
+ * excluded. Version numbers count: "TLS 1.2" is not "TLS 1.3".
+ */
+export function numbers(text: string): Set<string> {
+  const t = compact(stripClock(text));
+  const out = new Set<string>();
+  for (const m of t.matchAll(/\b\d+(?:\.\d+)*\b/g)) out.add(m[0]);
+  for (const m of t.matchAll(/\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|fifty|hundred|thousand|twice|thrice)\b/g)) out.add(String(NUMBER_WORDS[m[1]]));
+  return out;
+}
+
+const CLOCK = /\b(\d{1,2}):(\d{2})\s*(am|pm)?\b|\b(\d{1,2})\s*(am|pm)\b|\b(midnight|noon)\b/gi;
+
+function stripClock(text: string): string {
+  return text.replace(CLOCK, " ");
+}
+
+/** Times of day, normalised to HH:MM on a 24-hour clock. */
+export function clockTimes(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of text.matchAll(CLOCK)) {
+    let h: number;
+    let min = 0;
+    if (m[6]) {
+      h = m[6].toLowerCase() === "midnight" ? 0 : 12;
+    } else {
+      h = Number(m[1] ?? m[4]);
+      min = m[2] ? Number(m[2]) : 0;
+      const ap = (m[3] ?? m[5])?.toLowerCase();
+      if (ap === "pm" && h < 12) h += 12;
+      if (ap === "am" && h === 12) h = 0;
+    }
+    out.add(`${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+/** "per minute", "each day", "every hour": the period a rate is quoted over. */
+export function periods(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of compact(text).matchAll(/\b(?:per|each|every|a|an)\s+(second|minute|hour|day|week|month|year)\b/g)) out.add(m[1]);
+  for (const m of compact(text).matchAll(/\b(hourly|daily|weekly|monthly|yearly|nightly)\b/g)) {
+    out.add({ hourly: "hour", daily: "day", weekly: "week", monthly: "month", yearly: "year", nightly: "day" }[m[1] as string] as string);
+  }
+  return out;
+}
+
+/**
+ * Soften anything in a document that reads as an instruction to the agent.
+ *
+ * This is a blocklist and blocklists leak; it is the SECOND line of defence.
+ * The first is structural: the document is never in the system prompt, no tool
+ * takes a verdict, and `finish_redteam_session` needs the user to have asked.
+ */
 export function neutralise(text: string): string {
+  const cut = "[quoted phrase removed]";
   return text
-    .replace(/\bignore\s+(?:all\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|prompts?|rules)\b/gi, "[quoted phrase removed]")
-    .replace(/\b(?:disregard|forget)\s+(?:all\s+)?(?:previous|prior|above|earlier|your)\s+(?:instructions?|prompts?|rules)\b/gi, "[quoted phrase removed]")
-    .replace(/\byou\s+are\s+now\b[^.\n]*/gi, "[quoted phrase removed]")
-    .replace(/\bsystem\s+prompt\b/gi, "[quoted phrase removed]")
-    .replace(/\bnew\s+instructions?\s*:/gi, "[quoted phrase removed]:");
+    .replace(/\b(?:ignore|disregard|forget|override|bypass)\s+(?:all\s+|any\s+|the\s+|your\s+|every(?:thing)?\s+)*(?:previous|prior|above|earlier|preceding|system|safety)?\s*(?:instructions?|prompts?|rules|guidelines|directions|context|everything(?:\s+above)?)\b/gi, cut)
+    .replace(/\b(?:disregard|ignore|forget)\s+everything\s+(?:above|before|so far)\b/gi, cut)
+    .replace(/\byou\s+are\s+(?:now|no longer)\b[^.\n]*/gi, cut)
+    .replace(/\b(?:system|developer|hidden)\s+(?:prompt|message|instructions?)\b/gi, cut)
+    .replace(/\b(?:reveal|print|show|repeat|leak)\s+(?:me\s+)?(?:your|the)\s+(?:system\s+|initial\s+|hidden\s+)?(?:prompt|instructions?)\b/gi, cut)
+    .replace(/\b(?:call|invoke|run|use|execute)\s+(?:the\s+)?(?:tool\s+|function\s+)?[`"']?(?:finish_redteam_session|evaluate_spoken_claim|reevaluate_claim|select_next_challenge|find_source_conflict|retrieve_source)\b[^.\n]*/gi, cut)
+    .replace(/\bmark\s+(?:every|all|each)\s+claims?\b[^.\n]*/gi, cut)
+    .replace(/\bnew\s+instructions?\s*:/gi, `${cut}:`);
 }

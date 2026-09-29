@@ -26,7 +26,7 @@ import type { RedteamSession } from "./types";
 
 const TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_SESSIONS = 300;
-const ID = /^[0-9a-f-]{36}$/;
+const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const live = new Map<string, RedteamSession>();
 
@@ -55,7 +55,24 @@ function ensureTable(): Promise<void> {
   return ensured;
 }
 
+let lastSweep = 0;
+
+/** Delete session files past their TTL. Without this /tmp fills up: expiry was only ever checked on read. */
+function sweep(): void {
+  if (Date.now() - lastSweep < 10 * 60_000) return;
+  lastSweep = Date.now();
+  try {
+    for (const name of fs.readdirSync(dir())) {
+      const f = path.join(dir(), name);
+      if (Date.now() - fs.statSync(f).mtimeMs > TTL_MS) fs.rmSync(f, { force: true });
+    }
+  } catch {
+    // Nothing to sweep, or a file vanished underneath us.
+  }
+}
+
 function writeLocal(s: RedteamSession): void {
+  sweep();
   live.set(s.id, s);
   if (live.size > MAX_SESSIONS) {
     const oldest = [...live.values()].sort((a, b) => (a.updatedAt < b.updatedAt ? -1 : 1))[0];

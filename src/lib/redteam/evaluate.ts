@@ -1,14 +1,18 @@
 import type { ClaimPart, ClaimStatus, Passage, SourceDocument, Verdict } from "./types";
 import {
   HEDGE,
+  NEG_VERBS,
   NEGATION,
   NOT_YET,
   QUALIFIERS,
   clauses,
+  clockTimes,
   compact,
   contentStems,
   figures,
+  numbers,
   oppositeOf,
+  periods,
   sentences,
 } from "./text";
 
@@ -79,57 +83,95 @@ function judge(claim: string, passage: Passage): Judged {
   const negated = negatedStems(passage.text);
   const asserted = assertedStems(passage.text);
 
-  // Reasons the passage contradicts the claim, from every rule that can say so.
+  // The reasons a passage can contradict a claim. The FIRST found is reported.
   let contradicted: string | null = null;
+  const contradict = (why: string) => {
+    contradicted = contradicted ?? why;
+  };
+  // Things the claim states that this passage does not settle either way.
+  const unsettled: string[] = [];
 
-  // 1. Numbers with their unit. Checked first: "retried automatically up to 5
-  //    times" must not be waved through on the strength of "automatically".
-  const cf = figures(claim);
-  if (cf.length > 0) {
-    const pf = figures(passage.text);
-    for (const f of cf) {
-      const same = pf.filter((p) => p.unit === f.unit);
-      if (same.length > 0 && !same.some((p) => p.value === f.value)) {
-        contradicted = `it gives ${same[0].value} ${same[0].raw}, not ${f.value}`;
+  // 1. Numbers. Every number the claim states must be the passage's number, in
+  //    the passage's unit; a different one contradicts, a missing one is
+  //    simply not backed. ("30 seconds" is not "30 minutes"; "TLS 1.2" is not
+  //    "TLS 1.3"; "3am" is not "09:00"; "per hour" is not "per minute".)
+  const cNums = numbers(claim);
+  if (cNums.size > 0) {
+    const pNums = numbers(passage.text);
+    const missing = [...cNums].filter((n) => !pNums.has(n));
+    if (missing.length > 0) {
+      if (pNums.size > 0) contradict(`it gives ${[...pNums][0]}, not ${missing[0]}`);
+      else unsettled.push(`the number ${missing[0]}`);
+    } else {
+      const pf = figures(passage.text);
+      for (const f of figures(claim)) {
+        const sameValue = pf.filter((p) => p.value === f.value);
+        if (sameValue.length > 0 && !sameValue.some((p) => p.unit === f.unit) && !UNIT_FILLER.has(f.unit)) {
+          contradict(`it gives ${sameValue[0].value} ${sameValue[0].raw}, not ${f.value} ${f.raw}`);
+        }
       }
     }
   }
+  const cClock = clockTimes(claim);
+  if (cClock.size > 0) {
+    const pClock = clockTimes(passage.text);
+    const missing = [...cClock].filter((c) => !pClock.has(c));
+    if (missing.length > 0) {
+      if (pClock.size > 0) contradict(`it gives ${[...pClock][0]}, not ${missing[0]}`);
+      else unsettled.push(`the time ${missing[0]}`);
+    }
+  }
+  const cPer = periods(claim);
+  if (cPer.size > 0) {
+    const pPer = periods(passage.text);
+    if (pPer.size > 0 && ![...cPer].some((p) => pPer.has(p))) contradict(`it says per ${[...pPer][0]}, not per ${[...cPer][0]}`);
+  }
 
   // 2. Qualifiers. "Automatically" is the claim; the rest is scenery.
-  let supportedQualifiers = 0;
   for (const q of qualifiers) {
     const opp = oppositeOf(q);
     const hasQ = pStems.has(q);
     const hasOpp = opp ? pStems.has(opp) : false;
     if (hasQ) {
       const qNeg = negated.has(q) && !asserted.has(q);
-      if (qNeg !== claimNegated) contradicted = contradicted ?? `it says "${q}" does not apply`;
-      else supportedQualifiers += 1;
+      if (qNeg !== claimNegated) contradict(`it says "${q}" does not apply`);
     } else if (hasOpp && opp) {
       const oppNeg = negated.has(opp) && !asserted.has(opp);
-      if (!oppNeg && !claimNegated) contradicted = contradicted ?? `it says "${opp}", not "${q}"`;
-      else if (oppNeg && !claimNegated) {
-        // "Automatic failover is not configured" is consistent with a claim
-        // of manual failover, but it is not the sentence that proves it.
-      } else supportedQualifiers += 1;
+      if (!oppNeg && !claimNegated) contradict(`it says "${opp}", not "${q}"`);
+      // "Automatic failover is not configured" is consistent with a claim of
+      // manual failover, but it is not the sentence that proves it.
+      else if (oppNeg) unsettled.push(q);
+    } else {
+      unsettled.push(q);
     }
   }
-  if (contradicted) return { passage, stance: "contradict", reason: contradicted };
-  if (qualifiers.length > 0) {
-    return supportedQualifiers === qualifiers.length
-      ? { passage, stance: "support", reason: "same qualifier, same subject" }
-      : { passage, stance: "partial", reason: "same subject, qualifier not stated here" };
+
+  // 3. A refusal the claim does not mention ("are rejected before they are returned").
+  const refusals = [...pStems].filter((s) => NEG_VERBS.has(s) && !cStems.has(s));
+  if (refusals.length > 0 && !claimNegated) contradict(`it says these are ${refusals[0]}ed`);
+
+  // 4. Plain polarity over the shared subject.
+  const sharedNegated = shared.filter((s) => negated.has(s) && !asserted.has(s)).length;
+  const passageNegated = shared.length > 0 && sharedNegated / shared.length > 0.5;
+  if (qualifiers.length === 0 && passageNegated !== claimNegated) {
+    contradict(claimNegated ? "it asserts what the claim denies" : "it says this is not the case");
   }
 
-  // 3. Plain polarity over the shared subject.
-  const sharedNegated = shared.filter((s) => negated.has(s) && !asserted.has(s)).length;
-  const passageNegated = sharedNegated / shared.length > 0.5;
-  if (passageNegated !== claimNegated) {
-    return { passage, stance: "contradict", reason: claimNegated ? "it asserts what the claim denies" : "it says this is not the case" };
+  // 5. What the claim says that the passage does not. Only "only" turns that
+  //    into a contradiction: "exist for reporting queries only" rules out writes.
+  const uncovered = topic.filter((s) => !pStems.has(s));
+  if (uncovered.length > 0) {
+    if (ONLY.test(passage.text) && !claimNegated) contradict(`it says "only", which rules this out`);
+    else unsettled.push(uncovered.join(", "));
   }
-  if (share >= 0.6 || shared.length >= 3) return { passage, stance: "support", reason: "same subject, same polarity" };
-  return { passage, stance: "partial", reason: "overlaps, but not every term is covered" };
+
+  if (contradicted) return { passage, stance: "contradict", reason: contradicted };
+  if (unsettled.length > 0) return { passage, stance: "partial", reason: `the document does not say: ${unsettled.join("; ")}` };
+  return { passage, stance: "support", reason: "same subject, same polarity, nothing left over" };
 }
+
+const ONLY = /\b(?:only|solely|exclusively)\b/i;
+const UNIT_FILLER: ReadonlySet<string> = new Set(["primary", "replica", "worker", "instance", "item", "key", "other", "more", "least", "most"]);
 
 function rank(claim: string, doc: SourceDocument): Passage[] {
   const c = new Set(contentStems(claim));
@@ -147,8 +189,11 @@ function rank(claim: string, doc: SourceDocument): Passage[] {
 
 /** Split "A and B" into A, B — only when each side is a claim on its own. */
 export function splitClaim(claim: string): string[] {
+  // Each sentence of an utterance is its own claim.
+  const sents = sentences(claim.trim()).filter((s) => contentStems(s).length >= 1);
+  if (sents.length > 1) return sents.flatMap((s) => splitClaim(s));
   const parts = claim
-    .split(/\s*(?:;|,\s*and\s+|\s+and\s+(?=we\b|our\b|the\b|it\b|they\b|that\b|no\b|all\b|\w+ly\b|(?:is|are|was|were|has|have|can|will)\b)|\s+plus\s+|\s+as well as\s+)\s*/i)
+    .split(/\s*(?:;|,\s*and\s+|\s+and\s+(?=we\b|our\b|the\b|it\b|they\b|that\b|no\b|all\b|\w+ly\b|\w+\s+(?:is|are|was|were|has|have|can|will|does|do)\b|(?:is|are|was|were|has|have|can|will)\b)|\s+plus\s+|\s+as well as\s+)\s*/i)
     .map((s) => s.trim().replace(/^[,.\s]+|[,.\s]+$/g, ""))
     .filter(Boolean);
   const real = parts.filter((p) => contentStems(p).length >= 2);

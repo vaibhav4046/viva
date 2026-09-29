@@ -121,6 +121,15 @@ export type RedteamSession = {
   timeline: TimelineEvent[];
   challenges: Challenge[];
   activeClaimId: string | null;
+  /**
+   * The claim whose verdict the agent is explaining right now. Set when a
+   * verdict is handed to the agent; cleared when that explanation ends, when
+   * the next question is asked, or when the user moves on. A barge-in only
+   * marks a claim if the reply it cut was this one.
+   */
+  explainingClaimId?: string | null;
+  /** The last few things the user said, so `finish` can check they asked for it. */
+  recentUtterances?: string[];
   status: "active" | "ended";
   turnCounter: number;
   createdAt: string;

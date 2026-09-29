@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey, type LimitClass } from "@/lib/limits";
-import { clientIp, withIdentityCookie } from "@/lib/http";
+import { withIdentityCookie } from "@/lib/http";
 import { err } from "@/lib/types";
 import { getSession, saveSession } from "./store";
 import { RedteamError } from "./session";
@@ -15,6 +15,54 @@ import type { RedteamSession } from "./types";
  */
 
 const MAX_BODY = 96_000;
+
+/**
+ * Who is asking, for rate limiting, and only as far as it can be trusted.
+ *
+ * `x-forwarded-for` is a header the caller writes unless a proxy of yours
+ * overwrites it. Reading it with no proxy in front let anyone rotate it and get
+ * a fresh bucket per request (25 of 25 creations, measured). So:
+ *  - on Vercel, the platform's own header;
+ *  - behind proxies you run, set TRUSTED_PROXY_HOPS=N and the Nth address from
+ *    the right is used (the last one the nearest trusted hop wrote);
+ *  - otherwise the header is ignored and everyone shares one address bucket,
+ *    which is the safe default for `npm start` and Docker. The per-cookie bucket
+ *    still separates people, and a caller who drops the cookie lands in the
+ *    shared bucket, where the limit applies to all of them together.
+ */
+export function callerAddress(req: Request): string {
+  if (process.env.VERCEL) {
+    const v = req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim();
+    if (v) return v;
+  }
+  const hops = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "0", 10);
+  if (Number.isFinite(hops) && hops > 0) {
+    const parts = (req.headers.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    return parts[parts.length - hops] ?? "unknown";
+  }
+  return "direct";
+}
+
+/** Read at most `max` bytes. `null` means it was bigger, and nothing more was read. */
+async function readCapped(req: Request, max: number): Promise<string | null> {
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declared) && declared > max) return null;
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
 
 export type Ctx = { userId: string; req: Request; done: (res: Response) => Response };
 
@@ -30,7 +78,7 @@ export async function handle(
   // The class is part of the key. A bucket is sized by whichever class touches
   // it, so sharing one across "upload" (10) and "exam" (30) let a handful of
   // session creations starve every tool call behind them.
-  for (const bucket of [["redteam", opts.limit, clientIp(req)], ["redteam-did", opts.limit, identity.userId]]) {
+  for (const bucket of [["redteam", opts.limit, callerAddress(req)], ["redteam-did", opts.limit, identity.userId]]) {
     const rl = checkLimit(limitKey(bucket), opts.limit);
     if (!rl.ok) {
       return done(
@@ -44,8 +92,8 @@ export async function handle(
 
   let body: unknown = {};
   if (opts.schema) {
-    const raw = await req.text().catch(() => "");
-    if (raw.length > MAX_BODY) return done(err("TOO_LARGE", "That request is too large.", false, 413));
+    const raw = await readCapped(req, MAX_BODY).catch(() => "");
+    if (raw === null) return done(err("TOO_LARGE", "That request is too large.", false, 413));
     try {
       body = raw ? JSON.parse(raw) : {};
     } catch {

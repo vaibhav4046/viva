@@ -50,6 +50,7 @@ import { voiceMessage } from "@/lib/audio/messages";
 import {
   initialMachine,
   isRetryableCode,
+  dropPending,
   onCheckingSource,
   onConnecting,
   onEnded,
@@ -114,6 +115,8 @@ export type VoiceSocketOptions = {
   };
   /** Spoken instead of the greeting when a dropped session cannot be resumed. */
   reconnectGreeting?: string;
+  /** A reply finished normally. `delivered` is how many tool results went out with it. */
+  onReplyDone?: (info: { delivered: number }) => void;
   /** The service reported `reply.done` with status "interrupted". Fired after playback is flushed. */
   onInterrupted?: () => void;
   /** Optional session settings were refused and the session was retried without them. */
@@ -159,17 +162,27 @@ function errorSentence(code: string): string {
       return "VIVA is busy right now. Try again in a moment.";
     case "session_not_found":
     case "session_expired":
-      return "That exam session expired. Starting a new one.";
+      return "That review session expired. Starting a new one.";
     case "audio_rate_violation":
       return "The microphone is running too fast for the connection. Type instead.";
     case "invalid_config":
     case "immutable_field":
     case "invalid_value":
-      return "VIVA could not set up the exam audio. Reload the page.";
+      return "VIVA could not set up the voice session. Reload the page.";
     case "invalid_audio":
       return "The microphone sent audio VIVA could not read. Type instead.";
-    default:
+    case "session_forbidden":
+      return "That voice session belongs to a different sign-in. Starting a new one.";
+    case "agent_init_failed":
+    case "agent_timeout":
+    case "invalid_format":
+    case "agent_id_not_first":
+    case "agent_not_found":
+      return "The voice service could not start the review. Try again, or type instead — your review is intact.";
+    case "network":
       return voiceMessage("NETWORK_DOWN");
+    default:
+      return "The voice service reported a problem. Type instead — your review is intact.";
   }
 }
 
@@ -200,6 +213,13 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
   /** 0 = every optional field, 1 = VAD threshold only, 2 = none. See `sessionBody`. */
   let configLevel: 0 | 1 | 2 = 0;
   let everReady = false;
+  /** Tool calls whose HTTP round trip has not finished. */
+  let inflight = 0;
+  /** A completed `reply.done` waiting for those to finish, so their results can go out with it. */
+  let deferredDone: Record<string, unknown> | null = null;
+  let deferTimer: ReturnType<typeof setTimeout> | undefined;
+  let resumeAttempts = 0;
+  let fatalSeen = false;
 
   const publish = () => opts.onState(m);
 
@@ -349,18 +369,34 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
       // The 30-second grace window is the whole point of keeping resumeId.
       // Past it, the session is unrecoverable and a fresh one is the honest
       // outcome — the conversation is not silently "resumed" from nothing.
-      if (resumeId) {
+      if (resumeId && !fatalSeen) {
         m = onRecovering(m, `socket closed ${ev.code}`);
         publish();
+        resumeAttempts += 1;
+        // The grace window is one window, not one per drop.
+        if (resumeTimer) clearTimeout(resumeTimer);
+        if (resumeAttempts > 4) {
+          // Four resumes in a row have failed: stop hammering the token endpoint.
+          resumeId = null;
+          resumeAttempts = 0;
+          void connect("fresh");
+          return;
+        }
         resumeTimer = setTimeout(() => {
           resumeId = null;
           m = onRecovering(m, "grace window expired");
           publish();
           void connect("fresh");
         }, 25_000);
-        void connect("resume");
+        // Back off: 0, 1, 2, 4 seconds. Each attempt costs a token, and the
+        // token endpoint is rate limited.
+        const delay = [0, 1000, 2000, 4000][Math.min(resumeAttempts - 1, 3)];
+        setTimeout(() => {
+          if (!cancelled && !ending) void connect("resume");
+        }, delay);
         return;
       }
+      if (fatalSeen) return;
       m = onError(m, `socket closed ${ev.code}`, true);
       publish();
       opts.onError?.(errorSentence("network"));
@@ -372,6 +408,7 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
       case "session.ready": {
         resumeId = typeof msg.session_id === "string" ? msg.session_id : null;
         everReady = true;
+        resumeAttempts = 0;
         if (resumeTimer) clearTimeout(resumeTimer);
         m = onSessionReady(m, { session_id: resumeId ?? undefined, resume_token: (msg.resume_token as string) ?? null });
         // Only now may audio go out; the API rejects input.audio before ready.
@@ -384,6 +421,11 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
       case "session.updated":
         return;
       case "input.speech.started":
+        // The user spoke while results were held: the reply they were for is gone.
+        if (deferredDone) {
+          clearDeferred();
+          m = dropPending(m);
+        }
         m = onSpeechStarted(m);
         publish();
         return;
@@ -402,10 +444,6 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
         opts.onTranscript?.(String(msg.text ?? ""), "user");
         return;
       }
-      case "reply.started":
-        m = onReplyStarted(m);
-        publish();
-        return;
       case "reply.audio":
         m = onReplyAudio(m);
         publish();
@@ -420,22 +458,33 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
       }
       case "reply.done": {
         const status = msg.status === "interrupted" ? "interrupted" : "completed";
-        if (status === "interrupted") {
-          // The protocol is explicit: flush playback first, then drop anything
-          // queued for the reply that just died.
-          flushAudio?.();
+        // A tool call is still being answered by our server. Its result belongs
+        // with THIS reply.done, and sending nothing would leave the agent
+        // waiting for ever. Hold the reply.done until the calls finish.
+        if (status === "completed" && inflight > 0) {
+          deferredDone = msg;
+          if (deferTimer) clearTimeout(deferTimer);
+          deferTimer = setTimeout(() => releaseDeferred(true), 20_000);
+          return;
         }
-        const { machine, send } = onReplyDone(m, { status, reply_id: msg.reply_id as string });
-        m = machine;
-        publish();
-        if (status === "interrupted") opts.onInterrupted?.();
-        for (const r of send) deliver(r);
+        clearDeferred();
+        applyReplyDone(msg);
         return;
       }
+      case "reply.started":
+        // A new reply began while results were still held for the last one: they are stale.
+        if (deferredDone) {
+          clearDeferred();
+          m = dropPending(m);
+        }
+        m = onReplyStarted(m);
+        publish();
+        return;
       case "tool.call": {
         m = onToolCall(m, msg);
         m = onCheckingSource(m);
         publish();
+        inflight += 1;
         void runTool(msg);
         return;
       }
@@ -467,9 +516,10 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
         // The server closes after most of these, so the socket is left to
         // onclose; recording the reason here is what the diagnostics panel
         // shows and what decides fatal vs retryable.
+        if (!isRetryableCode(code)) fatalSeen = true;
         m = onError(m, code, !isRetryableCode(code));
         publish();
-        if (!isRetryableCode(code)) opts.onError?.(errorSentence(code));
+        opts.onError?.(errorSentence(code));
         return;
       }
       default:
@@ -498,7 +548,45 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
     } catch {
       m = withToolResult(m, callId, { error: "That check could not be run." }, true);
     }
+    inflight = Math.max(0, inflight - 1);
     publish();
+    if (deferredDone && inflight === 0) releaseDeferred(false);
+  };
+
+  /** Apply a `reply.done` now: flush if it was interrupted, then send whatever results are ready. */
+  const applyReplyDone = (msg: Record<string, unknown>) => {
+    const status = msg.status === "interrupted" ? "interrupted" : "completed";
+    if (status === "interrupted") {
+      // The protocol is explicit: flush playback first, then drop anything
+      // queued for the reply that just died.
+      flushAudio?.();
+    }
+    const { machine, send } = onReplyDone(m, { status, reply_id: msg.reply_id as string });
+    m = machine;
+    publish();
+    if (status === "interrupted") opts.onInterrupted?.();
+    else opts.onReplyDone?.({ delivered: send.length });
+    for (const r of send) deliver(r);
+  };
+
+  const clearDeferred = () => {
+    deferredDone = null;
+    if (deferTimer) clearTimeout(deferTimer);
+    deferTimer = undefined;
+  };
+
+  /** The held `reply.done` can go now: every call has answered, or we stopped waiting. */
+  const releaseDeferred = (timedOut: boolean) => {
+    const d = deferredDone;
+    if (!d) return;
+    clearDeferred();
+    if (timedOut) {
+      // Better to tell the agent the check failed than to leave it waiting.
+      for (const p of m.pending) {
+        if (!m.ready.some((r) => r.callId === p.callId)) m = withToolResult(m, p.callId, { error: "That check took too long." }, true);
+      }
+    }
+    applyReplyDone(d);
   };
 
   const finish = () => {
@@ -507,6 +595,8 @@ export function openVoiceSocket(opts: VoiceSocketOptions): VoiceSocket {
     // then closes, so both the event handler and `onclose` reach here; without
     // the guard the report fired twice and the screen counted one exam as two.
     finished = true;
+    clearDeferred();
+    if (resumeTimer) clearTimeout(resumeTimer);
     const summary = {
       turns: m.turns,
       toolCalls: m.toolCalls,

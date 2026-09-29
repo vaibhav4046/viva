@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { resolveIdentity } from "@/lib/auth/identity";
 import { checkLimit, limitKey } from "@/lib/limits";
-import { clientIp, withIdentityCookie } from "@/lib/http";
+import { withIdentityCookie } from "@/lib/http";
+import { callerAddress } from "@/lib/redteam/http";
 import { rid, serverLog } from "@/lib/observe";
 import { voiceMessage } from "@/lib/audio/messages";
 
@@ -74,7 +75,7 @@ async function mint(req: Request, userId: string): Promise<Response> {
   // Same two buckets as the streaming token: the address bounds a stranger,
   // the learner bounds a cookie. A token is a licence to spend AssemblyAI
   // minutes, so it must not be cheaper to get than a recorded clip.
-  for (const bucket of [["voice-agent-token", clientIp(req)], ["voice-agent-token-did", userId]]) {
+  for (const bucket of [["voice-agent-token", callerAddress(req)], ["voice-agent-token-did", userId]]) {
     const rl = checkLimit(limitKey(bucket), "transcribe");
     if (!rl.ok) {
       serverLog("voice_agent_token.rate_limited", traceId, {});

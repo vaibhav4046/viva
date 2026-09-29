@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  beginExplanation,
   looksLikeClaim,
   recordUtterance,
   RedteamError,
@@ -37,6 +38,7 @@ describe("the golden flow at the ledger", () => {
     expect(first.claim.status).toBe("CONTRADICTED");
     expect(first.claim.contradictionPassageIds.length).toBeGreaterThan(0);
 
+    beginExplanation(s, first.claim.id); // the agent starts explaining the verdict
     const cut = markInterrupted(s);
     expect(cut?.id).toBe(first.claim.id);
     expect(s.claims[0].awaitingCorrection).toBe(true);
@@ -60,7 +62,8 @@ describe("the golden flow at the ledger", () => {
 
   it("a later unsupported guarantee stays UNSUPPORTED and the report says so", () => {
     const s = mk();
-    recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    const c0 = recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    beginExplanation(s, c0.claim.id);
     markInterrupted(s);
     recordSpokenClaim(s, { spoken: "Wait. I meant manual failover." });
     const u = recordSpokenClaim(s, { spoken: "We guarantee GDPR compliance and SOC 2 certification for all customer data." });
@@ -85,6 +88,7 @@ describe("the golden flow at the ledger", () => {
   it("the same correction reported twice is one revision", () => {
     const s = mk();
     const a = recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    beginExplanation(s, a.claim.id);
     markInterrupted(s);
     recordSpokenClaim(s, { spoken: "Wait. I meant manual failover." });
     const again = applyCorrection(s, a.claim.id, "manual failover");
@@ -95,7 +99,8 @@ describe("the golden flow at the ledger", () => {
 
   it("a correction that the document still does not back does not flip to SUPPORTED", () => {
     const s = mk();
-    recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    const c0 = recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    beginExplanation(s, c0.claim.id);
     markInterrupted(s);
     const r = recordSpokenClaim(s, { spoken: "Sorry, I meant we fail over to a replica in another region." });
     expect(r.claim.status).not.toBe("SUPPORTED");
@@ -238,6 +243,7 @@ describe("tools", () => {
 
   it("finish ends the session and later calls are refused", () => {
     const s = mk();
+    recordUtterance(s, "Okay, I'm done. Show me the report.");
     expect(runTool(s, "finish_redteam_session", {}).isError).toBe(false);
     expect(runTool(s, "evaluate_spoken_claim", { spoken_text: "We keep data for 90 days." }).isError).toBe(true);
   });
@@ -260,7 +266,8 @@ describe("interrupted tool behaviour is safe", () => {
 
   it("the second interruption of a claim does not stack corrections", () => {
     const s = mk();
-    recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    const c0 = recordSpokenClaim(s, { spoken: "We automatically fail over to a replica." });
+    beginExplanation(s, c0.claim.id);
     markInterrupted(s);
     markInterrupted(s);
     expect(s.claims.filter((c) => c.awaitingCorrection)).toHaveLength(1);
@@ -280,7 +287,7 @@ describe("isolation between users and documents", () => {
 
   it("evidence from document A cannot appear in document B's verdicts", () => {
     const a = createSession({ userId: "u", mode: "SKEPTIC", title: "A", text: "The vault opens at nine. The vault has one key holder.\n\nThe archive is offline." });
-    const b = createSession({ userId: "u", mode: "SKEPTIC", title: "B", text: "The garden is watered daily. The garden has no gate at all." });
+    const b = createSession({ userId: "u", mode: "SKEPTIC", title: "B", text: "The garden is watered daily by the caretaker. The garden has no gate at all, so anyone can walk in." });
     const out = recordSpokenClaim(b, { spoken: "The vault opens at nine." });
     expect(out.claim.status).toBe("UNSUPPORTED");
     const aIds = new Set(a.document.passages.map((p) => p.id));
@@ -358,8 +365,8 @@ describe("utterances heard on the socket", () => {
 
   it("a changed number or a flipped negation is a new claim, never folded into the last one", () => {
     const s = mk();
-    recordUtterance(s, "We keep the evaluation data for 90 days.");
-    recordUtterance(s, "We keep the evaluation data for 30 days.");
+    recordUtterance(s, "We retain the evaluation inputs for 90 days.");
+    recordUtterance(s, "We retain the evaluation inputs for 30 days.");
     expect(s.claims.map((c) => c.status)).toEqual(["SUPPORTED", "CONTRADICTED"]);
     recordUtterance(s, "We have distributed tracing.");
     recordUtterance(s, "We do not have distributed tracing.");
@@ -368,7 +375,8 @@ describe("utterances heard on the socket", () => {
 
   it("a correction after an interruption still wins over claim-recording", () => {
     const s = mk();
-    recordUtterance(s, "We automatically fail over to a replica.");
+    const c0 = recordUtterance(s, "We automatically fail over to a replica.");
+    beginExplanation(s, c0!.claim.id);
     markInterrupted(s);
     const out = recordUtterance(s, "Wait. I meant manual failover.");
     expect(out?.corrected).toBe(true);

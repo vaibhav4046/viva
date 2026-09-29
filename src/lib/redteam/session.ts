@@ -3,7 +3,7 @@ import { buildDocument, isPassageOf } from "./document";
 import { enforceGrounding, evaluateClaim } from "./evaluate";
 import { pickChallenge, quoteOf } from "./challenge";
 import { buildReport, type Report } from "./report";
-import { CORRECTION_CUE, NEGATION, contentStems, figures, neutralise, QUALIFIERS, oppositeOf, stem } from "./text";
+import { CORRECTION_CUE, NEGATION, contentStems, figures, neutralise, numbers, QUALIFIERS, oppositeOf, stem } from "./text";
 import {
   MAX_CLAIM_CHARS,
   type Challenge,
@@ -112,17 +112,54 @@ export function faithfulNormalisation(spoken: string, proposed: string | undefin
     return s;
   }
   const sStems = new Set(contentStems(s));
-  const introduces = contentStems(p).filter((x) => !sStems.has(x));
+  // Nothing checkable was said: there is nothing for a tidy-up to be faithful
+  // to. ("yes" must not become "Writes are idempotent by request id.")
+  if (sStems.size < 2) return s;
+  const pList = contentStems(p);
+  const pStems = new Set(pList);
+  const introduces = [...pStems].filter((x) => !sStems.has(x));
   if (introduces.some((x) => QUALIFIERS.has(x))) return s;
-  if (NEGATION.test(p) && !NEGATION.test(s)) return s;
-  if (!NEGATION.test(p) && NEGATION.test(s)) return s;
+  // At most one new word (a pronoun resolved to its noun), and never a big share of the claim.
+  if (introduces.length > 1 || introduces.length / Math.max(1, pStems.size) > 0.25) return s;
+  if (NEGATION.test(p) !== NEGATION.test(s)) return s;
+  const sNums = numbers(s);
+  if ([...numbers(p)].some((n) => !sNums.has(n))) return s;
   const sFig = figures(s).map((f) => `${f.value}${f.unit}`);
   if (figures(p).some((f) => !sFig.includes(`${f.value}${f.unit}`))) return s;
-  // The user's own words must still be in it: at least half the claim's stems.
-  const pStems = new Set(contentStems(p));
+  // The user's own words must still be in it.
   const kept = [...sStems].filter((x) => pStems.has(x)).length;
-  if (sStems.size > 0 && kept / sStems.size < 0.5) return s;
+  if (kept / sStems.size < 0.6) return s;
   return p;
+}
+
+/** The claim a correction is about: the one waiting on it, or the one being explained. */
+function correctionTarget(s: RedteamSession, spoken: string): Claim | null {
+  if (!CORRECTION_CUE.test(spoken)) return null;
+  const c =
+    s.claims.find((x) => x.awaitingCorrection) ??
+    (s.explainingClaimId ? s.claims.find((x) => x.id === s.explainingClaimId) : undefined) ??
+    null;
+  if (!c) return null;
+  // A correction has to be about the claim. "No, I think we page the on-call
+  // engineer" shares nothing with a claim about replicas, so it is a new claim.
+  const frag = new Set(contentStems(correctionFragment(spoken)));
+  const have = new Set(contentStems(c.normalizedClaim));
+  const related = [...frag].some((x) => QUALIFIERS.has(x) || have.has(x));
+  return related ? c : null;
+}
+
+/** The user has moved on: nothing is waiting on a correction, and no explanation is in flight. */
+function userMovedOn(s: RedteamSession) {
+  for (const c of s.claims) c.awaitingCorrection = false;
+  s.explainingClaimId = null;
+}
+
+const FINISH_CUE =
+  /(?:\b(?:i'?m done|i am done|we'?re done|we are done|all done|let'?s (?:finish|stop|wrap up)|finish (?:the |this )?(?:review|session|now|up)|that'?s (?:all|it|enough)(?: for (?:now|today))?|end (?:the |this )?(?:review|session)|wrap (?:it |this )?up|stop (?:the |this )?(?:review|session)|show (?:me )?the report|give me the report|build the report)\b)|^\s*(?:finish|done|stop)[.!]?\s*$/i;
+
+/** Did the user, in their last few turns, ask for the review to end? */
+export function userAskedToFinish(s: RedteamSession): boolean {
+  return (s.recentUtterances ?? []).slice(-3).some((u) => FINISH_CUE.test(u));
 }
 
 function verdictOf(s: RedteamSession, text: string): Verdict {
@@ -159,10 +196,8 @@ export function recordSpokenClaim(
   const spoken = cleanSpoken(input.spoken);
   if (input.passageHints !== undefined) validateHints(s, input.passageHints);
 
-  const pending = s.claims.find((c) => c.awaitingCorrection);
-  if (pending && CORRECTION_CUE.test(spoken)) {
-    return applyCorrection(s, pending.id, spoken);
-  }
+  const target = correctionTarget(s, spoken);
+  if (target) return applyCorrection(s, target.id, spoken);
 
   const normalized = faithfulNormalisation(spoken, input.normalized);
 
@@ -204,6 +239,7 @@ export function recordSpokenClaim(
   });
   s.claims.push(claim);
   s.activeClaimId = claim.id;
+  userMovedOn(s);
   event(s, "claim", { text: spoken, claimId: claim.id });
   event(s, "verdict", {
     text: v.basis,
@@ -225,25 +261,46 @@ function jaccard(a: string, b: string): number {
 
 const figureKey = (s: string) => figures(s).map((f) => `${f.value}${f.unit}`).sort().join(",");
 
+const qualifierKey = (s: string) => contentStems(s).filter((x) => QUALIFIERS.has(x)).sort().join(",");
+
 /**
- * The same words, not merely similar ones. A changed number or a flipped
- * negation is a different claim however many other words it shares, and
- * folding it into the previous one would report the earlier verdict for it.
+ * The same words, not merely similar ones. A changed number, a flipped
+ * negation or a different qualifier ("automatically" vs "manually") is a
+ * different claim however many other words it shares, and folding it into the
+ * previous one would report the earlier verdict for it. Two texts are the same
+ * claim when one says nothing the other does not, or they are nearly identical.
  */
 function sameClaim(c: Claim, spoken: string, normalized: string): boolean {
   return [c.spokenText, c.normalizedClaim].some((existing) =>
-    [spoken, normalized].some(
-      (mine) => jaccard(existing, mine) >= 0.6 && figureKey(existing) === figureKey(mine) && NEGATION.test(existing) === NEGATION.test(mine)
-    )
+    [spoken, normalized].some((mine) => {
+      if (figureKey(existing) !== figureKey(mine)) return false;
+      if (NEGATION.test(existing) !== NEGATION.test(mine)) return false;
+      if (qualifierKey(existing) !== qualifierKey(mine)) return false;
+      if (numbers(existing).size !== numbers(mine).size) return false;
+      const a = new Set(contentStems(existing));
+      const b = new Set(contentStems(mine));
+      if (a.size < 2 || b.size < 2) return false;
+      const aInB = [...a].every((x) => b.has(x));
+      const bInA = [...b].every((x) => a.has(x));
+      return aInB || bInA || jaccard(existing, mine) >= 0.85;
+    })
   );
 }
 
 const NOT_A_CLAIM_START = /^(?:what|why|how|when|where|who|which|can|could|would|should|do|does|did|is|are|will|please|ok|okay|yes|no|yeah|yep|sure|hello|hi|hey|thanks|thank|right|so|go|start|begin|next|stop|repeat|continue|finish|skip|again|let|lets|um|uh|hmm)\b/i;
 
+/** "Yes, we fail over…": the answer is what follows the acknowledgement. */
+export function stripLead(text: string): string {
+  return text.trim().replace(/^(?:(?:yes|yeah|yep|sure|right|so|well|okay|ok|no|um|uh|hmm)\b[,.\s]*)+/i, "").trim();
+}
+
 /** Is this utterance something to check against the document, or just talk? */
 export function looksLikeClaim(text: string): boolean {
-  const t = text.trim();
+  const t = stripLead(text);
   if (t.length < 12 || t.endsWith("?") || NOT_A_CLAIM_START.test(t)) return false;
+  // "That's all, I'm done. Show me the report." is a request, not a claim.
+  if (FINISH_CUE.test(t) && contentStems(t).length <= 3) return false;
+  if (/^(?:that'?s (?:all|it)|i'?m done|we'?re done|show me|give me|move on|let'?s move on|say (?:that|it) again)\b/i.test(t)) return false;
   return t.split(/\s+/).length >= 3 && contentStems(t).length >= 2;
 }
 
@@ -259,12 +316,25 @@ export function looksLikeClaim(text: string): boolean {
 export function recordUtterance(s: RedteamSession, text: string): (ClaimOutcome & { recorded: boolean }) | null {
   assertActive(s);
   const spoken = cleanSpoken(text);
-  const pending = s.claims.find((c) => c.awaitingCorrection);
-  if (pending && CORRECTION_CUE.test(spoken)) return { ...applyCorrection(s, pending.id, spoken), recorded: true };
+  s.recentUtterances = [...(s.recentUtterances ?? []), spoken].slice(-6);
+  const target = correctionTarget(s, spoken);
+  if (target) return { ...applyCorrection(s, target.id, spoken), recorded: true };
+  // Anything else means the user has moved on from the reply that was cut off.
+  userMovedOn(s);
   if (!looksLikeClaim(spoken)) return null;
   const before = s.claims.length;
-  const out = recordSpokenClaim(s, { spoken });
+  const out = recordSpokenClaim(s, { spoken: stripLead(spoken) });
   return { ...out, recorded: s.claims.length > before };
+}
+
+/** The agent finished speaking a reply that carried no tool result: any explanation is over. */
+export function endExplanation(s: RedteamSession): void {
+  s.explainingClaimId = null;
+}
+
+/** A verdict has just been handed to the agent, which will now explain it. */
+export function beginExplanation(s: RedteamSession, claimId: string): void {
+  s.explainingClaimId = claimId;
 }
 
 /** Passage ids an agent names must be this document's. Anything else is refused whole. */
@@ -282,13 +352,24 @@ function validateHints(s: RedteamSession, hints: unknown) {
 /** The user cut the agent off while it was explaining a verdict. */
 export function markInterrupted(s: RedteamSession): Claim | null {
   assertActive(s);
-  const claim = s.claims.find((c) => c.id === s.activeClaimId) ?? null;
+  // Only the reply that was explaining a verdict can leave a claim waiting for
+  // a correction. Cutting off the next question is not a comment on an old claim.
+  const claim = s.explainingClaimId ? s.claims.find((c) => c.id === s.explainingClaimId) ?? null : null;
   if (!claim) {
+    // The correction can arrive before the interruption is reported; the
+    // ledger has already moved, and the timeline should still say why.
+    const last = s.timeline.at(-1);
+    const fixed = last?.kind === "correction" && last.claimId ? s.claims.find((c) => c.id === last.claimId) : undefined;
+    if (fixed) {
+      event(s, "interruption", { text: `Interrupted while explaining: "${fixed.normalizedClaim}"`, claimId: fixed.id });
+      return null;
+    }
     event(s, "interruption", { text: "The user interrupted between claims." });
     return null;
   }
   claim.awaitingCorrection = true;
   claim.updatedAt = now();
+  s.explainingClaimId = null;
   event(s, "interruption", { text: `Interrupted while explaining: "${claim.normalizedClaim}"`, claimId: claim.id, from: claim.status });
   return claim;
 }
@@ -367,6 +448,7 @@ export function applyCorrection(s: RedteamSession, claimId: string, spoken: stri
   apply(claim, v, "correction", target);
   claim.awaitingCorrection = false;
   s.activeClaimId = claim.id;
+  s.explainingClaimId = null;
   event(s, "correction", {
     text: cleaned,
     claimId: claim.id,

@@ -234,6 +234,7 @@ function VoicePane({
   const detail = machineState === "ERROR" && st.error ? st.error : line.detail;
   const showTyped = typedOpen || typedOnly || machineState === "ERROR" || Boolean(localError);
   const canStart = !voiceLive && machineState !== "CONNECTING";
+  const ended = st.report !== null;
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,25 +311,33 @@ function VoicePane({
         <button className="rt-btn" onClick={() => setTypedOpen((v) => !v)} aria-expanded={showTyped} aria-controls="rt-typed">
           Type instead
         </button>
-        <button className="rt-btn" onClick={() => void ctrl.typedNext()} data-testid="next-question">
-          Next question
-        </button>
-        <button className="rt-btn rt-btn--danger" onClick={onFinish} disabled={finishing} data-testid="finish">
+        {voiceLive ? null : (
+          <button className="rt-btn" onClick={() => void ctrl.typedNext()} data-testid="next-question" disabled={st.report !== null}>
+            Next question
+          </button>
+        )}
+        <button className="rt-btn rt-btn--danger" onClick={onFinish} disabled={finishing || ended} data-testid="finish">
           Finish and build report
         </button>
       </div>
+
+      {ended ? (
+        <p className="rt-note" style={{ margin: "12px 22px 0" }} data-testid="ended-note">
+          This review has ended. The report is final; start a new review to keep going.
+        </p>
+      ) : null}
 
       {showTyped ? (
         <form id="rt-typed" className="rt-type" onSubmit={send}>
           <label className="rt-sr" htmlFor="rt-typed-input" style={{ position: "absolute", left: -9999 }}>
             Type your answer
           </label>
-          <input id="rt-typed-input" data-testid="typed-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Type what you would say" maxLength={1000} autoComplete="off" />
-          <button className="rt-btn rt-btn--primary" type="submit" disabled={!text.trim()}>
+          <input id="rt-typed-input" data-testid="typed-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Type what you would say" maxLength={1000} autoComplete="off" disabled={ended} />
+          <button className="rt-btn rt-btn--primary" type="submit" disabled={!text.trim() || ended}>
             Send
           </button>
           <div className="rt-type__row">
-            <button type="button" className="rt-btn" data-testid="typed-interrupt" onClick={() => void ctrl.typedInterrupt()}>
+            <button type="button" className="rt-btn" data-testid="typed-interrupt" disabled={ended} onClick={() => void ctrl.typedInterrupt()}>
               Cut VIVA off
             </button>
             <span className="rt-note" style={{ color: "var(--rt-text-2)", alignSelf: "center" }}>

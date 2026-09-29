@@ -23,7 +23,23 @@ export class DocumentError extends Error {
   }
 }
 
-const HEADING = /^(#{1,4})\s+(.+?)\s*#*$/;
+const MAX_LINE = 4_000;
+
+/**
+ * A Markdown heading, parsed by hand. The regex this replaced was quadratic on
+ * a long run of spaces, so one 59 KB request could hold the server for five
+ * seconds. Long lines are never headings.
+ */
+function parseHeading(line: string): string | null {
+  const t = line.trim();
+  if (t.length > 300 || t[0] !== "#") return null;
+  let i = 0;
+  while (i < t.length && t[i] === "#") i += 1;
+  if (i > 4 || t[i] !== " ") return null;
+  let text = t.slice(i).trim();
+  while (text.endsWith("#")) text = text.slice(0, -1).trimEnd();
+  return text || null;
+}
 const LIST_ITEM = /^\s*(?:[-*•]|\d+[.)])\s+(.+)$/;
 const MAX_PASSAGE_CHARS = 420;
 
@@ -82,14 +98,21 @@ export function buildDocument(input: { ownerId: string; title: string; text: str
     para = [];
   };
 
+  // No single line is allowed to be long enough to hurt: cut it into pieces first.
+  const lines: string[] = [];
   for (const line of raw.split("\n")) {
-    const h = HEADING.exec(line.trim());
-    if (h) {
+    if (line.length <= MAX_LINE) lines.push(line);
+    else for (let i = 0; i < line.length; i += MAX_LINE) lines.push(line.slice(i, i + MAX_LINE));
+  }
+
+  for (const line of lines) {
+    const heading = parseHeading(line);
+    if (heading) {
       flush();
       // A heading before any passage renames the opening section instead of
       // leaving an empty one behind it.
-      if (!sawHeading && current.passageIds.length === 0) current.heading = h[2].trim();
-      else current = startSection(h[2].trim());
+      if (!sawHeading && current.passageIds.length === 0) current.heading = heading;
+      else current = startSection(heading);
       sawHeading = true;
       continue;
     }
@@ -108,7 +131,8 @@ export function buildDocument(input: { ownerId: string; title: string; text: str
   flush();
 
   const kept = sections.filter((s) => s.passageIds.length > 0);
-  if (passages.length < 2) {
+  const substantial = passages.filter((p) => p.text.length >= 12).length;
+  if (passages.length < 2 || substantial < 2 || passages.reduce((n, p) => n + p.text.length, 0) < 60) {
     throw new DocumentError("TOO_SHORT", "There is not enough in that document to cross-examine. Paste at least a few sentences.");
   }
   return { id, title: cleanTitle(input.title), sample: Boolean(input.sample), sections: kept, passages };

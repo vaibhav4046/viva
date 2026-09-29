@@ -34,9 +34,24 @@ export function quoteOf(p: Passage, max = 260): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
+/**
+ * What is worth pressing on in ANY document: a figure, a comparison, a cause,
+ * an absolute. A thesis, an investor memo or a policy has no "primary replica",
+ * but it has all of these, and a review that only knew engineering words would
+ * open a memo with "I have tested everything".
+ */
+const GENERIC: { re: RegExp; w: number }[] = [
+  { re: /\d/, w: 2 },
+  { re: /\b(?:more|less|fewer|greater|higher|lower|larger|smaller|better|worse|faster|slower|than|outperform\w*|exceed\w*)\b/i, w: 2 },
+  { re: /\b(?:because|therefore|thus|hence|so that|leads? to|results? in|causes?|due to|as a result|which means|implies)\b/i, w: 2 },
+  { re: /\b(?:always|never|all|every|none|no one|guarantee\w*|proves?|proven|clearly|obviously|significant\w*|will|must)\b/i, w: 1 },
+  { re: /\b(?:we (?:believe|expect|assume|plan)|assum\w+|estimate\w*|projected|forecast\w*)\b/i, w: 2 },
+];
+
 function score(p: Passage, mode: ReviewMode): number {
   let s = 0;
   for (const { re, w } of MODE_WEIGHTS[mode]) if (re.test(p.text)) s += w;
+  for (const { re, w } of GENERIC) if (re.test(p.text)) s += w;
   // Headings-only or trivially short lines are not worth a question.
   if (p.text.length < 25) s = 0;
   return s;
@@ -51,11 +66,20 @@ function fromPassage(p: Passage, mode: ReviewMode): { kind: ChallengeKind; quest
   if (/\b(?:single|one|only)\b/i.test(p.text) && /\b(?:primary|instance|node|server|worker|region|database)\b/i.test(p.text)) {
     return { kind: "STRESS_TEST", question: `Your document says ${q}. What happens if that becomes unavailable during an active request?` };
   }
-  if (/\b(?:two|both|concurrent\w*|simultaneous\w*|same time|same submission)\b/i.test(p.text)) {
+  if (/\b(?:concurrent\w*|simultaneous\w*|same time|at once|race condition|(?:two|both) (?:workers?|writers?|updates?|requests?|users?|processes|clients?|nodes?|replicas?))\b/i.test(p.text)) {
     return { kind: "EDGE_CASE", question: `Your document says ${q}. What happens when two of those arrive at the same time?` };
   }
   if (/\b(?:not|no|without|lack\w*)\b/i.test(p.text)) {
     return { kind: "STRESS_TEST", question: `Your document admits ${q}. Who accepts that risk, and why is it acceptable?` };
+  }
+  if (/\b(?:because|therefore|thus|hence|leads? to|results? in|causes?|due to|as a result|which means|implies)\b/i.test(p.text)) {
+    return { kind: "VERIFY", question: `Your document says ${q}. What in the document shows that follows, rather than just happening alongside?` };
+  }
+  if (/\d/.test(p.text)) {
+    return { kind: "VERIFY", question: `Your document says ${q}. Where does that figure come from, and what would change it?` };
+  }
+  if (/\b(?:more|less|fewer|greater|higher|lower|larger|smaller|better|worse|faster|slower|than)\b/i.test(p.text)) {
+    return { kind: "STRESS_TEST", question: `Your document says ${q}. Compared to what, exactly, and who would dispute the comparison?` };
   }
   if (mode === "SKEPTIC") return { kind: "VERIFY", question: `Your document claims ${q}. Where is that actually enforced?` };
   if (mode === "OPERATOR") return { kind: "STRESS_TEST", question: `Your document says ${q}. How would an operator notice, at three in the morning, that this had gone wrong?` };

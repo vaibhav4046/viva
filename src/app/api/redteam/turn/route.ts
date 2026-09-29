@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { handle, persist } from "@/lib/redteam/http";
-import { markInterrupted, publicView, recordUtterance } from "@/lib/redteam/session";
+import { endExplanation, markInterrupted, publicView, recordUtterance } from "@/lib/redteam/session";
 
 /**
  * POST /api/redteam/turn — what the browser saw on the socket.
@@ -20,7 +20,7 @@ import { markInterrupted, publicView, recordUtterance } from "@/lib/redteam/sess
 const Body = z
   .object({
     sessionId: z.string().max(80),
-    event: z.enum(["interrupted", "user_final"]),
+    event: z.enum(["interrupted", "user_final", "reply_done"]),
     text: z.string().max(2000).optional(),
   })
   .strict();
@@ -32,7 +32,12 @@ export async function POST(req: Request): Promise<Response> {
     let changed = false;
     let claimId: string | null = null;
     let statusBefore: string | null = null;
-    if (body.event === "interrupted") {
+    let dirty = false;
+    if (body.event === "reply_done") {
+      // A reply finished without being cut off: whatever it was explaining is over.
+      endExplanation(s);
+      dirty = true;
+    } else if (body.event === "interrupted") {
       const c = markInterrupted(s);
       changed = true;
       claimId = c?.id ?? null;
@@ -40,13 +45,14 @@ export async function POST(req: Request): Promise<Response> {
       const pending = s.claims.find((c) => c.awaitingCorrection);
       statusBefore = pending?.status ?? null;
       const out = recordUtterance(s, body.text);
+      dirty = true; // what the user said is kept, whether or not it was a claim
       if (out) {
         changed = out.corrected || out.recorded;
         claimId = out.claim.id;
         if (!out.corrected) statusBefore = null;
       }
     }
-    if (changed) await persist(s);
+    if (changed || dirty) await persist(s);
     return Response.json({ changed, claimId, statusBefore, session: publicView(s) });
   });
 }

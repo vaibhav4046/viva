@@ -22,7 +22,7 @@ export type VoiceConfig = VoiceSocketOptions["config"] & { sessionId: string };
 export type Api = {
   token: () => Promise<string>;
   tool: (sessionId: string, name: string, args: Record<string, unknown>, callId: string) => Promise<{ result: Record<string, unknown>; isError: boolean; session: SessionView }>;
-  turn: (sessionId: string, event: "interrupted" | "user_final", text?: string) => Promise<{ changed: boolean; claimId: string | null; statusBefore: string | null; session: SessionView }>;
+  turn: (sessionId: string, event: "interrupted" | "user_final" | "reply_done", text?: string) => Promise<{ changed: boolean; claimId: string | null; statusBefore: string | null; session: SessionView }>;
   typed: (sessionId: string, body: { text?: string; interrupt?: boolean; next?: boolean }) => Promise<{ claimId: string | null; previousStatus: string | null; corrected: boolean; session: SessionView }>;
   end: (sessionId: string) => Promise<{ report: Report; session: SessionView }>;
 };
@@ -67,6 +67,7 @@ export function createController(api: Api, initial: SessionView, opts: { now?: (
   const now = opts.now ?? Date.now;
   let socket: VoiceSocket | null = null;
   let lineId = 0;
+  let endAfterReply = false;
   let queue: Promise<unknown> = Promise.resolve();
   const subs = new Set<(s: ControllerState) => void>();
 
@@ -138,6 +139,17 @@ export function createController(api: Api, initial: SessionView, opts: { now?: (
           }
         });
       },
+      onReplyDone: ({ delivered }) => {
+        // A reply that carried no tool result was not an explanation of one: any
+        // verdict being explained is over, so a later barge-in is not about it.
+        if (delivered === 0) void enqueue(() => api.turn(sessionId, "reply_done")).catch(() => undefined);
+        if (endAfterReply && delivered === 0) {
+          // The agent has said its closing line: end the session so the
+          // microphone and the billed connection are released.
+          endAfterReply = false;
+          setTimeout(() => void socket?.end(), 400);
+        }
+      },
       onInterrupted: () => {
         void enqueue(async () => {
           try {
@@ -156,8 +168,16 @@ export function createController(api: Api, initial: SessionView, opts: { now?: (
           patch.lastChange = { claimId: res.claim_id, from: res.previous_status, to: res.status, cause: "reevaluation", at: now() };
           patch.interruptedClaimId = null;
         }
-        if (name === "finish_redteam_session") {
+        if (name === "finish_redteam_session" && (r.result as { ok?: boolean }).ok === true) {
           void api.end(sessionId).then((e) => set({ report: e.report, session: e.session })).catch(() => undefined);
+          // End the voice session after the agent's closing sentence, or after 15 s regardless.
+          endAfterReply = true;
+          setTimeout(() => {
+            if (endAfterReply) {
+              endAfterReply = false;
+              void socket?.end();
+            }
+          }, 15_000);
         }
         set(patch);
         return r.result;
@@ -189,8 +209,8 @@ export function createController(api: Api, initial: SessionView, opts: { now?: (
           patch.interruptedClaimId = null;
         }
         set(patch);
-      } catch {
-        fail("That did not go through. Try it again.");
+      } catch (e) {
+        fail(e instanceof Error ? e.message : "That did not go through. Try it again.");
       }
     },
     async typedInterrupt() {

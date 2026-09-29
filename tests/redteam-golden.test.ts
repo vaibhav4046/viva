@@ -202,7 +202,9 @@ describe("golden flow: contradiction, barge-in, correction, verdict change", () 
     expect(third.status).toBe("UNSUPPORTED");
     expect(third.say).toContain("I can't find that in the supplied material");
 
-    // 8. Finish: the agent calls the tool and the report is built.
+    // 8. Finish: the user says they are done, the agent calls the tool, the report is built.
+    say(ws, "That's all, I'm done. Show me the report.", "u4");
+    await settle();
     ws.emit({ type: "reply.started", reply_id: "r5" });
     ws.emit({ type: "tool.call", call_id: "call_4", name: "finish_redteam_session", arguments: {} });
     await settle();
@@ -218,9 +220,9 @@ describe("golden flow: contradiction, barge-in, correction, verdict change", () 
 
   it("a tool result computed for a reply the user interrupted is never sent", async () => {
     const { c, ws } = await boot();
-    say(ws, "We keep data for 90 days.");
+    say(ws, "We retain evaluation inputs for 90 days.");
     ws.emit({ type: "reply.started", reply_id: "r1" });
-    ws.emit({ type: "tool.call", call_id: "call_x", name: "evaluate_spoken_claim", arguments: { spoken_text: "We keep data for 90 days." } });
+    ws.emit({ type: "tool.call", call_id: "call_x", name: "evaluate_spoken_claim", arguments: { spoken_text: "We retain evaluation inputs for 90 days." } });
     await settle();
     ws.emit({ type: "input.speech.started" });
     ws.emit({ type: "reply.done", reply_id: "fc-call_x", status: "interrupted" });
@@ -231,9 +233,9 @@ describe("golden flow: contradiction, barge-in, correction, verdict change", () 
     // The ledger still shows what the document said; only the agent never heard it.
     expect(c.state().session.claims[0].status).toBe("SUPPORTED");
     // And the next turn's result is not contaminated by the discarded one.
-    say(ws, "We keep data for 30 days.", "u2");
+    say(ws, "We retain evaluation inputs for 30 days.", "u2");
     ws.emit({ type: "reply.started", reply_id: "r2" });
-    ws.emit({ type: "tool.call", call_id: "call_y", name: "evaluate_spoken_claim", arguments: { spoken_text: "We keep data for 30 days." } });
+    ws.emit({ type: "tool.call", call_id: "call_y", name: "evaluate_spoken_claim", arguments: { spoken_text: "We retain evaluation inputs for 30 days." } });
     await settle();
     ws.emit({ type: "reply.done", reply_id: "fc-call_y", status: "completed" });
     const out = ws.of("tool.result");
@@ -274,6 +276,64 @@ describe("golden flow: contradiction, barge-in, correction, verdict change", () 
     ws.emit({ type: "reply.done", reply_id: "fc-c1", status: "completed" });
     expect(JSON.parse(ws.of("tool.result")[0].result).status).toBe("CONTRADICTED");
     expect(c.state().session.claims).toHaveLength(1);
+  });
+
+  it("a slow source check still answers the reply it belongs to (reply.done before the tool route returns)", async () => {
+    // The reviewer's blocker: reply.done(completed) arrived while the tool POST
+    // was in flight, the result was discarded, and the agent waited for ever.
+    FakeWS.all = [];
+    const created = await call(CREATE, { mode: "SKEPTIC", sample: true });
+    const base = api();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    const slow: Api = { ...base, tool: async (...a) => { await gate; return base.tool(...a); } };
+    const c = createController(slow, created.session);
+    c.startVoice(created.voice, { openSocket: (u) => new FakeWS(u) as unknown as WebSocket, playAudio: () => {}, flushAudio: () => {} });
+    await settle();
+    const ws = FakeWS.all[0];
+    ws.fire("open", {});
+    ws.emit({ type: "session.ready", session_id: "s1" });
+
+    say(ws, "We automatically fail over to a replica.");
+    ws.emit({ type: "reply.started", reply_id: "r1" });
+    ws.emit({ type: "tool.call", call_id: "slow_1", name: "evaluate_spoken_claim", arguments: { spoken_text: "We automatically fail over to a replica." } });
+    ws.emit({ type: "reply.done", reply_id: "fc-slow_1", status: "completed" }); // immediately
+    await settle();
+    expect(ws.of("tool.result")).toHaveLength(0); // still waiting on our server, not dropped
+    expect(c.state().machine?.discards).toBe(0);
+
+    release();
+    await settle();
+    await settle();
+    const out = ws.of("tool.result");
+    expect(out).toHaveLength(1);
+    expect(out[0].call_id).toBe("slow_1");
+    expect(JSON.parse(out[0].result).status).toBe("CONTRADICTED");
+  });
+
+  it("if the user speaks while a slow check is held, the held result is dropped, not sent into the next turn", async () => {
+    FakeWS.all = [];
+    const created = await call(CREATE, { mode: "SKEPTIC", sample: true });
+    const base = api();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    const slow: Api = { ...base, tool: async (...a) => { await gate; return base.tool(...a); } };
+    const c = createController(slow, created.session);
+    c.startVoice(created.voice, { openSocket: (u) => new FakeWS(u) as unknown as WebSocket, playAudio: () => {}, flushAudio: () => {} });
+    await settle();
+    const ws = FakeWS.all[0];
+    ws.fire("open", {});
+    ws.emit({ type: "session.ready", session_id: "s1" });
+    say(ws, "We retain evaluation inputs for 90 days.");
+    ws.emit({ type: "reply.started", reply_id: "r1" });
+    ws.emit({ type: "tool.call", call_id: "slow_2", name: "evaluate_spoken_claim", arguments: { spoken_text: "We retain evaluation inputs for 90 days." } });
+    ws.emit({ type: "reply.done", reply_id: "fc-slow_2", status: "completed" });
+    ws.emit({ type: "input.speech.started" }); // the user moves on
+    release();
+    await settle();
+    await settle();
+    expect(ws.of("tool.result")).toHaveLength(0);
+    expect(c.state().machine?.discards).toBeGreaterThanOrEqual(1);
   });
 
   it("an out-of-order pair of events (transcript before interruption marker) cannot drop the correction", async () => {

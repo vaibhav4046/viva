@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { handle, persist } from "@/lib/redteam/http";
-import { askNext, markInterrupted, publicView, recordSpokenClaim } from "@/lib/redteam/session";
+import { askNext, beginExplanation, markInterrupted, publicView, recordUtterance } from "@/lib/redteam/session";
 
 /**
  * POST /api/redteam/typed — the typed fallback.
@@ -28,10 +28,15 @@ export async function POST(req: Request): Promise<Response> {
     let corrected = false;
     if (body.interrupt) markInterrupted(s);
     if (body.text?.trim()) {
-      const out = recordSpokenClaim(s, { spoken: body.text });
-      claimId = out.claim.id;
-      previous = out.previousStatus;
-      corrected = out.corrected;
+      const out = recordUtterance(s, body.text);
+      if (out) {
+        claimId = out.claim.id;
+        previous = out.previousStatus;
+        corrected = out.corrected;
+        // In the typed review the screen is the explanation: cutting VIVA off
+        // means interrupting this verdict.
+        beginExplanation(s, out.claim.id);
+      }
     }
     if (body.next) askNext(s);
     await persist(s);

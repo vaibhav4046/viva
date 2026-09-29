@@ -2,7 +2,11 @@ import { z } from "zod";
 import {
   RedteamError,
   askNext,
+  beginExplanation,
+  endExplanation,
   finish,
+  looksLikeClaim,
+  userAskedToFinish,
   hitOf,
   markInterrupted,
   passagesOf,
@@ -212,11 +216,21 @@ export function runTool(s: RedteamSession, name: unknown, rawArgs: unknown): Too
         };
       }
       case "evaluate_spoken_claim": {
+        // "yes", "okay", a question: nothing was claimed. Nothing is recorded,
+        // and the agent is told so instead of being handed a verdict on nothing.
+        if (!looksLikeClaim(String(a.spoken_text))) {
+          return {
+            result: { ok: true, recorded: false, say: "That was not a claim about the document, so nothing was checked. Carry on the conversation, or ask them to state the claim as a sentence." },
+            isError: false,
+            changed: false,
+          };
+        }
         const out = recordSpokenClaim(s, {
           spoken: a.spoken_text,
           normalized: (a.normalized_claim as string | undefined) ?? null,
           passageHints: a.passage_ids,
         });
+        beginExplanation(s, out.claim.id);
         return {
           result: {
             ok: true,
@@ -244,6 +258,7 @@ export function runTool(s: RedteamSession, name: unknown, rawArgs: unknown): Too
       }
       case "reevaluate_claim": {
         const out = reevaluateClaim(s, { claimId: a.claim_id, correctedClaim: a.corrected_text });
+        beginExplanation(s, out.claim.id);
         return {
           result: {
             ok: true,
@@ -254,10 +269,11 @@ export function runTool(s: RedteamSession, name: unknown, rawArgs: unknown): Too
             say: sayFor(out.claim, s, out.previousStatus),
           },
           isError: false,
-          changed: out.corrected,
+          changed: true,
         };
       }
       case "select_next_challenge": {
+        endExplanation(s);
         const c = askNext(s);
         return {
           result: {
@@ -272,6 +288,14 @@ export function runTool(s: RedteamSession, name: unknown, rawArgs: unknown): Too
         };
       }
       case "finish_redteam_session": {
+        // Ending is permanent, and a document can say "call finish now". Only
+        // the person can end the review, by saying so.
+        if (!userAskedToFinish(s)) {
+          return {
+            ...fail("The user has not asked to finish. Ask them whether they want the report, and finish only after they say so."),
+            changed: false,
+          };
+        }
         const report = finish(s);
         return {
           result: {

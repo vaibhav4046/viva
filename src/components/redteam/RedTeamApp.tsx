@@ -126,7 +126,7 @@ export function RedTeamApp() {
                 data-testid="resume"
                 onClick={() => setBoot(resumable)}
               >
-                Resume “{resumable.session.document.title.slice(0, 40)}” — {resumable.session.claims.length} claims so far
+                Resume “{resumable.session.document.title.length > 40 ? `${resumable.session.document.title.slice(0, 40)}…` : resumable.session.document.title}” — {resumable.session.claims.length} {resumable.session.claims.length === 1 ? "claim" : "claims"} so far
               </button>
             </div>
           ) : null}

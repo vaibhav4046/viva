@@ -133,7 +133,10 @@ const TRANSITIONS: Record<VoiceState, readonly VoiceState[]> = {
   // `reply.done(interrupted)` that explains it. Refusing it would leave the
   // screen saying the agent is speaking while the user is mid-sentence.
   SPEAKING: ["INTERRUPTED", "USER_SPEAKING", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE"],
-  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "ERROR", "RECOVERING", "IDLE"],
+  // INTERRUPTED -> SPEAKING/CHECKING_SOURCE: `reply.done(interrupted)` can land
+  // after the user's transcript has already started the next reply. Without
+  // these the screen said "Cut off" for the whole of that reply.
+  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE"],
   RECOVERING: ["READY", "LISTENING", "ERROR", "IDLE"],
   ERROR: ["CONNECTING", "RECOVERING", "IDLE"],
   ENDED: ["CONNECTING"],
@@ -295,6 +298,9 @@ export function onReplyDone(
 ): { machine: VoiceMachine; send: QueuedResult[]; discardCallIds: string[] } {
   const interrupted = ev.status === "interrupted";
 
+  // A finished session stays finished: a late frame cannot bring it back.
+  if (m.state === "ENDED") return { machine: m, send: [], discardCallIds: [] };
+
   if (interrupted) {
     const discarded = m.pending.map((p) => p.callId);
     return {
@@ -334,6 +340,16 @@ export function onReplyDone(
     send,
     discardCallIds: [],
   };
+}
+
+/**
+ * The user moved on (or a new reply started) while tool results were still
+ * being held for a reply that will never be answered: drop them, and count it.
+ * The state is left alone; nothing here interrupted anything.
+ */
+export function dropPending(m: VoiceMachine): VoiceMachine {
+  if (m.pending.length === 0 && m.ready.length === 0) return m;
+  return { ...m, pending: [], ready: [], discards: m.discards + m.pending.length };
 }
 
 /** A socket drop that we intend to resume from. */

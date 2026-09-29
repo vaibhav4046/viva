@@ -107,7 +107,7 @@ The 1.3 to 1.5 s barge-in figure is the service detecting speech. VIVA's own ste
 
 ## Known limits
 
-- Claim verification is quote-checked, and the judge model can still be wrong. Code guarantees the quoted words are in the named passage. It does not guarantee the verdict is right: a wrong "contradicted" with a real quote would still pass the check. The labelled set has 54 claims over two courses, written in this repository, with no recorded split between tuning and testing. Read 0 false confirmations on 54 as a small result, not a rate.
+- Claim verification is quote-checked, and the judge model can still be wrong. Code guarantees the quoted words are in the named passage. It does not guarantee the verdict is right: a wrong "contradicted" with a real quote would still pass the check. The labelled set has 54 claims over two courses, written in this repository, with no recorded split between tuning and testing. The misconception used in the demo ("multi-head attention runs a single head over the input") is claim T17 in that set. Read 0 false confirmations on 54 as a small result, not a rate.
 - The judge on 2026-09-29 was `openai/gpt-oss-120b` through a chain of model providers. Passage text is sent to the providers in the configured chain. `docs/evidence/data-inventory.md` shows where the chain is set and the privacy page describes it.
 - Barge-in stop is 1.3 to 1.5 s from the learner's first word, dominated by the service's detection. Discarding a pending tool result on interruption is unit-tested only.
 - Reconnect is a new session with the recent turns. The service refused `session.resume` in every live trial.

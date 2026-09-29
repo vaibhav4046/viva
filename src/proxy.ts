@@ -64,7 +64,7 @@ export function proxy(request: NextRequest) {
     // Scoped as tightly as the mechanism allows: the exact host, and `wss:`
     // only — an injected script gets a WebSocket to AssemblyAI's streaming
     // endpoint and no new fetch target anywhere.
-    "connect-src 'self' https://*.vercel-insights.com wss://streaming.assemblyai.com",
+    "connect-src 'self' https://*.vercel-insights.com wss://streaming.assemblyai.com wss://agents.assemblyai.com",
     "frame-src 'none'",
     // The mic capture path loads an AudioWorklet module from a blob: URL.
     "worker-src 'self' blob:",

@@ -1,0 +1,161 @@
+{
+  "at": "2026-09-29T13:39:27.618Z",
+  "base": "http://localhost:3210",
+  "results": [
+    {
+      "name": "setup screen renders the product line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "room shows the sample label",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "opening challenge is about the single primary",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "state derives from the machine: not started",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "voice refusal is a plain sentence",
+      "ok": true,
+      "detail": "Microphone access is blocked. Allow it in the browser bar, or type instead."
+    },
+    {
+      "name": "claim lands in CONTRADICTED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "contradicting passage is marked in the source",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the marked passage is the document's own sentence",
+      "ok": true,
+      "detail": "Automatic replica failover is not configured.1"
+    },
+    {
+      "name": "barge-in changes state: card awaits a correction",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "correction moves the same claim to SUPPORTED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the transition is shown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "still one claim, not two",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "supported passage is marked in the source",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "compliance guarantee lands in UNSUPPORTED",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "unsupported cites no passage",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "timeline records question, claim, verdict, interruption, correction",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "timeline shows the status change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "report has all six sections",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "report has no overall score",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "report says the corrected claim held after correction",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard reaches the Begin button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a review can be run with the keyboard alone",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "reduced motion: nothing animates in the room",
+      "ok": true,
+      "detail": "0 running"
+    },
+    {
+      "name": "mobile: no horizontal scroll on the review tab",
+      "ok": true,
+      "detail": "0px"
+    },
+    {
+      "name": "mobile: the verdict is visible on the review tab",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile: map tab shows the claim",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile: no horizontal scroll on the source tab",
+      "ok": true,
+      "detail": "0px"
+    },
+    {
+      "name": "mobile: tap targets are at least 40px tall",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "hostile document: markup is shown as text and never runs",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "hostile document: an instruction inside it did not change a verdict",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no unexpected console errors or page errors",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

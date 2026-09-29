@@ -21,6 +21,8 @@ export type ReportClaim = {
   contradictions: ReportEvidence[];
   /** Set when a correction moved this claim: what it was, what it became. */
   correctedFrom: { status: Claim["status"]; claim: string } | null;
+  /** A contradiction the user found and fixed in the session. It is still a finding. */
+  resolved?: boolean;
 };
 
 export type Report = {
@@ -98,7 +100,24 @@ export function buildReport(session: RedteamSession): Report {
     generatedAt: new Date().toISOString(),
     held: rows.filter((r) => r.status === "SUPPORTED"),
     needsQualification: rows.filter((r) => r.status === "PARTIAL"),
-    contradictions: rows.filter((r) => r.status === "CONTRADICTED"),
+    contradictions: [
+      ...rows.filter((r) => r.status === "CONTRADICTED"),
+      // A contradiction that was found and then corrected is still a finding:
+      // it says which sentence of the document the user misremembered.
+      ...session.claims
+        .filter((c) => c.status !== "CONTRADICTED" && c.revisions[0]?.status === "CONTRADICTED" && c.revisions.some((r) => r.cause === "correction"))
+        .map((c): ReportClaim => ({
+          claimId: c.id,
+          claim: c.revisions[0].normalizedClaim,
+          spoken: c.spokenText,
+          status: "CONTRADICTED",
+          basis: `Corrected in the session: it now reads "${c.normalizedClaim}", which the document ${c.status === "SUPPORTED" ? "supports" : "does not fully back"}.`,
+          evidence: [],
+          contradictions: ev(byId, c.revisions[0].contradictionPassageIds),
+          correctedFrom: null,
+          resolved: true,
+        })),
+    ],
     unsupported: rows.filter((r) => r.status === "UNSUPPORTED" || r.status === "UNRESOLVED"),
     unanswered,
     sectionsToReview: [...sectionReasons].map(([section, reasons]) => ({ section, reasons: [...reasons] })),

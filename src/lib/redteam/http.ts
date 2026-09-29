@@ -27,7 +27,10 @@ export async function handle(
   const done = (res: Response) => withIdentityCookie(res, setCookie);
   const trace = { "Cache-Control": "no-store" };
 
-  for (const bucket of [["redteam", clientIp(req)], ["redteam-did", identity.userId]]) {
+  // The class is part of the key. A bucket is sized by whichever class touches
+  // it, so sharing one across "upload" (10) and "exam" (30) let a handful of
+  // session creations starve every tool call behind them.
+  for (const bucket of [["redteam", opts.limit, clientIp(req)], ["redteam-did", opts.limit, identity.userId]]) {
     const rl = checkLimit(limitKey(bucket), opts.limit);
     if (!rl.ok) {
       return done(

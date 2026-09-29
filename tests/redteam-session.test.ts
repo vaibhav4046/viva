@@ -68,6 +68,11 @@ describe("the golden flow at the ledger", () => {
     const r = finish(s);
     expect(r.held).toHaveLength(1);
     expect(r.held[0].correctedFrom?.status).toBe("CONTRADICTED");
+    // The contradiction that was found and fixed is still reported, with the sentence that caught it.
+    expect(r.contradictions).toHaveLength(1);
+    expect(r.contradictions[0]).toMatchObject({ resolved: true, claim: expect.stringMatching(/automatically fail over/i) });
+    expect(r.contradictions[0].contradictions[0].quote).toMatch(/not configured/);
+    expect(r.sectionsToReview.map((s) => s.section)).toContain("2. Data storage");
     expect(r.unsupported).toHaveLength(1);
     expect(r.unsupported[0].evidence).toEqual([]);
     expect(r.counts).toMatchObject({ claims: 2, interruptions: 1, corrections: 1 });

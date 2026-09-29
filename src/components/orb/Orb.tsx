@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { GENTLE } from "@/lib/motion";
 import { advanceBands, orbBands } from "./orbState";
 import "./orb.css";
@@ -143,7 +144,18 @@ const TAU = Math.PI * 2;
  * Mount once, in the root layout, as a sibling of `{children}` so it is
  * outside `template.tsx` and survives navigation.
  */
+/**
+ * The review room is a working document, not a mood: it draws no orb. The host
+ * is mounted once in the root layout so it can travel between pages, which
+ * means a page that wants none has to say so here.
+ */
 export function OrbHost() {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/redteam")) return null;
+  return <OrbHostInner />;
+}
+
+function OrbHostInner() {
   const host = useRef<HTMLDivElement>(null);
 
   /* The follow loop: one rAF, one transform write, no React state. */

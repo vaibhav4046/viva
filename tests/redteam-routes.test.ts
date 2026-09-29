@@ -226,6 +226,17 @@ describe("hostile input", () => {
     expect((await r.json()).isError).toBe(true);
   });
 
+  it("starting reviews does not starve the calls inside a review", async () => {
+    const { session } = await start();
+    for (let i = 0; i < 8; i++) await CREATE(json({ sample: true })); // burns the creation budget
+    let refused = 0;
+    for (let i = 0; i < 25; i++) {
+      const r = await TOOL(json({ sessionId: session.id, name: "retrieve_source", arguments: { query: "primary" } }));
+      if (r.status === 429) refused += 1;
+    }
+    expect(refused).toBe(0);
+  });
+
   it("rate limits a client that hammers a route", async () => {
     let limited = 0;
     for (let i = 0; i < 40; i++) {

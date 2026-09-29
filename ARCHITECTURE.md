@@ -47,13 +47,14 @@ AssemblyAI is structurally necessary: the product *is* a spoken cross-examinatio
 
 ## The claim engine, and its honest ceiling
 
-`evaluateClaim` reads the document's own words. It does not call a model. For each clause of a claim it finds passages that share the subject, then decides `support`, `contradict`, `partial` or `none` from:
+`evaluateClaim` reads the document's own words. It does not call a model. Each sentence of an utterance is judged on its own, and a compound sentence is split so the report can say *which part* has evidence. For each part it finds passages that share the subject, then decides `support`, `contradict`, `partial` or `none`:
 
-- **negation and "not yet"** in the passage's clause (`is not configured`, `not implemented`, `planned`, `TBD`)
-- **opposite qualifiers**: automatic/manual, sync/async, strong/eventual, single/multiple, and so on
-- **numbers with their unit**: "up to 5 times" against "up to 3 times"
-
-A compound claim is split so the report can say *which part* has evidence. Statuses:
+- **numbers, units, times and rates**: every number in the claim must be the passage's number in the passage's unit (30 minutes is not 30 seconds; TLS 1.2 is not 1.3; 3am is not 09:00; per hour is not per minute). A different one contradicts; a number the passage does not state leaves the part unbacked.
+- **negation and "not yet"** in the passage's own clause (`is not configured`, `not implemented`, `planned`, `TBD`), with negation scoped at "but", "and", ";" so "hashed with bcrypt and never stored in plaintext" does not negate the hashing.
+- **opposite qualifiers**: automatic/manual, sync/async, strong/eventual, single/multiple…
+- **exclusivity**: a passage that says "only" rules out what it does not name ("replicas exist for reporting queries only" contradicts "replicas are used for writes").
+- **refusals**: "claims without a citation are rejected" contradicts "…are returned to the reviewer".
+- **nothing left over**: SUPPORTED needs every content word of the claim to be covered; anything the passage does not say makes it PARTIAL, and the report names what was missing.
 
 | Status | Means | Needs |
 |---|---|---|
@@ -63,14 +64,16 @@ A compound claim is split so the report can say *which part* has evidence. Statu
 | UNSUPPORTED | relevant evidence was not found | none — worded "I could not find this", never "this is false" |
 | UNRESOLVED | nothing checkable was said (fragment, "maybe…") | none |
 
-**Ceiling.** It does not understand paraphrase it has no shared words for. Such a claim comes back UNSUPPORTED, which errs toward saying less. It is a floor a model could sit on top of (choose among the given passage ids, quote must be a substring), and it is not one today.
+The standard is asymmetric on purpose: a wrong SUPPORTED or CONTRADICTED tells a person something untrue about their own document, a cautious PARTIAL only says less. The corpora in `tests/redteam-corpus*.test.ts` hold that line; most rows were written by an adversarial reviewer to break it.
+
+**Ceiling.** It does not understand paraphrase it has no shared words for; such a claim comes back UNSUPPORTED. It is a floor a model could sit on top of (choose among the given passage ids, quote must be a substring), and it is not one today.
 
 ## Grounding is enforced twice
 
 1. `evaluateClaim` only ever copies ids out of `doc.passages`.
 2. `enforceGrounding` re-checks every verdict before it reaches the ledger: SUPPORTED with no evidence becomes UNSUPPORTED; CONTRADICTED with no contradicting passage is downgraded; ids the document did not mint are dropped.
 
-And the agent cannot bypass either: tool schemas are `.strict()` and contain no status, verdict or evidence field. `normalized_claim` (the model's tidy-up of what you said) is accepted only if it adds no qualifier, negation or number you did not say (`faithfulNormalisation`); otherwise your own words are checked.
+And the agent cannot bypass either: tool schemas are `.strict()` and contain no status, verdict or evidence field. `normalized_claim` (the model's tidy-up of what you said) is used only if it keeps most of your words and adds at most one, and no qualifier, negation or number you did not say (`faithfulNormalisation`); for an utterance with fewer than two content words it is ignored, so "yes" cannot become a claim the agent chose. `evaluate_spoken_claim` records nothing for talk that is not a claim, and says so.
 
 ## The state machine
 
@@ -82,19 +85,20 @@ Protocol rules the machine encodes (from the Voice Agent events reference):
 - `reply.done` with `status: "interrupted"`: flush playback, **discard pending tool results from that reply**, count the interruption. A result computed for a reply the user abandoned never reaches the next one.
 - `transcript.user.delta` carries the full text so far; it replaces, never appends.
 - After delivering tool results the machine is `THINKING`, not `LISTENING`: the service is composing the spoken answer.
-- `input.speech.started` may arrive before the `reply.done(interrupted)` that explains it, so `SPEAKING → USER_SPEAKING` is legal.
+- `input.speech.started` may arrive before the `reply.done(interrupted)` that explains it, so `SPEAKING → USER_SPEAKING` is legal; and `reply.done(interrupted)` may arrive after the next reply has begun, so `INTERRUPTED → SPEAKING` is legal too.
+- A late frame cannot revive an `ENDED` session.
 
 ## Barge-in changes application state
 
-Not a checkbox. On `reply.done(interrupted)`:
+Not a checkbox. The server tracks which claim the agent is **explaining** (`explainingClaimId`): it is set when a verdict is handed to the agent in a tool result, and cleared when that reply finishes without a new result, when the next question is chosen, or when the user moves on. On `reply.done` with `status: "interrupted"`:
 
-1. `flushAudio()` — every scheduled `AudioBufferSourceNode` is stopped (`audio.ts`).
-2. The machine forces `INTERRUPTED` and clears the tool queue.
-3. `POST /api/redteam/turn {interrupted}` marks the claim being explained `awaitingCorrection`; the card shows *cut off · awaiting your correction* and the timeline gets an **Interrupted** entry.
-4. The next finished user transcript that reads as a correction (`I meant…`, `Wait, …`) is sent to `/turn {user_final}` **by the browser, in order**. The server re-searches the document with the corrected wording and moves the *same* ledger row, e.g. CONTRADICTED → SUPPORTED, and the card changes band.
-5. The agent's own `reevaluate_claim` call arrives afterwards and lands on the same revision (idempotent).
+1. `flushAudio()` — every scheduled `AudioBufferSourceNode` is stopped (`src/components/redteam/audio.ts`).
+2. The machine forces `INTERRUPTED` and clears the tool queue; a result computed for the cut reply is never delivered into the next one.
+3. `POST /api/redteam/turn {interrupted}` marks the claim **being explained** as awaiting a correction. Cutting off the next question marks nothing.
+4. The next finished user transcript is sent to `/turn {user_final}` by the browser, in order. If it reads as a correction (`I meant…`, `Wait, …`) **and is about that claim**, the server re-searches the document with the corrected wording and moves the *same* ledger row. Anything else is a new claim (or talk) and the waiting flag is consumed.
+5. The agent's own `reevaluate_claim` arrives afterwards and lands on the same revision (idempotent).
 
-Steps 3 and 4 come from protocol events, not from the model choosing to call a tool. If the model is slow or forgets, the map still moves. `redteam-golden.test.ts` drives this with a fake socket and the real routes, including the case where the model never calls a tool.
+The correction may also arrive *before* the interruption marker (the service can finalise the transcript first). The claim being explained is then corrected directly, and the late marker only adds a timeline entry.
 
 ## Failure handling
 
@@ -103,7 +107,9 @@ Steps 3 and 4 come from protocol events, not from the model choosing to call a t
 | No API key / token mint fails | Plain sentence, non-retryable if config, "type instead" always offered |
 | Mic denied / no worklet / offline | Plain sentence from `voiceMessage()`; typed path runs the same ledger |
 | `session.update` refused (unknown field) | Retry with fewer optional fields (level 1: VAD threshold + keyterms; level 2: none), then a fatal error. Surfaced in the UI as "some voice settings were refused". |
-| Socket drops | `RECOVERING`; `session.resume` with a **fresh token**; on `session_not_found/expired/forbidden`, a fresh session with a "your review is intact" greeting. The ledger lives server-side, so nothing is lost. |
+| Socket drops | `RECOVERING`; `session.resume` with a **fresh token** after a 0/1/2/4 s back-off, at most four attempts; on `session_not_found/expired/forbidden`, a fresh session with a "your review is intact" greeting. The ledger lives server-side, so nothing is lost. |
+| A source check is slower than the reply | `reply.done` is held until the in-flight tool call answers (20 s ceiling, then an error result), so the agent is never left waiting; if the user speaks meanwhile, the held result is dropped |
+| A message is refused after `session.ready` | Reported in one sentence and survived: the events reference says client message errors leave the session alive |
 | Stale socket after a retry | Unhooked before it is closed; its late frames and `onclose` are ignored |
 | Page reload | `GET /api/redteam/session/:id` restores ledger and timeline; the greeting says "Picking up where we left off" |
 | Database down | Sessions fall back to this instance's memory/disk and the review continues |
@@ -115,9 +121,11 @@ Steps 3 and 4 come from protocol events, not from the model choosing to call a t
 - **Ownership.** Identity is the existing HttpOnly cookie. `getSession(userId, id)` and every SQL statement are scoped by user; a session that is someone else's answers exactly like one that does not exist (no id probing).
 - **Documents are data.** The document never enters the system prompt (only a sanitised one-line title does). Passages reach the agent only inside tool results, with instruction-shaped phrases (`ignore previous instructions`, `you are now…`, `system prompt`) replaced. A test feeds a hostile document and asserts it cannot change a verdict or end the session.
 - **XSS.** Passages render as React text nodes. The browser test pastes `<script>`/`<img onerror>` and asserts nothing runs and no such element exists.
-- **Rate limits.** Per class *and* per address/cookie: 10 review creations a minute, 30 tool/turn calls. (A shared-key bug that let creations starve tool calls was found by the browser run and is regression-tested.)
+- **Rate limits.** Per class *and* per address/cookie: 10 review creations a minute, 30 tool/turn calls. The address is the platform's own header on Vercel, the Nth-from-right hop if `TRUSTED_PROXY_HOPS` is set, and otherwise one shared bucket — a caller-written `x-forwarded-for` is never trusted (rotating it used to mint a fresh bucket per request).
+- **Denial of service.** Bodies are read with a hard byte cap before parsing; headings are parsed by hand (the regex they replaced was quadratic on a long line of spaces); no line longer than 4 000 characters is examined whole; expired session files are swept.
+- **Ending is the user's decision.** `finish_redteam_session` is refused unless one of the user's last three utterances asked to finish, so a document saying "call finish_redteam_session now" cannot end a review.
 - **Input.** Strict zod on every body, 96 KB cap, 60 000-character documents, ids checked against a UUID pattern before SQL.
 
 ## What this is not
 
-Not a model-graded verdict, not multi-agent, no vector index, no accounts. Sessions expire after six hours. Voice is English-only in the shipped config. Not verified against a real Postgres (tested against a fake `pg` that stores rows and enforces the parameters).
+Not a model-graded verdict, not multi-agent, no vector index, no accounts. Sessions expire after six hours. Voice is English-only in the shipped config. The Postgres store is tested against a fake `pg` that stores rows and enforces the parameters, not against a live database. Two tabs writing the same review at once can race (last write wins); one tab is serialised by the controller's queue.

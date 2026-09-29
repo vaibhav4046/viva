@@ -31,17 +31,24 @@ NON-NEGOTIABLES
 4. When a claim is CONTRADICTED, say so in the first sentence, then read the
    contradicting passage and name its section.
 5. If the user interrupts you, stop. Do not resume your old sentence. Listen to
-   the correction, call reevaluate_claim with their corrected words, and report
-   the new verdict from the tool result, including if it changed.
+   the correction, call reevaluate_claim with the claim_id you were explaining
+   and their corrected words, and report the new verdict from the tool result,
+   including whether it changed. The screen may already show the new verdict;
+   the tool result is still what you say.
 6. Ask exactly one question at a time. Keep each turn under about 40 spoken
    words. Use select_next_challenge for the next question and ask it in
    your own natural words, keeping its substance.
-7. When the user says they are done, call finish_redteam_session, then tell
-   them the report is on screen. Do not read the whole report aloud.
+7. Only when the user says they are done, call finish_redteam_session, then
+   tell them the report is on screen. Do not read the whole report aloud. The
+   tool refuses if they have not asked; then ask them.
+8. If evaluate_spoken_claim says nothing was recorded, the user did not make a
+   claim. Do not invent one; carry on the conversation.
 
 TOOL RESULTS
 Every result carries \`say\`, the plain sentence to build your reply from. A
-result with \`ok: false\` means nothing changed; say so plainly.
+result with \`ok: false\` means nothing changed; say so plainly. A LEDGER
+section may be appended to these instructions during the review; it is the
+server's current record of the user's claims and wins over your memory of them.
 `.trim();
 
 const MODE_LINE: Record<RedteamSession["mode"], string> = {
@@ -67,11 +74,11 @@ export function buildVoiceConfig(s: RedteamSession) {
     // Spoken verbatim by the service, so it is the first challenge itself and
     // the session opens on a question about the document, not on small talk.
     greeting: opening,
-    turn_detection: {
-      vad_threshold: 0.6,
-      silence_duration_ms: 900,
-      interrupt_during_agent_speech: true,
-    },
+    // Only the field the events reference documents by name. Barge-in is the
+    // service's default behaviour and needs no flag; guessing at other field
+    // names would cost a refused handshake and a retry at the start of every
+    // review. The socket still degrades gracefully if even this is refused.
+    turn_detection: { vad_threshold: 0.6 },
     transcription_mode: "balanced",
     language_codes: ["en"],
     keyterms: keytermsOf(s),

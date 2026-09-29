@@ -1,5 +1,5 @@
 {
-  "files": 155,
+  "files": 158,
   "failing": 0,
   "unreviewedWarnings": 0,
   "findings": [
@@ -134,7 +134,7 @@
       "sev": "warn",
       "file": "(repo)",
       "line": 0,
-      "snippet": "17 distinct icon-library imports",
+      "snippet": "12 distinct icon-library imports",
       "why": "more than 8 icon-library imports",
       "status": "reviewed"
     }

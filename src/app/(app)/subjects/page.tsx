@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FileText, Layers, Link2, Type } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -275,11 +274,11 @@ export default function SubjectsPage() {
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: typeof Type }[] = [
-    { key: "paste", label: "Paste notes", icon: Type },
-    { key: "link", label: "Add a link", icon: Link2 },
-    { key: "files", label: "Upload files", icon: FileText },
-    { key: "name", label: "Just name it", icon: Layers },
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "paste", label: "Paste notes" },
+    { key: "link", label: "Add a link" },
+    { key: "files", label: "Upload files" },
+    { key: "name", label: "Just name it" },
   ];
 
   /*
@@ -336,7 +335,7 @@ export default function SubjectsPage() {
             </span>
             <span className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap transition-colors group-hover:text-[var(--color-paper)]">
               Start talking
-              <ArrowRight size={13} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
+              <span aria-hidden>{"\u2192"}</span>
             </span>
           </span>
         </button>
@@ -443,7 +442,7 @@ export default function SubjectsPage() {
 
       <section aria-labelledby="byo" className="surface-card mt-8 p-5">
         <span className="eyebrow inline-flex items-center gap-1.5">
-          <Layers size={13} aria-hidden /> Bring your own
+          Bring your own
         </span>
         <h2 id="byo" className="heading mt-1 text-lg">
           Your own notes
@@ -461,7 +460,7 @@ export default function SubjectsPage() {
         </div>
 
         <div role="tablist" aria-label="How to add a subject" className="mt-4 flex flex-wrap gap-2">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label }) => (
             <button
               key={key}
               type="button"
@@ -486,15 +485,15 @@ export default function SubjectsPage() {
                   : { borderColor: "transparent" }
               }
             >
-              <Icon size={13} aria-hidden /> {label}
+              {label}
             </button>
           ))}
         </div>
 
         <div className="mt-4 grid gap-3">
           <label className="grid gap-1.5">
-            <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
-              {tab === "name" ? "TOPIC" : "NAME IT (OPTIONAL)"}
+            <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+              {tab === "name" ? "Topic" : "Name it (optional)"}
             </span>
             <input
               type="text"
@@ -508,8 +507,8 @@ export default function SubjectsPage() {
 
           {tab === "paste" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
-                YOUR NOTES
+              <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+                Your notes
               </span>
               <textarea
                 value={text}
@@ -527,8 +526,8 @@ export default function SubjectsPage() {
 
           {tab === "link" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
-                ADDRESS · UP TO {MAX_DOCS}, ONE PER LINE
+              <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+                Web addresses, up to {MAX_DOCS}, one per line
               </span>
               <textarea
                 value={links}
@@ -547,8 +546,8 @@ export default function SubjectsPage() {
 
           {tab === "files" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
-                PDF, WORD OR TEXT · UP TO {MAX_DOCS}, {MAX_UPLOAD_MB} MB TOGETHER
+              <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+                PDF, Word or text files, up to {MAX_DOCS}, {MAX_UPLOAD_MB} MB together
               </span>
               <input
                 type="file"
@@ -628,7 +627,7 @@ export default function SubjectsPage() {
             ) : null}
             <button type="button" onClick={() => open(built.id)} className="btn-primary mt-3">
 
-              Start talking <ArrowRight size={15} aria-hidden />
+              Start the exam
             </button>
           </div>
         ) : null}

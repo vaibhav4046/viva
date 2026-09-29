@@ -4,6 +4,7 @@
  *
  *   BASE_URL=http://localhost:3121 node scripts/shoot.mjs
  *   node scripts/shoot.mjs --only landing,oral --widths 390,1440 --viewport-only
+ *   node scripts/shoot.mjs --skip-dev     against a production build: leave out surfaces marked devOnly
  *
  * Drives every surface in design/surfaces.json at nine widths with ONE Chromium,
  * saves PNGs to docs/evidence/visual/<date>/<surface>-<width>.png, and prints a
@@ -33,7 +34,7 @@ const out = path.join("docs", "evidence", "visual", date);
 fs.mkdirSync(out, { recursive: true });
 
 const surfaces = JSON.parse(fs.readFileSync("design/surfaces.json", "utf8")).filter(
-  (s) => !only || only.includes(s.name)
+  (s) => (!only || only.includes(s.name)) && !(flag("--skip-dev") && s.devOnly)
 );
 
 const measure = () => {

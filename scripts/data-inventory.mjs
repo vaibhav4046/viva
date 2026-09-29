@@ -25,7 +25,7 @@ function walk(dir, acc = []) {
   return acc;
 }
 
-const files = ["src", "scripts"].flatMap((d) => (fs.existsSync(d) ? walk(d) : [])).filter((f) => !/data-inventory\.mjs$/.test(f));
+const files = ["src", "scripts"].flatMap((d) => (fs.existsSync(d) ? walk(d) : [])).filter((f) => !/data-inventory\.mjs$|src[\\/]app[\\/]privacy[\\/]page\.tsx$/.test(f)); // the privacy page is written from this file, so it is not evidence for itself
 const lines = files.map((f) => ({ f: f.split(path.sep).join("/"), text: fs.readFileSync(f, "utf8").split(/\r?\n/) }));
 
 function hits(re, { exclude } = {}) {

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { DraftNotice, PublicShell } from "@/components/PublicShell";
 
+/* Rendered per request so the CSP nonce reaches Next's bootstrap scripts (see src/proxy.ts). */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Terms: VIVA",
   description: "Terms for using VIVA during the hackathon: acceptable use, no guarantees, and what to check yourself.",
@@ -14,7 +17,7 @@ export default function TermsPage() {
 
       <div className="mt-6 space-y-8">
         <section aria-labelledby="t-what">
-          <h2 id="t-what" className="heading text-2xl">What this is</h2>
+          <h2 id="t-what" className="heading text-xl">What this is</h2>
           <p>
             VIVA is a hackathon project. It examines you aloud on material you supply. It is offered as it is, and it
             may be offline, slow or reset at any time while the hackathon runs.
@@ -22,7 +25,7 @@ export default function TermsPage() {
         </section>
 
         <section aria-labelledby="t-wrong">
-          <h2 id="t-wrong" className="heading text-2xl">The examiner can be wrong</h2>
+          <h2 id="t-wrong" className="heading text-xl">The examiner can be wrong</h2>
           <p>
             A language model marks your answers and speaks the feedback. Corrections are checked by code against the
             passages you supplied, and a page number is attached so you can read the source. Check the cited page
@@ -32,7 +35,7 @@ export default function TermsPage() {
         </section>
 
         <section aria-labelledby="t-use">
-          <h2 id="t-use" className="heading text-2xl">Acceptable use</h2>
+          <h2 id="t-use" className="heading text-xl">Acceptable use</h2>
           <ul className="list-disc space-y-1 pl-5">
             <li>Upload only material you have the right to use.</li>
             <li>Do not use VIVA to break another service&apos;s rules, or to send abusive, unlawful or harmful content.</li>
@@ -42,7 +45,7 @@ export default function TermsPage() {
         </section>
 
         <section aria-labelledby="t-liab">
-          <h2 id="t-liab" className="heading text-2xl">Liability [NEEDS LEGAL REVIEW]</h2>
+          <h2 id="t-liab" className="heading text-xl">Liability [NEEDS LEGAL REVIEW]</h2>
           <p>
             To the extent the law allows, the service comes with no warranty and the author is not liable for loss
             arising from its use. This section is a placeholder for wording a qualified professional must write.
@@ -50,7 +53,7 @@ export default function TermsPage() {
         </section>
 
         <section aria-labelledby="t-law">
-          <h2 id="t-law" className="heading text-2xl">Governing law and contact [NEEDS LEGAL REVIEW]</h2>
+          <h2 id="t-law" className="heading text-xl">Governing law and contact [NEEDS LEGAL REVIEW]</h2>
           <p>
             Governing law: not yet decided. Contact: a placeholder in SECURITY.md until the owner adds a real address.
           </p>

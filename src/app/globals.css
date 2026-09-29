@@ -120,6 +120,8 @@ body {
   max-width: 100%;
 }
 a.chip, button.chip { cursor: pointer; }
+/* A chip used as a tab is a control, not a status: interface font, control radius. */
+.chip[role="tab"] { font-family: var(--font-ui); font-size: var(--fs-body-sm); border-radius: var(--radius-sm); color: var(--text-primary); }
 .chip-link:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--text-primary); }
 .chip-quoted { border-color: var(--text-primary); color: var(--text-primary); }
 
@@ -227,6 +229,25 @@ a.chip, button.chip { cursor: pointer; }
 .field::placeholder { color: var(--text-muted); }
 .field:disabled { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); cursor: not-allowed; }
 .field[aria-invalid="true"] { border-color: var(--border-error); }
+
+/*
+ * Text inputs on screens that set their colours inline (intake, study). Input
+ * edges use --border-strong so they clear 3:1, the field sits on --elevated, and
+ * the radius follows the scale. `!important` for the same reason as <select>
+ * below: the inline style names the older tokens.
+ */
+textarea,
+input:not([type]),
+input[type="text"],
+input[type="url"],
+input[type="search"] {
+  background: var(--elevated) !important;
+  border-color: var(--border-strong) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+}
+textarea::placeholder, input::placeholder { color: var(--text-muted); }
+.tracking-widest { letter-spacing: 0.03em; }
 
 /* ------------------------------ selects ------------------------------ */
 /*

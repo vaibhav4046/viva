@@ -17,7 +17,7 @@ import { MarkIcon } from "@/components/ui/icons";
  */
 
 const LINKS: readonly { href: string; label: string; short?: string; headerOnly?: boolean }[] = [
-  { href: "/oral", label: "Oral exam" },
+  { href: "/oral", label: "Oral exam", short: "Oral" },
   { href: "/study", label: "Study" },
   { href: "/subjects", label: "Subjects" },
   { href: "/today", label: "Today" },

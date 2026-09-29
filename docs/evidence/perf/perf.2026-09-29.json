@@ -1,0 +1,178 @@
+{
+  "date": "2026-09-29",
+  "profile": "CDP 1.6 Mbps down, 750 kbps up, 150 ms RTT, 4x CPU slowdown, 390x844",
+  "base": "http://localhost:3122",
+  "results": {
+    "/": {
+      "n": 5,
+      "gzipJsKB": 139.5,
+      "jsFiles": 9,
+      "fcpMs": 1080,
+      "lcpMs": 1080,
+      "cls": 0.0001,
+      "tbtMs": 322,
+      "ttiApproxMs": 2011,
+      "runs": [
+        {
+          "gzipJsKB": 139.5244140625,
+          "jsFiles": 9,
+          "fcpMs": 1080,
+          "lcpMs": 1080,
+          "cls": 0.00008045981541986235,
+          "tbtMs": 298,
+          "ttiApproxMs": 1990.4000000003725
+        },
+        {
+          "gzipJsKB": 139.5244140625,
+          "jsFiles": 9,
+          "fcpMs": 1032,
+          "lcpMs": 1032,
+          "cls": 0.00008045981541986235,
+          "tbtMs": 322,
+          "ttiApproxMs": 2010.800000000745
+        },
+        {
+          "gzipJsKB": 139.5244140625,
+          "jsFiles": 9,
+          "fcpMs": 1108,
+          "lcpMs": 1108,
+          "cls": 0.00008045981541986235,
+          "tbtMs": 347,
+          "ttiApproxMs": 2014.300000000745
+        },
+        {
+          "gzipJsKB": 139.5244140625,
+          "jsFiles": 9,
+          "fcpMs": 1076,
+          "lcpMs": 1076,
+          "cls": 0.00008045981541986235,
+          "tbtMs": 347,
+          "ttiApproxMs": 2036.5999999996275
+        },
+        {
+          "gzipJsKB": 139.5244140625,
+          "jsFiles": 9,
+          "fcpMs": 1088,
+          "lcpMs": 1088,
+          "cls": 0.00008045981541986235,
+          "tbtMs": 189,
+          "ttiApproxMs": 1873.5
+        }
+      ]
+    },
+    "/oral": {
+      "n": 5,
+      "gzipJsKB": 178.4,
+      "jsFiles": 11,
+      "fcpMs": 984,
+      "lcpMs": 984,
+      "cls": 0,
+      "tbtMs": 219,
+      "ttiApproxMs": 2208,
+      "runs": [
+        {
+          "gzipJsKB": 178.3828125,
+          "jsFiles": 11,
+          "fcpMs": 996,
+          "lcpMs": 996,
+          "cls": 0,
+          "tbtMs": 179,
+          "ttiApproxMs": 2114.39999999851
+        },
+        {
+          "gzipJsKB": 178.3828125,
+          "jsFiles": 11,
+          "fcpMs": 876,
+          "lcpMs": 876,
+          "cls": 0,
+          "tbtMs": 234,
+          "ttiApproxMs": 2224.2999999988824
+        },
+        {
+          "gzipJsKB": 178.3828125,
+          "jsFiles": 11,
+          "fcpMs": 864,
+          "lcpMs": 864,
+          "cls": 0,
+          "tbtMs": 219,
+          "ttiApproxMs": 2208
+        },
+        {
+          "gzipJsKB": 178.3828125,
+          "jsFiles": 11,
+          "fcpMs": 992,
+          "lcpMs": 992,
+          "cls": 0,
+          "tbtMs": 219,
+          "ttiApproxMs": 2180.699999999255
+        },
+        {
+          "gzipJsKB": 178.3828125,
+          "jsFiles": 11,
+          "fcpMs": 984,
+          "lcpMs": 984,
+          "cls": 0,
+          "tbtMs": 243,
+          "ttiApproxMs": 2208.800000000745
+        }
+      ]
+    },
+    "/privacy": {
+      "n": 5,
+      "gzipJsKB": 138.5,
+      "jsFiles": 8,
+      "fcpMs": 992,
+      "lcpMs": 992,
+      "cls": 0.0047,
+      "tbtMs": 128,
+      "ttiApproxMs": 1875,
+      "runs": [
+        {
+          "gzipJsKB": 138.5146484375,
+          "jsFiles": 8,
+          "fcpMs": 992,
+          "lcpMs": 992,
+          "cls": 0.004749303699377822,
+          "tbtMs": 252,
+          "ttiApproxMs": 1997.2000000011176
+        },
+        {
+          "gzipJsKB": 138.5146484375,
+          "jsFiles": 8,
+          "fcpMs": 1004,
+          "lcpMs": 1004,
+          "cls": 0.004749303699377822,
+          "tbtMs": 262,
+          "ttiApproxMs": 2015.800000000745
+        },
+        {
+          "gzipJsKB": 138.5146484375,
+          "jsFiles": 8,
+          "fcpMs": 1000,
+          "lcpMs": 1000,
+          "cls": 0.004749303699377822,
+          "tbtMs": 110,
+          "ttiApproxMs": 1875.0999999996275
+        },
+        {
+          "gzipJsKB": 138.5146484375,
+          "jsFiles": 8,
+          "fcpMs": 968,
+          "lcpMs": 968,
+          "cls": 0.004749303699377822,
+          "tbtMs": 128,
+          "ttiApproxMs": 1862
+        },
+        {
+          "gzipJsKB": 138.5146484375,
+          "jsFiles": 8,
+          "fcpMs": 844,
+          "lcpMs": 844,
+          "cls": 0.004749303699377822,
+          "tbtMs": 59,
+          "ttiApproxMs": 1832.0999999996275
+        }
+      ]
+    }
+  }
+}

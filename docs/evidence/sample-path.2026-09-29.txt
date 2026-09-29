@@ -1,0 +1,8 @@
+Command: BASE_URL=http://localhost:3122 node scripts/sample-path.mjs
+Target: local production build (next start), 2026-09-29
+
+pass landing has one h1
+pass sample button opens /oral with the sample course: 2522 ms from load to /oral URL
+pass sample course stored for both screens: course_transformers_w4,course_transformers_w4
+pass start control is present
+pass oral session config loads for the sample course: {"status":200,"hasPrompt":true,"subjectId":"course_transformers_w4"}

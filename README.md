@@ -1,21 +1,70 @@
 # VIVA
 
-**Study out loud. VIVA remembers.**
+An oral exam on your own lecture notes. VIVA asks the questions out loud, checks each answer against your own pages, and tells you what to revise tomorrow.
 
-Talk through what you are learning. VIVA transcribes you with the AssemblyAI
-Dictation API, works out what you got wrong, shows you the passage it came
-from, and asks you again tomorrow.
+![The VIVA front page at 1440 px: headline and start buttons on the left, a scripted exam excerpt with a quoted page on the right](docs/evidence/visual/2026-09-29/landing-1440.png)
 
-Built for **AssemblyAI Voice Hackathon Week: Hack into Dictation**, 9-13
-September 2026.
+## Try it
 
-Live: https://viva-five-murex.vercel.app
+Live: https://viva-five-murex.vercel.app (the oral exam ships there with the release deploy; until then run it locally).
+Open it, press **Try a sample exam**, allow the microphone or type your answers. No sign-in, no upload, under a minute.
+No microphone: `/recorded` plays a recorded exam once one is published (it shows an empty state until then).
+Locally: `npm install`, `npm run dev`, open http://localhost:3000.
+
+## What is verified
+
+Numbers come from `numbers.json`; each row has a command and a file.
+
+| Claim | Status | Reproduce | Evidence |
+|---|---|---|---|
+| "Try a sample exam" opens `/oral` with the sample course and its session config loads | verified locally (production build) | `node scripts/sample-path.mjs` | [output](docs/evidence/sample-path.2026-09-29.txt) |
+| Landing page ships 139.5 KB gzip JS, CLS 0.0001, LCP 1080 ms (n=5, throttled profile) | measured locally | `npm run build && node scripts/perf.mjs` | [perf](docs/evidence/perf/perf.2026-09-29.json) |
+| 0 serious axe violations on 13 routes | verified locally (production build) | `npx playwright test tests/a11y/axe.spec.ts` | [axe](docs/evidence/a11y/axe-2026-09-29.txt) |
+| 32 text and edge colour pairs meet WCAG contrast | verified | `node scripts/check-contrast.mjs` | [pairs](design/contrast-pairs.json) |
+| 0 failing design-rule findings, self-test passes | verified | `node scripts/audit-vibe.mjs && node scripts/audit-vibe.mjs --self-test` | [audit](docs/evidence/audit-vibe.json) |
+| Privacy page matches what the code stores | generated from code | `node scripts/data-inventory.mjs --check` | [inventory](docs/evidence/data-inventory.md) |
+| Copy has no dashes, exclamation marks or banned phrases | verified (oral and API paths deferred) | `npm run lint:copy` | [rules](scripts/lint-copy-voice.mjs) |
+| Unit tests | 1135 passed, 1 skipped | `npx vitest run` | run output |
+| A live recorded session with audio, transcript and source checks | not done | none yet | none |
+| Production deploy with durable storage | not done | none yet | none |
+
+## How it works
+
+1. The browser asks `/api/oral/session` for the exam config and `/api/voice-agent/token` for a short-lived token.
+2. It opens a WebSocket to AssemblyAI's Voice Agent API and streams microphone audio.
+3. The examiner speaks and listens with the provider's turn detection. When you make a claim, it calls the `verify_claim` tool.
+4. `/api/oral/tool` looks the claim up in your passages. A quotation is accepted only if it is a substring of a passage.
+5. The examiner reads the line and names the page. The debrief lists strong, shaky and weak concepts and tomorrow's plan.
+
+```
+browser mic -> AssemblyAI Voice Agent (wss) -> tool call -> /api/oral/tool -> your passages -> quoted line -> spoken reply
+```
+
+## Run it yourself
+
+```
+npm install
+cp .env.example .env.local    # set ASSEMBLYAI_API_KEY; the key stays on the server
+npm run dev
+```
+
+## Known limits
+
+- Text only: a scan without a text layer gives VIVA nothing to quote.
+- Without `DATABASE_URL`, storage is a file on the server's temporary disk and is wiped on restart. `/api/health/ready` says which.
+- Screens other than the front door, `/oral`, intake and the trust pages have been restyled by token only.
+- The exam and the recorded session need a live AssemblyAI key; the audio path has not been run on a phone.
+- Legal pages are drafts marked for review.
+
+## Links
+
+[Design notes](docs/DESIGN.md), [architecture](docs/ARCHITECTURE.md), [privacy inventory](docs/evidence/data-inventory.md), [security](SECURITY.md), [third-party licences](THIRD-PARTY.md), [licence](LICENSE).
 
 ---
 
-## Try it in 60 seconds, no sign-in
+## Earlier work: the dictation study loop in 60 seconds
 
-1. Open the live URL and press **Start talking**.
+1. Open the live URL and choose **Study** in the top navigation.
 2. Hold the mic (or hold <kbd>Space</kbd>) and say something you half-remember:
    *"I don't really understand why attention needs positional encoding."*
    Your words appear as you say them.
@@ -203,7 +252,7 @@ place. No tool can delete anything, and the marking key never leaves the server.
 VIVA has no sign-in, so pairing is the whole account model: one signed key, one
 study account, and no argument that can point it at anyone else's subjects.
 
-## How it works
+## How the study loop works
 
 ```
 mic → AudioWorklet (Int16 PCM 16 kHz) → /api/voice/transcribe
@@ -256,7 +305,7 @@ Environment:
 
 ---
 
-## Known limits
+## Known limits of the study loop
 
 Stated plainly, because a demo that hides its edges is not worth trusting.
 

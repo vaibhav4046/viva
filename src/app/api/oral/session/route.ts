@@ -4,6 +4,7 @@ import { getStore } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { toolDefsForWire } from "@/lib/oral/tools";
 import { ORAL_EXAMINER_RULES } from "@/lib/oral/prompt";
+import { promptLabel } from "@/lib/oral/sanitize";
 import { err } from "@/lib/types";
 
 /**
@@ -26,7 +27,10 @@ import { err } from "@/lib/types";
 /** Documented range 0 to 1000 ms. Measured effect on stop latency: docs/evidence/probes/oral-live-bargein.*.json. */
 const INTERRUPTION_DELAY_MS = 0;
 
-/** The rules that make the exam an exam. */
+/** Bounds on what a learner-derived label may add to the system prompt. */
+const MAX_LABEL = 80;
+const MAX_CONCEPTS = 40;
+const MAX_SOURCES = 12;
 
 export async function GET(req: Request): Promise<Response> {
   const { identity, setCookie } = await resolveIdentity(req);
@@ -35,17 +39,20 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const store = getStore();
     const subject = await resolveSubject(store, identity.userId, subjectId ?? null);
-    const concepts = subject.concepts.slice(0, 40).map((c) => c.name);
+    // Titles and concept names come from uploads and from a model that read
+    // them. They are one-line labels: control characters and newlines out,
+    // length capped, instruction-shaped phrases made inert.
+    const concepts = subject.concepts.slice(0, MAX_CONCEPTS).map((c) => promptLabel(c.name, MAX_LABEL)).filter(Boolean);
     const keyterms = keytermsFrom(subject.concepts);
 
     const system_prompt = [
       ORAL_EXAMINER_RULES,
       "",
-      `THE STUDENT'S SUBJECT: ${subject.title}`,
+      `THE STUDENT'S SUBJECT: ${promptLabel(subject.title, MAX_LABEL)}`,
       concepts.length ? `CONCEPTS IN PLAY: ${concepts.join(", ")}` : "",
-      `SOURCE LANGUAGES: ${(subject.languageCodes ?? ["en"]).join(", ")}`,
+      `SOURCE LANGUAGES: ${(subject.languageCodes ?? ["en"]).map((l) => promptLabel(l, 12)).join(", ")}`,
       subject.sources?.length
-        ? `THEIR SOURCES: ${subject.sources.map((s) => s.title).join("; ")}`
+        ? `THEIR SOURCES: ${subject.sources.slice(0, MAX_SOURCES).map((s) => promptLabel(s.title, MAX_LABEL)).join("; ")}`
         : "",
       "",
       "Open the exam by asking for the first thing they want to be examined on.",

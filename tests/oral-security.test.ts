@@ -126,7 +126,7 @@ describe("the agent can only reach the caller's own material", () => {
       "save_note",
     ]);
     expect(toolDefsForWire().map((tool) => tool.name)).toEqual([
-      "search_my_material", "verify_claim", "grade_my_answer", "save_note",
+      "search_my_material", "verify_claim", "grade_my_answer",
     ]);
   });
 });

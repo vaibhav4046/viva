@@ -6,7 +6,8 @@ import { rid, serverLog } from "@/lib/observe";
 import { getStore } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { getCourse } from "@/lib/courses";
-import { runOralTool, MAX_ANSWER } from "@/lib/oral/tools";
+import { runOralTool, MAX_ANSWER, type OralVerdict } from "@/lib/oral/tools";
+import { resolveConceptId } from "@/lib/oral/debrief";
 import { err } from "@/lib/types";
 
 /**
@@ -80,6 +81,38 @@ export async function POST(req: Request): Promise<Response> {
         subject,
         course,
         chunks,
+        onVerdict: async (v: OralVerdict) => {
+          // The learner's map is written from the verdict a tool returned, with the
+          // same event shape the written study loop uses, so mastery.ts folds it.
+          const claim = (v.kind === "claim" ? v.claim : v.answer).slice(0, MAX_ANSWER);
+          const conceptId = resolveConceptId(subject.concepts, v.kind === "claim" ? v.concept : null, claim);
+          const assessment = v.kind === "claim" ? (v.verdict === "supported" ? "correct" : "incorrect") : v.grade;
+          await store.recordLearning(identity.userId, {
+            idempotencyKey: `oral_${sessionId ?? traceId}_${callId}`.slice(0, 120),
+            sessionId: sessionId ?? `oral_${traceId}`,
+            courseId: subject.id,
+            sourceId: subject.sources?.[0]?.id ?? null,
+            transcript: claim,
+            cleanedTranscript: claim,
+            origin: "voice",
+            transcriptionConfidence: null,
+            transcriptionLatencyMs: null,
+            transcriptionSessionId: null,
+            intent: "claim",
+            conceptIds: conceptId ? [conceptId] : [],
+            primaryConceptId: conceptId,
+            importance: 0.5,
+            confusion: assessment === "incorrect" ? 0.8 : assessment === "partial" ? 0.4 : 0.1,
+            interpretationConfidence: 0.8,
+            evidenceIds: v.kind === "claim" ? [v.passageId] : [],
+            requestedAction: "evaluate",
+            status: "responded",
+            sourceLocator: v.kind === "claim" && v.page != null ? { page: v.page } : null,
+            assessment,
+            masterySignal: assessment === "correct" ? "up" : assessment === "incorrect" ? "down" : "flat",
+            hint: null,
+          });
+        },
         onNote: async ({ claim, conceptId, correct }) => {
           // Only a claim the material actually supports is filed as right, and
           // the store gets a clean model-free signal. The spoken feedback is

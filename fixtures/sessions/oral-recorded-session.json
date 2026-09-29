@@ -1,0 +1,19 @@
+{
+  "about": "Test fixture for the debrief. Entry 1 is the real verify_claim result from the live round trip of 2026-09-29 (docs/evidence/probes/oral-live-roundtrip.2026-09-29.json, run 1); the other entries are hand-written to exercise each standing, and the last one carries a fabricated quote on purpose. Learner voice in the live run was synthetic.",
+  "subjectId": "course_transformers_w4",
+  "record": {
+    "sessionId": "oral_fixture_1",
+    "startedAt": "2026-09-29T18:35:00.000Z",
+    "userTurns": 7,
+    "interruptions": 1,
+    "entries": [
+      { "kind": "claim", "conceptId": "c_multihead", "learner": "it runs a single head over the input", "verdict": "contradicted", "quote": "Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.", "page": 15, "passageId": "ch_mh_1" },
+      { "kind": "answer", "conceptId": "c_position", "learner": "Positional encoding adds information about token order before the first self-attention layer.", "grade": "correct" },
+      { "kind": "claim", "conceptId": "c_qkv", "learner": "queries ask, keys advertise and values deliver the content", "verdict": "supported", "quote": "Queries ask, keys advertise, values deliver.", "page": 8, "passageId": "ch_qkv_2" },
+      { "kind": "claim", "conceptId": "c_backprop", "learner": "backprop is the same as gradient descent", "verdict": "contradicted", "quote": "Backpropagation computes gradients; gradient descent uses them.", "page": 20, "passageId": "ch_bp_2" },
+      { "kind": "claim", "conceptId": "c_backprop", "learner": "backprop computes the gradients and gradient descent uses them to update", "verdict": "supported", "quote": "Backpropagation computes gradients; gradient descent uses them.", "page": 20, "passageId": "ch_bp_2" },
+      { "kind": "claim", "conceptId": "c_policy_value", "learner": "value iteration is basically policy iteration with a discount", "verdict": "not_in_material", "quote": null, "page": null, "passageId": null },
+      { "kind": "claim", "conceptId": "c_self_attention", "learner": "attention averages the values", "verdict": "supported", "quote": "attention is a lookup table stored in the weights", "page": 4, "passageId": "ch_sa_1" }
+    ]
+  }
+}

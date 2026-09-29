@@ -66,7 +66,18 @@ export type ToolContext = {
   chunks: SourceChunk[];
   /** The agent may only ask about material the caller actually owns. */
   onNote?: (note: { claim: string; conceptId: string | null; correct: boolean }) => Promise<void>;
+  /**
+   * Called by the server with a verdict a tool actually returned. This is how the
+   * learner's map and the debrief learn what happened: from the tool's own
+   * output, never from what the model says it concluded (save_note's `correct`
+   * is model-reported and is not offered to the Voice Agent).
+   */
+  onVerdict?: (v: OralVerdict) => Promise<void>;
 };
+
+export type OralVerdict =
+  | { kind: "claim"; claim: string; concept: string | null; verdict: "supported" | "contradicted"; quote: string; page: number | null; passageId: string }
+  | { kind: "answer"; question: string; answer: string; grade: "correct" | "partial" | "incorrect" };
 
 export type ToolDefinition = {
   type: "function";
@@ -296,6 +307,9 @@ const verifySpec: ToolSpec = {
     const args = verifyArgs.safeParse(raw);
     if (!args.success) return bad("I need the learner's exact claim to check.");
     const result = await verifyClaim(args.data.claim, ctx.chunks, undefined, args.data.concept);
+    if (ctx.onVerdict && result.verdict !== "not_in_material" && result.quote && result.passage_id) {
+      await ctx.onVerdict({ kind: "claim", claim: args.data.claim, concept: args.data.concept ?? null, verdict: result.verdict, quote: result.quote, page: result.page, passageId: result.passage_id });
+    }
     return {
       ...result,
       say: result.verdict === "contradicted"
@@ -352,6 +366,7 @@ const gradeSpec: ToolSpec = {
         evidenceIds: baseline.evidenceIds.length > 0 ? baseline.evidenceIds : ctx.chunks.map((c) => c.id),
       },
     });
+    await ctx.onVerdict?.({ kind: "answer", question: args.data.question, answer: args.data.answer, grade: graded.verdict });
     return {
       verdict: graded.verdict,
       correct_points: graded.correctPoints,
@@ -457,7 +472,7 @@ export function toolDefsForWire(): (ToolDefinition & { execution_mode: "hold" })
   // Legacy lexical tools remain available to the written study loop and its
   // tests, but the Voice Agent may use only the quote-checked verifier.
   return toolDefinitions()
-    .filter((d) => d.name !== "quote_my_material" && d.name !== "check_my_understanding")
+    .filter((d) => !["quote_my_material", "check_my_understanding", "save_note"].includes(d.name))
     .map((d) => ({ ...d, execution_mode: "hold" as const }));
 }
 

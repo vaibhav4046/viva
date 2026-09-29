@@ -1,6 +1,6 @@
 import type { EventStore } from "@/lib/store/repo";
 import { err } from "@/lib/types";
-import { COURSES, getCourse } from "./index";
+import { COURSES, getCourse, hasCourse } from "./index";
 import type { Course, SourceLicence, Subject } from "./types";
 
 /**
@@ -47,7 +47,7 @@ export function starterSubject(course: Course): Subject {
 }
 
 export function isStarterId(id: string | null | undefined): boolean {
-  return Boolean(id && COURSES[id]);
+  return hasCourse(id);
 }
 
 /** An id that named a subject VIVA cannot produce. Never a different subject. */
@@ -80,7 +80,7 @@ export async function resolveSubject(
   id: string | null | undefined
 ): Promise<Subject> {
   if (!id) return starterSubject(getCourse(null));
-  if (COURSES[id]) return starterSubject(COURSES[id]);
+  if (hasCourse(id)) return starterSubject(COURSES[id]);
   const owned = await store.getSubject(userId, id);
   if (owned) return owned;
   throw new SubjectNotFoundError(id);

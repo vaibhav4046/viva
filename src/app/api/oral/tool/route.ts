@@ -7,7 +7,7 @@ import { rid, serverLog } from "@/lib/observe";
 import { getStore } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { getCourse } from "@/lib/courses";
-import { runOralTool, MAX_ANSWER, type OralVerdict } from "@/lib/oral/tools";
+import { runOralTool, toolDefsForWire, MAX_ANSWER, type OralVerdict } from "@/lib/oral/tools";
 import { resolveConceptId } from "@/lib/oral/debrief";
 import { err } from "@/lib/types";
 
@@ -31,8 +31,37 @@ const Body = z.object({
   name: z.string().min(1).max(60),
   arguments: z.record(z.unknown()).optional(),
   subjectId: z.string().max(80).optional(),
-  sessionId: z.string().max(120).optional(),
+  sessionId: z.string().max(120).nullish(),
+  /** The learner transcript item the call was built from. Logged, never trusted. */
+  transcriptId: z.string().max(120).nullish(),
 });
+
+/** Only what the Voice Agent is offered. save_note and the lexical tools are not on this list. */
+const WIRE_TOOLS: ReadonlySet<string> = new Set(toolDefsForWire().map((d) => d.name));
+
+/** A tool call is a few hundred bytes. Anything near this is not one. */
+export const MAX_BODY_BYTES = 16 * 1024;
+
+/** Read at most MAX_BODY_BYTES; null means the body was larger. */
+async function readCapped(req: Request): Promise<string | null> {
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return null;
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
 
 function problem(issues: { code: string; path: PropertyKey[] }[]): string {
   if (issues.some((i) => i.code === "too_big")) return "That was longer than VIVA takes in one go.";
@@ -60,14 +89,30 @@ export async function POST(req: Request): Promise<Response> {
 
   let body: unknown;
   try {
-    body = await req.json();
+    const text = await readCapped(req);
+    if (text === null) return done(err("PAYLOAD_TOO_LARGE", "That was longer than VIVA takes in one go.", false, 413));
+    body = JSON.parse(text);
   } catch {
     return done(err("BAD_REQUEST", "Expected JSON.", false, 400));
   }
   const parsed = Body.safeParse(body);
   if (!parsed.success) return done(err("BAD_REQUEST", problem(parsed.error.issues), false, 400));
 
-  const { callId, name, arguments: args, subjectId, sessionId } = parsed.data;
+  const { callId, name, arguments: args, subjectId } = parsed.data;
+  const sessionId = parsed.data.sessionId ?? undefined;
+
+  if (!WIRE_TOOLS.has(name)) {
+    // Not offered to the agent, so not run for it either. save_note carried a
+    // model-supplied `correct` flag that filed a mastery signal the material
+    // never produced, and a prompt-injected agent could call it by name.
+    serverLog("oral_tool.refused", traceId, { tool: name.slice(0, 40) });
+    return done(
+      Response.json(
+        { callId, result: { error: "That tool is not available.", tell_the_student: "That tool is not available." }, isError: true },
+        { headers: { "Cache-Control": "no-store" } }
+      )
+    );
+  }
 
   try {
     const store = getStore();
@@ -86,7 +131,7 @@ export async function POST(req: Request): Promise<Response> {
           // The learner's map is written from the verdict a tool returned, with the
           // same event shape the written study loop uses, so mastery.ts folds it.
           const claim = (v.kind === "claim" ? v.claim : v.answer).slice(0, MAX_ANSWER);
-          const conceptId = resolveConceptId(subject.concepts, v.kind === "claim" ? v.concept : null, claim);
+          const conceptId = resolveConceptId(subject.concepts, claim);
           const assessment = v.kind === "claim" ? (v.verdict === "supported" ? "correct" : "incorrect") : v.grade;
           // After the response: the store write measured about a second, and the
           // agent is waiting on this result to speak. A failed write is logged.
@@ -115,44 +160,6 @@ export async function POST(req: Request): Promise<Response> {
             masterySignal: assessment === "correct" ? "up" : assessment === "incorrect" ? "down" : "flat",
             hint: null,
           }); } catch (e) { serverLog("oral_tool.verdict_write_failed", traceId, { err: (e as Error).message?.slice(0, 160) }); } });
-        },
-        onNote: async ({ claim, conceptId, correct }) => {
-          // Only a claim the material actually supports is filed as right, and
-          // the store gets a clean model-free signal. The spoken feedback is
-          // the agent's business; the record's is not.
-          //
-          // `intent: "claim"` is the load-bearing field. It is the same value
-          // the written study loop uses for a graded answer, which is the only
-          // path `mastery.ts` has a case for. Filing the oral exchange as
-          // `"confusion"` instead would drop it as a process turn and the
-          // learner's spoken exam would leave no trace on their map, the one
-          // place the oral exam must not be a second-class citizen.
-          const capped = claim.slice(0, MAX_ANSWER);
-          await store.recordLearning(identity.userId, {
-            idempotencyKey: `oral_${sessionId ?? traceId}_${callId}`.slice(0, 120),
-            sessionId: sessionId ?? `oral_${traceId}`,
-            courseId: subject.id,
-            sourceId: subject.sources?.[0]?.id ?? null,
-            transcript: capped,
-            cleanedTranscript: capped,
-            origin: "voice",
-            transcriptionConfidence: null,
-            transcriptionLatencyMs: null,
-            transcriptionSessionId: null,
-            intent: "claim",
-            conceptIds: conceptId ? [conceptId] : [],
-            primaryConceptId: conceptId ?? null,
-            importance: 0.5,
-            confusion: correct ? 0.1 : 0.8,
-            interpretationConfidence: 0.8,
-            evidenceIds: [],
-            requestedAction: "evaluate",
-            status: "responded",
-            sourceLocator: null,
-            assessment: correct ? "correct" : "incorrect",
-            masterySignal: correct ? "up" : "down",
-            hint: null,
-          });
         },
       },
       name,

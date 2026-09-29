@@ -4,6 +4,7 @@ import { checkClaim, composeClaimReply } from "@/lib/tutor/claim";
 import { assessAnswer, gradeAnswer } from "@/lib/tutor";
 import type { Course, Subject } from "@/lib/courses/types";
 import type { SourceChunk } from "@/lib/types";
+import { rid, serverLog } from "@/lib/observe";
 import { verifyClaim } from "./verify-claim";
 
 /**
@@ -489,9 +490,9 @@ export async function runOralTool(
   } catch (e) {
     // A tool that throws would take the whole call down. The agent recovers
     // from an error result by apologising out loud, which beats silence.
-    return {
-      result: { error: "That check could not be run.", detail: (e as Error).message?.slice(0, 200) ?? "unknown" },
-      isError: true,
-    };
+    // The exception text stays on the server: it can name hosts, paths and
+    // credentials, and it goes to the browser and into the model's context.
+    serverLog("oral_tool.threw", rid(), { tool: name, err: (e as Error).message?.slice(0, 200) ?? "unknown" });
+    return { result: { error: "That check could not be run." }, isError: true };
   }
 }

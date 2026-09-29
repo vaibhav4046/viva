@@ -52,6 +52,8 @@ export type PendingTool = {
   args: Record<string, unknown>;
   /** Millisecond stamp, for the diagnostics panel. Never used for ordering. */
   at: number;
+  /** reply.done completed; the result may now be delivered when HTTP finishes. */
+  released?: boolean;
 };
 
 export type QueuedResult = {
@@ -273,6 +275,21 @@ export function withToolResult(
   };
 }
 
+/** Deliver only results whose reply has completed. A later reply may have
+ * started while an earlier HTTP call is still running, so draining every
+ * ready result here would send the later reply's result too early. */
+export function drainReleasedResults(m: OralMachine): { machine: OralMachine; send: QueuedResult[] } {
+  const released = new Set(m.pending.filter((p) => p.released).map((p) => p.callId));
+  const send = m.ready.filter((r) => released.has(r.callId)).sort(
+    (a, b) => m.pending.findIndex((p) => p.callId === a.callId) - m.pending.findIndex((p) => p.callId === b.callId)
+  );
+  const sent = new Set(send.map((r) => r.callId));
+  return {
+    machine: { ...m, pending: m.pending.filter((p) => !sent.has(p.callId)), ready: m.ready.filter((r) => !sent.has(r.callId)) },
+    send,
+  };
+}
+
 /**
  * `reply.done`.
  *
@@ -309,18 +326,15 @@ export function onReplyDone(
     };
   }
 
-  // Completed: drain everything, in call order.
-  const send = [...m.ready].sort(
-    (a, b) => m.pending.findIndex((p) => p.callId === a.callId) - m.pending.findIndex((p) => p.callId === b.callId)
-  );
+  // A tool POST may still be running when reply.done arrives. Keep those calls
+  // and release their results as each request resolves.
+  const released = drainReleasedResults({ ...m, pending: m.pending.map((p) => ({ ...p, released: true })) });
   return {
     machine: {
-      ...transition(m, "LISTENING"),
-      pending: [],
-      ready: [],
+      ...transition(released.machine, "LISTENING"),
       streaming: true,
     },
-    send,
+    send: released.send,
     discardCallIds: [],
   };
 }

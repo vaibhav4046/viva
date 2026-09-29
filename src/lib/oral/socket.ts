@@ -48,6 +48,7 @@ import { voiceMessage } from "@/lib/audio/messages";
  */
 
 import {
+  drainReleasedResults,
   initialMachine,
   isRetryableCode,
   onCheckingSource,
@@ -435,6 +436,9 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     } catch {
       m = withToolResult(m, callId, { error: "That check could not be run." }, true);
     }
+    const released = drainReleasedResults(m);
+    m = released.machine;
+    for (const r of released.send) deliver(r);
     publish();
   };
 

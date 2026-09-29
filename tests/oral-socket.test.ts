@@ -198,6 +198,20 @@ describe("handshake", () => {
 });
 
 describe("tool results", () => {
+  it("delivers a slow tool after reply.done without losing its result", async () => {
+    let finishTool!: (result: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finishTool = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "slow", name: "search_my_material", arguments: { query: "x" } });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    expect(ws[0].of("tool.result")).toHaveLength(0);
+    finishTool({ found: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    expect(JSON.parse(String(ws[0].of("tool.result")[0].result))).toEqual({ found: true });
+    expect(socket.machine().discards).toBe(0);
+  });
+
   it("sends nothing on tool.call and delivers on reply.done", async () => {
     const { ws, socket } = await ready();
     ws[0].emit({ type: "tool.call", call_id: "c1", name: "search_my_material", arguments: { query: "x" } });

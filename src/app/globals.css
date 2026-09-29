@@ -1,79 +1,56 @@
 @import 'tailwindcss';
+@import '../styles/tokens.css';
 
 /*
- * VIVA design tokens — Academic Noir.
+ * Tailwind theme bridge. The values live in src/styles/tokens.css; this block
+ * only gives them utility names.
  *
- * One ground (obsidian), two surfaces (graphite, panel), one text colour
- * (paper), one accent (cognition lime) and one semantic set for the mastery
- * bands. Nothing else. The previous file carried three overlapping palettes
- * (this one, a light "paper" set and a neon "spectrum" set); the other two
- * are gone, along with every rule that only existed to serve them.
- *
- * Components reference variables, never raw hex.
+ * The --color-obsidian ... --color-band-notyet names are older than the
+ * Examiner's table palette and are kept as aliases so the screens that still
+ * use them pick up the new colours without a rename. They do not describe the
+ * colours any more: paper is now the ink, obsidian is now the canvas. New code
+ * uses the semantic names below them.
  */
 
 @theme {
-  /* Ground and surfaces */
-  --color-obsidian: #0b0b0c;
-  --color-graphite: #131417;
-  --color-panel: #191b1f;
-  --color-hairline: #262a31;
-  --color-slate: #3a3f47;
+  /* semantic names (new code) */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-elevated: var(--elevated);
+  --color-ink: var(--text-primary);
+  --color-ink-2: var(--text-secondary);
+  --color-ink-3: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-correction: var(--correction);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-rule: var(--border);
+  --color-rule-strong: var(--border-strong);
 
-  /* Text */
-  --color-paper: #f2f0ea;
-  --color-mist: #d3d1c9;
-  --color-ash: #a7abb6;
+  /* legacy aliases */
+  --color-obsidian: var(--canvas);
+  --color-graphite: var(--surface-1);
+  --color-panel: var(--surface-2);
+  --color-hairline: var(--border);
+  --color-slate: var(--border-strong);
+  --color-paper: var(--text-primary);
+  --color-mist: var(--text-secondary);
+  --color-ash: var(--text-muted);
+  --color-cognition: var(--primary);
 
-  /* Accent */
-  --color-cognition: #b8ff5a;
+  /* Mastery bands. Each is 4.5:1 or better on the canvas and both surfaces and
+   * is always printed with its word, so colour is never the only signal. */
+  --color-band-solid: var(--success);
+  --color-band-getting: var(--info);
+  --color-band-shaky: var(--warning);
+  --color-band-mixed: var(--correction);
+  --color-band-notyet: var(--text-muted);
 
-  /* Mastery bands. Each is ≥ 4.5:1 on obsidian and on graphite, and each is
-   * always paired with its word ("Solid", "Shaky") so colour is never the
-   * only signal. See tests/design-tokens.test.ts.
-   *
-   * WHAT EACH COLOUR IS ALLOWED TO MEAN
-   *
-   * --color-band-solid is the same hex as --color-cognition, so the system
-   * cannot tell you when the two have collided — it has to be a rule instead.
-   * The rule is about the KIND of thing a colour is attached to, because that
-   * is where the confusion actually was:
-   *
-   *   A band colour states how well the student knows something, and never
-   *   appears without its word.
-   *
-   *   Lime is the voice loop and the chrome around it: the mic, the button
-   *   that carries you to the next answer, the progress meter, the focus
-   *   ring. Nobody reads a filled pill or a 6 px bar as a claim about what
-   *   they know. Entering a flow is the paper pill instead — the landing
-   *   hero, /today's "Start talking", /exam's "Start the quiz", the 404.
-   *   Lime is how you answer; paper is how you begin.
-   *
-   *   NEITHER may mark a piece of content. That is the line, and it is the
-   *   one that was crossed: a lime-outlined passage sitting a few hundred
-   *   pixels from a legend reading "● Solid" told a student their quoted
-   *   evidence was Solid, on a turn the same screen had just marked Shaky.
-   *   The same went for the student's own words, whose eyebrow wore the
-   *   "Getting there" periwinkle. Content that is singled out is marked by
-   *   surface and rule, never by hue — see .passage-quoted below — and a
-   *   label that is not a verdict takes the ash every other eyebrow uses.
-   *
-   * The one carve-out is failure: --color-band-mixed doubles as the error
-   * colour in ErrorBanner and DeviceNote. Coral-as-error is read before it is
-   * learned, and an error banner never shares a viewport with the legend in a
-   * way that invites the reading "your mastery is Mixed up". Deliberate. */
-  --color-band-solid: #b8ff5a;    /* Solid */
-  --color-band-getting: #8fa2ff;  /* Getting there */
-  --color-band-shaky: #fbbf24;    /* Shaky */
-  --color-band-mixed: #ff8080;    /* Mixed up */
-  --color-band-notyet: #a7abb6;   /* Not yet */
+  --font-sans: var(--font-ui);
 
-  /* Fonts. --font-geist / --font-plex are injected on <html> by next/font. */
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  /* Type scale: 12 / 14 / 16 / 18 / 24 / 32 / 48. Body is never below 16. */
+  /* Type scale for utilities: 12 / 14 / 16 / 18 / 24 / 32 / 48. Body is never below 16. */
   --text-xs: 12px;
   --text-sm: 14px;
   --text-base: 16px;
@@ -81,86 +58,87 @@
   --text-xl: 24px;
   --text-2xl: 32px;
   --text-3xl: 48px;
-
-  --radius-card: 12px;
-  --radius-input: 8px;
 }
 
 :root {
-  color-scheme: dark;
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-fast: 140ms;
-  --dur-base: 220ms;
+  color-scheme: light;
+  /* Older names for the motion tokens. */
+  --ease-out-soft: var(--ease-standard);
 }
 
-html { background: var(--color-obsidian); }
+html { background: var(--canvas); }
 
 body {
-  background: var(--color-obsidian);
-  color: var(--color-paper);
-  font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.55;
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
-  /* A student's own notes decide how long a word on this page can be — a URL,
+  /* A student's own notes decide how long a word on this page can be: a URL,
    * a chemical name, an accession number. `anywhere` rather than `break-word`
-   * because only `anywhere` shrinks a flex or grid child's min-content width,
-   * and that width is what pushed /today to 806 px inside a 390 px phone. */
+   * because only `anywhere` shrinks a flex or grid child's min-content width. */
   overflow-wrap: anywhere;
 }
 
+::selection { background: var(--info-tint); color: var(--text-primary); }
+
 /* ------------------------------- type ------------------------------- */
 
-.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em; line-height: 1; }
-.heading { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.012em; line-height: 1.15; }
-.mono { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
-.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-ash); }
+.display { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-display); letter-spacing: -0.015em; line-height: var(--lh-display); }
+.heading { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.008em; line-height: 1.2; }
+.mono { font-family: var(--font-mono); font-size: var(--fs-code); line-height: var(--lh-code); font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--font-ui); font-size: var(--fs-label); line-height: var(--lh-label); font-weight: 500; color: var(--text-muted); }
 .tnum { font-variant-numeric: tabular-nums; }
 
-/* Measure: 65–75 characters for anything that reads as prose. */
-.prose-measure { max-width: 68ch; }
+/* Measure: about 68 characters for anything that reads as prose. */
+.prose-measure { max-width: var(--measure); }
 
 /* ----------------------------- surfaces ----------------------------- */
 
 .surface-card {
-  background: var(--color-graphite);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
-.hairline { border-color: var(--color-hairline); }
+.hairline { border-color: var(--border); }
 
+/* Status chip: the only pill in the product. Always carries a word. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--color-hairline);
-  border-radius: 9999px;
-  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.6;
-  color: var(--color-ash);
+  color: var(--text-secondary);
   background: transparent;
   white-space: normal;
   max-width: 100%;
 }
-.chip-link:hover { border-color: var(--color-cognition); color: var(--color-paper); }
-.chip-quoted { border-color: var(--color-paper); color: var(--color-paper); }
+a.chip, button.chip { cursor: pointer; }
+.chip-link:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--text-primary); }
+.chip-quoted { border-color: var(--text-primary); color: var(--text-primary); }
 
 /*
- * The passage the tutor quoted. Lifted a surface, and marked down its left
- * edge the way a book marks a pulled quote — the treatment adds no colour, so
- * it cannot contradict the band legend beside it, and it survives on a screen
- * where hue does not read at all.
+ * The passage the tutor quoted. A full border on a lifted surface: it adds no
+ * hue, so it cannot contradict a band word beside it, and it survives a screen
+ * where colour does not read.
  */
 .passage-quoted {
-  border-color: var(--color-slate);
-  border-left-width: 2px;
-  border-left-color: var(--color-paper);
-  background: var(--color-panel);
+  border: 1px solid var(--border-strong);
+  background: var(--elevated);
 }
 
 /* ------------------------------ buttons ------------------------------ */
+/*
+ * States: default, hover, active, focus-visible (ring from tokens.css),
+ * disabled, loading. Loading is [aria-busy="true"]: the label changes to say
+ * what is happening and the button stays the same size.
+ */
 
 .btn-primary, .btn-ghost, .btn-lime {
   display: inline-flex;
@@ -168,52 +146,94 @@ body {
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  border-radius: 9999px;
-  padding: 10px 22px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  padding: 10px 20px;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
   touch-action: manipulation;
-  transition: transform var(--dur-fast) var(--ease-out-soft),
-              opacity var(--dur-fast) var(--ease-out-soft),
-              border-color var(--dur-fast) var(--ease-out-soft),
-              background-color var(--dur-fast) var(--ease-out-soft);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard),
+              color var(--dur-fast) var(--ease-standard);
 }
-.btn-primary { background: var(--color-paper); color: var(--color-obsidian); }
-.btn-lime { background: var(--color-cognition); color: var(--color-obsidian); }
-.btn-ghost { background: transparent; color: var(--color-paper); border: 1px solid var(--color-slate); font-weight: 500; }
+.btn-primary, .btn-lime { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.btn-ghost { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
 @media (hover: hover) and (pointer: fine) {
-  .btn-primary:hover, .btn-lime:hover { opacity: 0.9; transform: translateY(-1px); }
-  .btn-ghost:hover { border-color: var(--color-paper); background: rgba(242, 240, 234, 0.05); }
+  .btn-primary:hover, .btn-lime:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--text-secondary); }
 }
-.btn-primary:active, .btn-ghost:active, .btn-lime:active { transform: translateY(1px); }
-.btn-primary:disabled, .btn-ghost:disabled, .btn-lime:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.btn-primary:active, .btn-lime:active { background: var(--primary-active); border-color: var(--primary-active); }
+.btn-ghost:active { background: var(--border-subtle); }
+.btn-primary:disabled, .btn-ghost:disabled, .btn-lime:disabled,
+.btn-primary[aria-disabled="true"], .btn-ghost[aria-disabled="true"] {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+.btn-primary[aria-busy="true"], .btn-ghost[aria-busy="true"] { cursor: progress; }
 
-/* Navigation links: shape + weight carry the state, never colour alone. */
+/* Text link. Underlined always; colour is not the only cue. */
+.link {
+  color: var(--info);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+@media (hover: hover) { .link:hover { text-decoration-thickness: 2px; } }
+
+/* Navigation links: weight and an underline carry the state, never colour alone. */
 .nav-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border-radius: 9999px;
+  border-radius: var(--radius-sm);
   padding: 0 14px;
-  font-size: 14px;
-  color: var(--color-ash);
-  transition: color var(--dur-fast) var(--ease-out-soft), background-color var(--dur-fast) var(--ease-out-soft);
+  font-size: var(--fs-body-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-standard), background-color var(--dur-fast) var(--ease-standard);
 }
-.nav-link:hover { color: var(--color-paper); background: rgba(242, 240, 234, 0.06); }
-.nav-link[aria-current="page"] { color: var(--color-paper); font-weight: 600; background: rgba(242, 240, 234, 0.09); }
+.nav-link:hover { color: var(--text-primary); background: var(--surface-2); }
+.nav-link[aria-current="page"] {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
+}
+
+/* ------------------------------ fields ------------------------------- */
+
+.field-label { display: block; font-size: var(--fs-label); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1); }
+.field-hint { font-size: var(--fs-caption); color: var(--text-muted); margin-top: var(--space-1); }
+.field-error { font-size: var(--fs-caption); color: var(--danger); margin-top: var(--space-1); }
+.field {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elevated);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+}
+.field::placeholder { color: var(--text-muted); }
+.field:disabled { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); cursor: not-allowed; }
+.field[aria-invalid="true"] { border-color: var(--border-error); }
 
 /* ------------------------------ selects ------------------------------ */
 /*
- * A <select> is the only control a browser paints for us, and both of VIVA's
- * — the subject picker and the spoken-language picker — were shipping at 32
- * and 33 px with the OS chevron and `cursor: default`, inside a product where
- * every other control is a 44 px pill. The rule lives on the element itself so
- * a third select cannot arrive with the same defaults.
- *
- * The two `!important`s are deliberate: the language picker sets `background`
- * and `min-height` inline and lives in the voice layer, which this file may
- * not edit. An author !important still beats a non-important inline style.
+ * A <select> is the one control a browser paints for us. The rule lives on the
+ * element so a third select cannot arrive with the OS defaults. The two
+ * `!important`s are deliberate: the language picker sets `background` and
+ * `min-height` inline in the voice layer.
  */
 select {
   appearance: none;
@@ -221,57 +241,48 @@ select {
   cursor: pointer;
   padding-right: 34px;
   min-height: 44px !important;
-  color: var(--color-paper);
-  background: var(--color-graphite) url("/ui/chevron-down.svg") no-repeat right 12px center / 16px 16px !important;
+  color: var(--text-primary);
+  background: var(--elevated) url("/ui/chevron-down.svg") no-repeat right 12px center / 16px 16px !important;
 }
-/* .chip wins on padding by specificity, so restate it for the round one. */
 select.chip { padding-right: 34px; padding-left: 12px; }
-select:disabled { cursor: not-allowed; opacity: 0.6; }
+select:disabled { cursor: not-allowed; color: var(--text-muted); }
 
 /* --------------------------- cited passage --------------------------- */
-/*
- * Clicking a citation chip jumps the source rail to the passage it quoted.
- * The jump alone is invisible when the card is already on screen, so the card
- * says so for a moment. :target rather than JS — the anchor already exists.
- */
+/* Clicking a citation chip jumps the source rail to the passage it quoted.
+ * The card says so for a moment. :target rather than JS, the anchor exists. */
 [id^="chunk-"] { scroll-margin-top: 3rem; }
 @keyframes viva-jumped {
-  from { border-color: var(--color-paper); background: rgb(242 240 234 / 0.10); }
-  to   { border-color: var(--color-hairline); background: transparent; }
+  from { border-color: var(--info); background: var(--info-tint); }
+  to   { border-color: var(--border); background: transparent; }
 }
-[id^="chunk-"]:target { animation: viva-jumped 1600ms var(--ease-out-soft) 1; }
+[id^="chunk-"]:target { animation: viva-jumped 1600ms var(--ease-standard) 1; }
 
 /* ------------------------------- focus ------------------------------- */
 
-:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 2px; border-radius: 4px; }
 .graph-node:focus { outline: none; }
-.graph-node:focus-visible { outline: 2px solid var(--color-cognition); outline-offset: 3px; }
+.graph-node:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 3px; }
 
 /* ------------------------------ feedback ----------------------------- */
 
-@keyframes viva-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.75; } }
-.skeleton { background: var(--color-hairline); border-radius: 6px; animation: viva-pulse 1400ms var(--ease-out-soft) infinite; }
+/* Skeletons keep the size of the content they stand in for. Static tone, no pulse. */
+.skeleton { background: var(--surface-2); border-radius: var(--radius-xs); }
 
-.meter { height: 6px; border-radius: 9999px; background: var(--color-panel); border: 1px solid var(--color-hairline); overflow: hidden; }
-.meter > span { display: block; height: 100%; background: var(--color-cognition); transform-origin: left; transition: transform 420ms var(--ease-out-soft); }
+.meter { height: 6px; border-radius: var(--radius-xs); background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.meter > span { display: block; height: 100%; background: var(--primary); transform-origin: left; transition: transform var(--dur-panel) var(--ease-standard); }
 
 .scroll-pane { scrollbar-gutter: stable; overscroll-behavior: contain; }
 .waveform-bar { transform-origin: 50% 100%; }
 
-/* --------------------------- scroll reveal --------------------------- */
-/* Landing rows below the fold. Transform + opacity only; the final state is
- * the default so the page is correct with JS off and under reduced motion. */
-.reveal { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms var(--ease-out-soft), transform 500ms var(--ease-out-soft); }
-  .reveal.is-in { opacity: 1; transform: none; }
+/* The mobile tab bar is fixed to the bottom edge; keep the footer links clear of it. */
+@media (max-width: 767px) {
+  body:has([data-tabbar]) .site-footer { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
 }
 
 /* ---------------------------- scrollbars ----------------------------- */
 
-* { scrollbar-width: thin; scrollbar-color: var(--color-hairline) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: var(--color-hairline); border-radius: 4px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--radius-sm); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -280,6 +291,4 @@ select:disabled { cursor: not-allowed; opacity: 0.6; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .btn-primary:hover, .btn-ghost:hover, .btn-lime:hover,
-  .btn-primary:active, .btn-ghost:active, .btn-lime:active { transform: none !important; }
 }

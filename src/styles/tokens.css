@@ -1,0 +1,99 @@
+/*
+ * VIVA design tokens: "Examiner's table".
+ *
+ * A warm paper desk. Five hues, each with one job:
+ *   ink (--primary)         actions and headings
+ *   red pen (--correction)  a wrong statement or a misconception, never decoration
+ *   source green (--success) checked against the learner's own pages
+ *   amber (--warning)       caution
+ *   blue (--info)           information and the focus ring
+ *
+ * Components read these variables, never raw hex. Every text-on-surface pair the
+ * app uses is listed in design/contrast-pairs.json and checked by
+ * scripts/check-contrast.mjs. If a pair fails, change the token, not the rule.
+ *
+ * Fonts: --font-newsreader, --font-plex-sans and --font-plex-mono are set on
+ * <html> by next/font in src/app/layout.tsx. The names after them are the
+ * fallbacks shown while the font loads, and next/font adds size-adjusted
+ * metrics for its own fallback so the swap does not move the layout.
+ */
+:root {
+  /* surfaces */
+  --canvas: #F1EDE4;
+  --surface-1: #F8F5EE;
+  --surface-2: #E7E1D5;
+  --elevated: #FBF9F4;
+  --overlay: rgba(29, 27, 24, 0.48);
+
+  /* text (on canvas: 14.7, 8.0, 5.7) */
+  --text-primary: #1D1B18;
+  --text-secondary: #4A463F;
+  --text-muted: #625C52;
+
+  /* roles */
+  --primary: #1F2A3A;
+  --primary-hover: #2B394E;
+  --primary-active: #141C28;
+  --on-primary: #F8F5EE;
+  --correction: #A63A2B;
+  --danger: #A63A2B;
+  --success: #2B6B4A;
+  --warning: #7A4F00;
+  --info: #1F5F8B;
+
+  /* state tints for chips and banners */
+  --success-tint: #E2EBDD;
+  --correction-tint: #F1DDD6;
+  --warning-tint: #F0E4C8;
+  --info-tint: #DDE8EE;
+
+  /* borders: --border-strong is for input edges (3:1 on canvas); the other two are decorative */
+  --border-subtle: #DDD6C8;
+  --border: #CFC7B8;
+  --border-strong: #8C8475;
+  --border-focus: #1F5F8B;
+  --border-error: #A63A2B;
+
+  /* type */
+  --font-display: var(--font-newsreader), "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-ui: var(--font-plex-sans), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --fs-display: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem);  --lh-display: 1.1;
+  --fs-h1: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem);       --lh-h1: 1.15;
+  --fs-h2: 1.5rem;        --lh-h2: 1.3;
+  --fs-h3: 1.1875rem;     --lh-h3: 1.4;
+  --fs-body: 1rem;        --lh-body: 1.6;
+  --fs-body-sm: 0.875rem; --lh-body-sm: 1.5;
+  --fs-label: 0.8125rem;  --lh-label: 1.25;
+  --fs-caption: 0.75rem;  --lh-caption: 1.35;
+  --fs-code: 0.8125rem;   --lh-code: 1.5;
+
+  /* spacing (4 px base) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px; --space-9: 96px;
+
+  /* radius: 2, 4, 6; 10 for the modal only; pill for status chips only */
+  --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px; --radius-pill: 999px;
+
+  /* elevation: the modal and the popover, nothing else */
+  --shadow-overlay: 0 8px 24px rgba(29, 27, 24, 0.18);
+
+  /* motion */
+  --dur-fast: 120ms; --dur-base: 180ms; --dur-panel: 280ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* layers */
+  --z-nav: 10; --z-popover: 20; --z-modal: 30; --z-toast: 40;
+
+  /* reading measure */
+  --measure: 68ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0.01ms; --dur-base: 0.01ms; --dur-panel: 0.01ms; }
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}

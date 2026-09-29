@@ -33,6 +33,7 @@ export function stateLine(state: OralState, o: { phase?: Phase; page?: number | 
 /** One sentence under the state line for the states where the learner needs to know what to do. */
 export function stateHint(state: OralState, phase: Phase = "running"): string {
   if (phase === "idle") return "Start when your headphones are on. The examiner speaks first.";
+  if (phase === "ended" && state === "IDLE") return "The exam is over. Your debrief is below.";
   switch (state) {
     case "CONNECTING": return "Opening a session with the voice service.";
     case "READY": return "The service is ready. The microphone opens next.";

@@ -17,7 +17,10 @@
     "test:routes": "node scripts/check-routes.mjs",
     "lint:copy": "node scripts/lint-copy.mjs",
     "test:extension": "node extension/extract.selftest.mjs",
-    "test:assemblyai-live": "node scripts/live-test.mjs"
+    "test:assemblyai-live": "node scripts/live-test.mjs",
+    "test:redteam-e2e": "node scripts/e2e-redteam.mjs",
+    "test:redteam-a11y": "node scripts/axe-redteam.mjs",
+    "test:redteam-live": "tsx scripts/live-redteam.mts"
   },
   "dependencies": {
     "lucide-react": "^1.45.0",

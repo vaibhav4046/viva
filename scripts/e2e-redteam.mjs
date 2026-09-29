@@ -57,6 +57,37 @@ async function begin(page) {
 
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), fullPage: false });
 
+/* ---------------------------------------------------- clean screenshots */
+// The same typed flow with no failed microphone attempt on screen, held until
+// the map has settled, for the README and the cover.
+{
+  const { ctx, page } = await newPage({ width: 1440, height: 900 });
+  await page.goto(`${BASE}/redteam`);
+  await begin(page);
+  await page.getByRole("button", { name: "Type instead" }).click();
+  const input = page.getByTestId("typed-input");
+  await input.fill("We automatically fail over to a replica.");
+  await input.press("Enter");
+  await page.locator('[data-testid="band-CONTRADICTED"] [data-testid="claim-1"]').waitFor();
+  await page.waitForTimeout(900);
+  await shot(page, "hero-1-contradicted.png");
+  await page.getByTestId("typed-interrupt").click();
+  await page.getByText("cut off · awaiting your correction").waitFor();
+  await page.waitForTimeout(500);
+  await shot(page, "hero-2-cut-off.png");
+  await input.fill("Wait. I meant manual failover.");
+  await input.press("Enter");
+  await page.locator('[data-testid="band-SUPPORTED"] [data-testid="claim-1"]').waitFor();
+  await page.waitForTimeout(900);
+  await shot(page, "hero-3-corrected.png");
+  await input.fill("We guarantee GDPR compliance and SOC 2 certification for all customer data.");
+  await input.press("Enter");
+  await page.locator('[data-testid="band-UNSUPPORTED"] [data-testid="claim-2"]').waitFor();
+  await page.waitForTimeout(900);
+  await shot(page, "hero-4-unsupported.png");
+  await ctx.close();
+}
+
 /* ------------------------------------------------------------- desktop */
 {
   const { ctx, page } = await newPage({ width: 1440, height: 900 }, { video: process.env.E2E_VIDEO ? path.resolve("docs/submission/video-raw") : undefined });

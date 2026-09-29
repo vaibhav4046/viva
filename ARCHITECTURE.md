@@ -42,6 +42,7 @@ AssemblyAI is structurally necessary: the product *is* a spoken cross-examinatio
 | `src/lib/redteam/socket.ts` | The WebSocket client: handshake, degrade-and-retry, resume, clean end. |
 | `src/lib/redteam/controller.ts` | Glue with no React: protocol events in, server calls out, one ordered queue. |
 | `src/lib/redteam/store.ts` | Sessions in Postgres if `DATABASE_URL` is set, else memory + temp dir. Ownership enforced here. |
+| `src/lib/redteam/seal.ts` | Signed review snapshots: every response carries one, and `POST /api/redteam/session/restore` brings a review back on an instance that never saw it. |
 | `src/app/api/redteam/*`, `src/app/api/voice-agent/token` | The routes. All go through `handle()`: identity, rate limit per class, body cap, ownership. |
 | `src/components/redteam/*`, `src/app/redteam/*` | The screen. |
 
@@ -112,12 +113,14 @@ The correction may also arrive *before* the interruption marker (the service can
 | A message is refused after `session.ready` | Reported in one sentence and survived: the events reference says client message errors leave the session alive |
 | Stale socket after a retry | Unhooked before it is closed; its late frames and `onclose` are ignored |
 | Page reload | `GET /api/redteam/session/:id` restores ledger and timeline; the greeting says "Picking up where we left off" |
+| The request lands on a server instance that never saw the review (serverless, no database) | The instance answers "not here"; the browser posts its signed copy to `/api/redteam/session/restore` once and retries the call once. An instance holding an *older* copy than the browser has seen also answers "not here" (the browser sends `x-redteam-rev`), so the ledger never forks |
 | Database down | Sessions fall back to this instance's memory/disk and the review continues |
 
 ## Security
 
 - **Key handling.** `ASSEMBLYAI_API_KEY` is read in one route (`/api/voice-agent/token`), sent as the `Authorization` header to AssemblyAI, and never returned. Tokens are minted per connection, ≤ 600 s. Tests assert the key is absent from every RedTeam response and from upstream error bodies.
 - **CSP.** `connect-src` allows exactly `wss://agents.assemblyai.com` in addition to the existing streaming host.
+- **Snapshots cannot write the ledger.** A copy is authenticated, not encrypted: HMAC-SHA256 over `v1.` + owner + data, with a key derived from `REDTEAM_SECRET` (or, failing that, the AssemblyAI key or the database URL). The owner id is signed over but never included, because it is the HttpOnly cookie behind a prefix. The signature is checked before anything is decoded, inflation is capped at 1 MiB, and every failure — wrong owner, changed byte, expired, malformed — is the same 404 as a review that never existed. A restore can only bring back a ledger this server produced.
 - **Ownership.** Identity is the existing HttpOnly cookie. `getSession(userId, id)` and every SQL statement are scoped by user; a session that is someone else's answers exactly like one that does not exist (no id probing).
 - **Documents are data.** The document never enters the system prompt (only a sanitised one-line title does). Passages reach the agent only inside tool results, with instruction-shaped phrases (`ignore previous instructions`, `you are now…`, `system prompt`) replaced. A test feeds a hostile document and asserts it cannot change a verdict or end the session.
 - **XSS.** Passages render as React text nodes. The browser test pastes `<script>`/`<img onerror>` and asserts nothing runs and no such element exists.

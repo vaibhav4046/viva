@@ -117,7 +117,7 @@ ASSEMBLYAI_API_KEY=... npm start        # http://localhost:3000/redteam
 | `DATABASE_URL` | optional. Review sessions persist in Postgres (`redteam_sessions`, created on first use) |
 | `TRUSTED_PROXY_HOPS` | optional. Only if you run behind your own proxies; the rate limiter never trusts a caller-written `x-forwarded-for` otherwise |
 
-⟨SERVERLESS_LINE⟩
+On a serverless host without a database, a review survives landing on an instance that never saw it: every response carries a **signed copy** of the review, and the browser hands it back once if an instance says "not here". The copy is authenticated, bound to your browser without containing your id, and can only bring back a ledger the server produced. Set `REDTEAM_SECRET` (any long random string) so every instance can verify it; without it, the AssemblyAI key is used to derive the signing key.
 
 ## Evidence, and what is not yet evidenced
 

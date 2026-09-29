@@ -20,7 +20,9 @@
     "test:assemblyai-live": "node scripts/live-test.mjs",
     "test:redteam-e2e": "node scripts/e2e-redteam.mjs",
     "test:redteam-a11y": "node scripts/axe-redteam.mjs",
-    "test:redteam-live": "tsx scripts/live-redteam.mts"
+    "test:redteam-live": "tsx scripts/live-redteam.mts",
+    "test:redteam-two-instances": "node scripts/e2e-two-instances.mjs",
+    "render:submission": "node scripts/render-submission-assets.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.45.0",

@@ -23,6 +23,9 @@ import { err } from "@/lib/types";
  * prompt at build time.
  */
 
+/** Documented range 0 to 1000 ms. Measured effect on stop latency: docs/evidence/probes/oral-live-bargein.*.json. */
+const INTERRUPTION_DELAY_MS = 0;
+
 /** The rules that make the exam an exam. */
 
 export async function GET(req: Request): Promise<Response> {
@@ -56,18 +59,15 @@ export async function GET(req: Request): Promise<Response> {
           subjectId: subject.id,
           system_prompt,
           greeting: "You're being examined. Tell me what you want to be asked on, and I'll start there.",
-          // Tighter threshold = more eager to treat a pause as end-of-turn.
-          // A student thinking mid-sentence gets cut off at 0.5 often enough
-          // to be maddening, so 0.6, and a long window before it counts.
+          // Only the fields the turn-detection reference documents. An earlier
+          // version sent undocumented names (silence_duration_ms, interrupt_*),
+          // which the service accepted and ignored, so the settings looked
+          // applied and were not. interruption_delay is how long the student
+          // must keep talking before the agent is cut off.
           turn_detection: {
             vad_threshold: 0.6,
-            // Let a real pause happen. These are the names the API uses; if a
-            // field is rejected the server answers `invalid_config` and the
-            // client falls back to defaults rather than retrying blindly.
-            silence_duration_ms: 1200,
-            interrupt_during_agent_speech: true,
-            interrupt_threshold: 0.8,
-            interrupt_duration_ms: 320,
+            interrupt_response: true,
+            interruption_delay: INTERRUPTION_DELAY_MS,
           },
           transcription_mode: "balanced",
           language_codes: subject.languageCodes?.length ? subject.languageCodes : ["en"],

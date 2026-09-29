@@ -6,15 +6,18 @@
  * the speaker (there is none in Node), so stop latency here is the time to the
  * client's flush call; the browser probe measures the AudioContext stop.
  *
- *   ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip|bargein|discard|resume [--runs N]
+ *   ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip|bargein|bargein_tool|resume [--runs N]
  *
- * Output: docs/evidence/probes/oral-live-<scenario>.<date>.json and numbers.json.
+ * Output: docs/evidence/probes/oral-live-<scenario>.<date>.json. Run scripts/probes/oral-numbers.mjs to refresh numbers.json.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { openOralSocket, type OralTraceEvent } from "../../src/lib/oral/socket";
 
+// The resume probe needs a socket it can kill without a close frame; Next ships one.
+const WsLib = createRequire(import.meta.url)("next/dist/compiled/ws") as { WebSocket: new (url: string) => unknown };
 const base = process.env.ORAL_PROBE_BASE ?? "http://localhost:3101";
 const root = (p: string) => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 const scenario = process.argv[2] ?? "roundtrip";
@@ -73,6 +76,7 @@ async function makeHarness() {
       toolResults.push({ name, args, result: r.result as Record<string, unknown> });
       return r.result;
     },
+    ...(scenario === "resume" ? { openSocket: (url: string) => new WsLib.WebSocket(url) as unknown as WebSocket } : {}),
     playAudio: () => {},
     flushAudio: () => {},
     onState: () => {},
@@ -80,7 +84,8 @@ async function makeHarness() {
       if (speaker === "agent") agent.push({ text, interrupted: !!interrupted, t: performance.now() });
       else user.push({ text, t: performance.now() });
     },
-    onError: (e) => { fatal = e; },
+    // "Expired ... Starting a new one" is the designed notice for a refused resume, not a failure of the probe.
+    onError: (e) => { if (/expired/i.test(e)) mark("probe.notice", { text: e }); else fatal = e; },
   });
 
   // The mic: real-time 100 ms frames, silence unless a clip is queued.
@@ -141,6 +146,7 @@ async function runRoundtrip(run: number): Promise<RunOut> {
   const metrics: Record<string, number> = {};
   const notes: Record<string, unknown> = {};
   try {
+    await h.waitFor("ws.connect", () => !!h.seen("ws.connect"), 15_000);
     const connect = h.seen("ws.connect")!.t;
     await greeted(h);
     metrics.sessionReadyMs = round(h.seen("ws.recv", { type: "session.ready" })!.t - connect);
@@ -198,10 +204,13 @@ async function runBargeIn(run: number, viaTool = false): Promise<RunOut> {
       await h.waitFor("agent speech", () => !!h.seen("audio.play"), 30_000);
       await sleep(900);
     } else {
+      // Live finding: speech sent while a tool call is pending (execution_mode hold) is not detected at
+      // all, so there is nothing to interrupt in that window. The correction spoken after the
+      // result is the long sentence of this flow, so barge in 1.2 s into it.
       await greeted(h);
       h.say(wavToPcm("student-misconception"));
-      await h.waitFor("tool.call", () => !!h.trace.find((e) => e.kind === "ws.recv" && e.type === "tool.call"), 60_000);
-      await sleep(150);
+      await h.waitFor("tool.result.send", () => !!h.seen("tool.result.send"), 60_000);
+      await sleep(1200);
     }
     const clipAt = performance.now();
     h.say(wavToPcm("student-interruption"));
@@ -219,8 +228,11 @@ async function runBargeIn(run: number, viaTool = false): Promise<RunOut> {
     } else failures.push("no barge_in.flush: the agent was not SPEAKING when input.speech.started arrived");
     if (!interrupted) failures.push("no reply.done with status interrupted");
     else metrics.interruptedReplyDoneMs = round(interrupted.t - voiceAt);
-    metrics.agentAudioChunksAfterFlush = flushEnd ? h.trace.filter((e) => e.kind === "audio.play" && e.t > flushEnd.t).length : -1;
-    await h.waitFor("agent answer to the interruption", () => h.agent.some((a) => a.t > (interrupted?.t ?? clipAt) && !a.interrupted), 45_000).catch(() => failures.push("no agent reply after the interruption"));
+    // Stale audio: chunks of the interrupted reply that arrived after the flush.
+    metrics.staleAudioChunksPlayedAfterFlush = flushEnd && interrupted ? h.trace.filter((e) => e.kind === "audio.play" && e.t > flushEnd.t && e.t < interrupted.t).length : -1;
+    metrics.staleAudioChunksDroppedAfterFlush = flushEnd && interrupted ? h.trace.filter((e) => e.kind === "audio.drop" && e.t > flushEnd.t && e.t < interrupted.t).length : -1;
+    // The service does not always send a final transcript.agent for a completed reply, so a finished reply.done counts.
+    await h.waitFor("agent answer to the interruption", () => !!h.seen("ws.recv", { type: "reply.done", status: "completed" }, interrupted?.t ?? clipAt), 45_000).catch((e) => failures.push(`no agent reply after the interruption (${e instanceof Error ? e.message : e})`));
     notes.agent = h.agent.map((a) => ({ text: a.text, interrupted: a.interrupted }));
     notes.user = h.user.map((u) => u.text);
     const states = h.trace.filter((e) => e.kind === "state").map((e) => String(e.state));
@@ -229,11 +241,11 @@ async function runBargeIn(run: number, viaTool = false): Promise<RunOut> {
     notes.machine = { interruptions: m.interruptions, discards: m.discards, toolCalls: m.toolCalls };
     if (!states.includes("INTERRUPTED")) failures.push("state trace lacks INTERRUPTED");
     if (viaTool) {
-      const call = h.trace.find((e) => e.kind === "ws.recv" && e.type === "tool.call");
-      const sentAfter = h.trace.find((e) => e.kind === "tool.result.send" && call && e.call_id === call.call_id);
-      notes.toolResultSentForInterruptedCall = !!sentAfter;
-      if (!interrupted) failures.push("the interruption did not produce an interrupted reply, so nothing was discarded");
-      else if (sentAfter) failures.push("tool.result was sent for a call whose reply was interrupted");
+      const sends = h.trace.filter((e) => e.kind === "tool.result.send");
+      notes.toolResultsSent = sends.length;
+      // Nothing may be delivered after the interruption for a call that finished before it.
+      const late = sends.filter((e) => interrupted && e.t > interrupted.t);
+      if (late.length) failures.push("a tool.result was sent after the interrupted reply.done");
     }
     if (!h.agent.some((a) => a.interrupted) && !viaTool) failures.push("no transcript.agent with interrupted=true");
   } catch (e) {
@@ -250,36 +262,49 @@ async function runResume(run: number): Promise<RunOut> {
   const failures: string[] = [];
   const metrics: Record<string, number> = {};
   const notes: Record<string, unknown> = {};
+  const deltasBetween = (from: number, to = Infinity) => h.trace.filter((e) => e.type === "transcript.agent.delta" && e.t > from && e.t < to).map((e) => String(e.delta ?? "")).join(" ").replace(/s+/g, " ").trim();
   try {
     await greeted(h);
+    // One real exchange first, so there is context worth keeping.
+    h.say(wavToPcm("student-correct"));
+    await sleep(2500);
+    await h.waitFor("first answer graded", () => h.user.length > 0 && !!h.seen("ws.recv", { type: "reply.done" }, h.user.at(-1)!.t), 60_000);
+    await sleep(500);
     const idBefore = h.socket.machine().sessionId;
-    const greetings = h.agent.length;
     const dropAt = performance.now();
     h.trace.dropSocket?.();
     await h.waitFor("RECOVERING", () => !!h.seen("state", { state: "RECOVERING" }, dropAt), 5_000);
-    await h.waitFor("session.ready after resume", () => !!h.trace.find((e) => e.kind === "ws.recv" && e.type === "session.ready" && e.t > dropAt), 30_000);
+    await h.waitFor("session.ready after the drop", () => !!h.trace.find((e) => e.kind === "ws.recv" && e.type === "session.ready" && e.t > dropAt), 40_000);
     const readyAt = h.trace.find((e) => e.kind === "ws.recv" && e.type === "session.ready" && e.t > dropAt)!.t;
-    metrics.resumeMs = round(readyAt - dropAt);
-    const idAfter = h.socket.machine().sessionId;
-    notes.sameSessionId = idBefore !== null && idBefore === idAfter;
-    if (!notes.sameSessionId) failures.push("session id changed across resume");
-    const modes = h.trace.filter((e) => e.kind === "ws.connect").map((e) => e.mode);
-    notes.connectModes = modes;
-    if (!modes.includes("resume")) failures.push("reconnect did not use session.resume");
-    await sleep(1500);
-    h.say(wavToPcm("student-correct"));
+    metrics.recoveryMs = round(readyAt - dropAt);
+    const refused = h.trace.find((e) => e.type === "session.error" && e.t > dropAt);
+    const modes = h.trace.filter((e) => e.kind === "ws.connect" && e.t > dropAt).map((e) => String(e.mode));
+    const carried = h.trace.find((e) => e.kind === "session.update.sent" && e.t > dropAt);
+    notes.connectModesAfterDrop = modes;
+    notes.resumeRefusedWith = refused ? refused.code : null;
+    notes.outcome = refused ? "resume refused by the service, continued in a new session with the recent turns" : "resumed";
+    notes.sessionIdChanged = idBefore !== h.socket.machine().sessionId;
+    if (modes.filter((m) => m === "resume").length > 3) failures.push("more than 3 resume attempts");
+    if (refused && !(carried && carried.continued === true && Number(carried.historyTurns) >= 1)) failures.push("refused resume but the new session did not carry the turns");
+    if (!refused && notes.sessionIdChanged) failures.push("resume reported success but the session id changed");
+    // The new session speaks its own short line, not the opening greeting.
+    await sleep(5000);
+    notes.sayingAfterRecovery = deltasBetween(readyAt);
+    if (/being examined/i.test(String(notes.sayingAfterRecovery))) failures.push("the opening greeting was repeated after recovery");
+    // Coherence: ask for the question again; a session that kept context answers about the exam.
+    const before = performance.now();
+    h.say(wavToPcm("student-interruption"));
     await sleep(2500);
-    await h.waitFor("user transcript after resume", () => h.user.length > 0, 30_000);
-    await h.waitFor("agent reply after resume", () => h.agent.length > greetings, 45_000);
+    await h.waitFor("reply after recovery", () => !!h.seen("ws.recv", { type: "reply.done", status: "completed" }, before), 45_000);
     await sleep(500);
-    notes.userAfterResume = h.user.map((u) => u.text);
-    notes.agentAfterResume = h.agent.slice(greetings).map((a) => a.text);
-    if (/being examined/i.test(String(notes.agentAfterResume))) failures.push("the greeting was repeated after resume");
+    notes.replyToRepeatRequest = deltasBetween(before);
+    notes.userTurnsHeard = h.user.map((u) => u.text);
     notes.states = h.trace.filter((e) => e.kind === "state").map((e) => String(e.state));
+    if (!h.user.some((u) => /repeat/i.test(u.text))) failures.push("the post-recovery student turn was not transcribed");
   } catch (e) {
     failures.push(String(e instanceof Error ? e.message : e));
   } finally {
-    notes.trace = h.trace.map(({ t, kind, ...rest }) => ({ ms: Math.round(t), kind, ...rest }));
+    notes.trace = h.trace.filter((e) => e.kind !== "audio.play" && e.type !== "reply.audio").map(({ t, kind, ...rest }) => ({ ms: Math.round(t), kind, ...rest }));
     await h.stop();
   }
   return { run, ok: failures.length === 0, failures, metrics, notes };
@@ -290,7 +315,7 @@ const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); retu
 const results: RunOut[] = [];
 for (let i = 1; i <= runs; i++) {
   console.log(`--- ${scenario} run ${i}/${runs}`);
-  const r = scenario === "roundtrip" ? await runRoundtrip(i) : scenario === "bargein" ? await runBargeIn(i) : scenario === "discard" ? await runBargeIn(i, true) : await runResume(i);
+  const r = scenario === "roundtrip" ? await runRoundtrip(i) : scenario === "bargein" ? await runBargeIn(i) : scenario === "bargein_tool" ? await runBargeIn(i, true) : await runResume(i);
   console.log(r.ok ? "PASS" : "FAIL", JSON.stringify(r.metrics), r.failures.join("; "));
   results.push(r);
   await sleep(2000);
@@ -316,20 +341,5 @@ const out = {
 };
 writeFileSync(root(evidencePath), JSON.stringify(out, null, 2), "utf8");
 
-// numbers.json: only values that were measured, each with n, date, evidence file and command.
-const numbersPath = root("numbers.json");
-const numbers = existsSync(numbersPath) ? JSON.parse(readFileSync(numbersPath, "utf8")) : {};
-const publish: Record<string, string> = {
-  roundtrip: "sessionReadyMs firstAudioMs toolHttpMs toolCallToResultMs",
-  bargein: "speechDetectedMs flushAfterSpeechStartedMs stopFromVoiceOnsetMs",
-  resume: "resumeMs",
-  discard: "",
-}[scenario]?.split(" ").filter(Boolean) ?? [];
-for (const key of publish) {
-  const s = (summary as Record<string, { median: number | null; n: number }>)[key];
-  if (!s || s.median === null || s.n < 1) continue;
-  numbers[`oral.${scenario}.${key}`] = { value: s.median, n: s.n, date: DATE, evidence: evidencePath, cmd: out.cmd };
-}
-writeFileSync(numbersPath, JSON.stringify(numbers, null, 2) + "\n", "utf8");
 console.log("SUMMARY", JSON.stringify(summary), `passed ${out.passed}/${out.runs}`, "->", evidencePath);
 process.exit(out.passed === out.runs ? 0 : 1);

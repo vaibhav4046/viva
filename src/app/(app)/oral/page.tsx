@@ -62,10 +62,11 @@ const STATE_LINE: Record<OralState, string> = {
   INTERRUPTED: "Go on.",
   RECOVERING: "Reconnecting…",
   ERROR: "Something went wrong.",
+  ENDED: "The exam has ended.",
 };
 
 /** Only the states where a control is meaningful. */
-const CAN_START: ReadonlySet<OralState> = new Set(["IDLE", "ERROR"]);
+const CAN_START: ReadonlySet<OralState> = new Set(["IDLE", "ERROR", "ENDED"]);
 const CAN_STOP: ReadonlySet<OralState> = new Set([
   "READY", "LISTENING", "USER_SPEAKING", "THINKING", "CHECKING_SOURCE", "SPEAKING", "INTERRUPTED", "RECOVERING",
 ]);

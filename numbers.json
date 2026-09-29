@@ -1,0 +1,128 @@
+{
+  "oral.roundtrip.sessionReadyMs": {
+    "value": 401,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
+  },
+  "oral.roundtrip.firstAudioMs": {
+    "value": 905,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
+  },
+  "oral.roundtrip.toolHttpMs": {
+    "value": 1518,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
+  },
+  "oral.roundtrip.toolCallToResultMs": {
+    "value": 1519,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-roundtrip.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts roundtrip --runs 3"
+  },
+  "oral.bargein.speechDetectedMs": {
+    "value": 1286,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-bargein.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein --runs 3"
+  },
+  "oral.bargein.stopFromVoiceOnsetMs": {
+    "value": 1286,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-bargein.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein --runs 3"
+  },
+  "oral.bargein.interruptedReplyDoneMs": {
+    "value": 3243,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-bargein.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein --runs 3"
+  },
+  "oral.bargein_tool.speechDetectedMs": {
+    "value": 1456,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-bargein_tool.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein_tool --runs 3"
+  },
+  "oral.bargein_tool.stopFromVoiceOnsetMs": {
+    "value": 1456,
+    "n": 3,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-bargein_tool.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein_tool --runs 3"
+  },
+  "oral.resume.recoveryMs": {
+    "value": 986,
+    "n": 2,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/oral-live-resume.2026-09-29.json",
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts resume --runs 2"
+  },
+  "oral.verifyClaim.claimsInSet": {
+    "value": 54,
+    "n": 54,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.falseSupported": {
+    "value": 0,
+    "n": 54,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.supportedPrecision": {
+    "value": 1,
+    "n": 54,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.supportedRecall": {
+    "value": 1,
+    "n": 54,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.contradictedPrecision": {
+    "value": 1,
+    "n": 54,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.contradictedRecall": {
+    "value": 0.889,
+    "n": 54,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.medianJudgeMs": {
+    "value": 590,
+    "n": 53,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  },
+  "oral.verifyClaim.p95JudgeMs": {
+    "value": 2067,
+    "n": 53,
+    "date": "2026-09-29",
+    "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
+    "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
+  }
+}

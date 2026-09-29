@@ -104,7 +104,7 @@ export function harness(opts: { toolRunner?: (name: string, args: Record<string,
       onServerEvent(ev);
     };
     socket.onClose = (code, reason) => {
-      if (m.state === "IDLE") return; // clean teardown, not a drop
+      if (m.state === "IDLE" || m.state === "ENDED") return; // clean teardown, not a drop
       m = onRecovering(m, `socket closed ${code} ${reason}`);
     };
     m = onConnecting(m);

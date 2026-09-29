@@ -39,8 +39,9 @@ describe("oral state machine", () => {
   it("has the twelve states the product promises", () => {
     expect(ORAL_STATES).toEqual([
       "IDLE", "CONNECTING", "READY", "LISTENING", "USER_SPEAKING", "THINKING",
-      "CHECKING_SOURCE", "SPEAKING", "INTERRUPTED", "RECOVERING", "ERROR",
+      "CHECKING_SOURCE", "SPEAKING", "INTERRUPTED", "RECOVERING", "ERROR", "ENDED",
     ]);
+    expect(ORAL_STATES).toHaveLength(12);
     expect(new Set(ORAL_STATES).size).toBe(ORAL_STATES.length);
   });
 
@@ -197,7 +198,7 @@ describe("tool result queue — the interrupted-turn rule", () => {
     let m = onToolCall(toSpeaking(), { call_id: "c1", name: "save_note", arguments: {} });
     m = withToolResult(m, "c1", {});
     const ended = onEnded(m);
-    expect(ended.state).toBe("IDLE");
+    expect(ended.state).toBe("ENDED");
     expect(ended.pending).toHaveLength(0);
     expect(ended.ready).toHaveLength(0);
     expect(ended.sessionId).toBeNull();
@@ -257,5 +258,32 @@ describe("every state is reachable and the table has no dead ends", () => {
     }
 
     for (const s of ORAL_STATES) expect(seen).toContain(s);
+  });
+});
+
+describe("recovery from a transient error (found live: a refused resume left the screen in ERROR)", () => {
+  it("leaves a non-fatal ERROR for RECOVERING and then LISTENING", () => {
+    let m = onStartStreaming(onSessionReady(onConnecting(initialMachine()), { session_id: "s" }));
+    m = onError(m, "session_not_found", false);
+    expect(m.state).toBe("ERROR");
+    m = onRecovering(m, "session could not be resumed");
+    expect(m.state).toBe("RECOVERING");
+    m = onStartStreaming(onSessionReady(m, { session_id: "s2" }));
+    expect(m.state).toBe("LISTENING");
+    expect(m.fatal).toBe(false);
+  });
+
+  it("does not leave a fatal ERROR except through an explicit connect", () => {
+    const m = onError(onStartStreaming(onSessionReady(onConnecting(initialMachine()), { session_id: "s" })), "UNAUTHORIZED", true);
+    expect(onRecovering(m).state).toBe("ERROR");
+    expect(onStartStreaming(m).state).toBe("ERROR");
+    expect(onConnecting(m).state).toBe("CONNECTING");
+  });
+
+  it("lets ENDED start a new exam and nothing else", () => {
+    const ended = onEnded(onStartStreaming(onSessionReady(onConnecting(initialMachine()), { session_id: "s" })));
+    expect(ended.state).toBe("ENDED");
+    expect(onReplyStarted(ended).state).toBe("ENDED");
+    expect(onConnecting(ended).state).toBe("CONNECTING");
   });
 });

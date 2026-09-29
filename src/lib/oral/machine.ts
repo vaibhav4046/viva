@@ -36,15 +36,22 @@ export type OralState =
   | "SPEAKING" // reply.audio arriving
   | "INTERRUPTED" // reply.done(status=interrupted) seen this turn
   | "RECOVERING" // dropped, attempting session.resume
-  | "ERROR"; // recoverable or not, decided by `fatal`
+  | "ERROR" // recoverable or not, decided by `fatal`
+  | "ENDED"; // session.ended seen: a clean finish, the summary is final
 
 export const ORAL_STATES: readonly OralState[] = [
   "IDLE", "CONNECTING", "READY", "LISTENING", "USER_SPEAKING", "THINKING",
-  "CHECKING_SOURCE", "SPEAKING", "INTERRUPTED", "RECOVERING", "ERROR",
+  "CHECKING_SOURCE", "SPEAKING", "INTERRUPTED", "RECOVERING", "ERROR", "ENDED",
 ] as const;
 
-/** States from which no further progress is possible without user action. */
-const TERMINAL: ReadonlySet<OralState> = new Set<OralState>(["IDLE", "ERROR"]);
+/**
+ * States the machine does not leave on its own. ERROR is only terminal when
+ * `fatal`: a transient session.error leaves the socket alive and the machine
+ * must be able to recover from it. (Found live 2026-09-29: the guard treated
+ * every ERROR as terminal, so a refused resume left the screen on "Something
+ * went wrong" through a healthy continued exam.)
+ */
+const TERMINAL: ReadonlySet<OralState> = new Set<OralState>(["IDLE", "ERROR", "ENDED"]);
 
 export type PendingTool = {
   callId: string;
@@ -114,26 +121,29 @@ export function initialMachine(): OralMachine {
  */
 const TRANSITIONS: Record<OralState, readonly OralState[]> = {
   IDLE: ["CONNECTING"],
-  CONNECTING: ["READY", "ERROR", "IDLE"],
-  READY: ["LISTENING", "ERROR", "RECOVERING", "IDLE"],
+  CONNECTING: ["READY", "ERROR", "IDLE", "ENDED"],
+  READY: ["LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   // LISTENING -> SPEAKING is not decoration: the agent opens the exam. The
   // greeting arrives with no user turn at all, so the client is in LISTENING
   // when the first `reply.audio` lands, and without this the screen reads
   // "Listening. Go ahead." while the examiner is already talking. Found by
   // driving the real service, where the greeting is the first thing that ever
   // comes back.
-  LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "ERROR", "RECOVERING", "IDLE"],
-  USER_SPEAKING: ["LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE"],
-  THINKING: ["CHECKING_SOURCE", "SPEAKING", "LISTENING", "ERROR", "RECOVERING", "IDLE"],
-  CHECKING_SOURCE: ["SPEAKING", "THINKING", "LISTENING", "ERROR", "RECOVERING", "IDLE"],
+  LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  USER_SPEAKING: ["LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  THINKING: ["CHECKING_SOURCE", "SPEAKING", "LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  CHECKING_SOURCE: ["SPEAKING", "THINKING", "LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   // A tool call arrives while a reply is still nominally in flight: the
   // documented flow is reply.started -> tool.call -> reply.done, so SPEAKING
   // has to be allowed to hand off to CHECKING_SOURCE. Without this the screen
   // would claim the agent is speaking while a retrieval was actually running.
-  SPEAKING: ["INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE"],
-  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "ERROR", "RECOVERING", "IDLE"],
-  RECOVERING: ["READY", "LISTENING", "ERROR", "IDLE"],
-  ERROR: ["CONNECTING", "RECOVERING", "IDLE"],
+  SPEAKING: ["INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  RECOVERING: ["READY", "LISTENING", "ERROR", "IDLE", "ENDED"],
+  // A non-fatal ERROR (a retryable session.error) recovers through a resume, a
+  // fresh connect, or the session.ready of a socket that stayed up.
+  ERROR: ["CONNECTING", "RECOVERING", "READY", "LISTENING", "IDLE", "ENDED"],
+  ENDED: ["CONNECTING", "IDLE"],
 };
 
 /**
@@ -153,11 +163,9 @@ export function transition(m: OralMachine, next: OralState, opts: { reason?: str
     return m;
   }
   if (TERMINAL.has(m.state)) {
-    if (m.state === "IDLE" && next === "CONNECTING") {
-      // IDLE -> CONNECTING is the one legal escape from a terminal state.
-    } else {
-      return m;
-    }
+    const startAgain = (m.state === "IDLE" || m.state === "ENDED" || m.state === "ERROR") && next === "CONNECTING";
+    const recoverFromTransient = m.state === "ERROR" && !m.fatal;
+    if (!startAgain && !recoverFromTransient) return m;
   }
   if (!TRANSITIONS[m.state].includes(next)) {
     return m;
@@ -373,5 +381,5 @@ export function isRetryableCode(code: string): boolean {
 
 /** Clean teardown. */
 export function onEnded(m: OralMachine): OralMachine {
-  return { ...transition(m, "IDLE"), streaming: false, pending: [], ready: [], sessionId: null };
+  return { ...transition(m, "ENDED"), streaming: false, pending: [], ready: [], sessionId: null };
 }

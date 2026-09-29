@@ -143,7 +143,7 @@ describe("session lifecycle", () => {
     h.start();
     h.end();
     expect(h.socket.sent.at(-1)).toEqual({ type: "session.end" });
-    expect(h.state()).toBe("IDLE");
+    expect(h.state()).toBe("ENDED");
   });
 
   it("clears the session id on end, so it cannot be resumed", () => {
@@ -167,7 +167,7 @@ describe("session lifecycle", () => {
     h.start();
     h.end();
     h.socket.serverClose(1000, "normal");
-    expect(h.state()).toBe("IDLE");
+    expect(h.state()).toBe("ENDED");
   });
 
   it("records a session error and keeps the state honest", () => {

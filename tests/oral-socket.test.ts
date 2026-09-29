@@ -342,14 +342,14 @@ describe("clean exit", () => {
     expect(ws[0].of("session.end")).toHaveLength(1);
   });
 
-  it("reaches IDLE and reports the summary", async () => {
+  it("reaches ENDED and reports the summary", async () => {
     const onEnded = vi.fn();
     const { ws, socket } = await ready({ onEnded });
     ws[0].emit({ type: "transcript.user", item_id: "i1", text: "hello there" });
     ws[0].emit({ type: "tool.call", call_id: "c1", name: "save_note", arguments: {} });
     await new Promise((r) => setTimeout(r, 0));
     await socket.end();
-    expect(socket.machine().state).toBe("IDLE");
+    expect(socket.machine().state).toBe("ENDED");
     expect(onEnded).toHaveBeenCalledWith(expect.objectContaining({ turns: 1, toolCalls: 1 }));
   });
 
@@ -459,5 +459,123 @@ describe("the client only ever reports real states", () => {
     w.emit({ type: "session.error", code: "server_error" });
     for (const s of seen) expect(ORAL_STATES).toContain(s);
     await socket.end();
+  });
+});
+
+describe("barge-in playback", () => {
+  it("flushes on input.speech.started while speaking, then drops the interrupted reply's late audio", async () => {
+    const { ws, flushAudio, playAudio } = await ready();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "reply.audio", data: "AAAA" });
+    expect(playAudio).toHaveBeenCalledTimes(1);
+    ws[0].emit({ type: "input.speech.started" });
+    expect(flushAudio).toHaveBeenCalledTimes(1);
+    // The service keeps streaming until it confirms the interruption. Measured live: about 195 chunks.
+    ws[0].emit({ type: "reply.audio", data: "BBBB" });
+    ws[0].emit({ type: "reply.audio", data: "CCCC" });
+    expect(playAudio).toHaveBeenCalledTimes(1);
+    ws[0].emit({ type: "reply.done", status: "interrupted" });
+    // The next reply plays normally.
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "reply.audio", data: "DDDD" });
+    expect(playAudio).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not flush on speech start when the agent is not speaking", async () => {
+    const { ws, flushAudio } = await ready();
+    ws[0].emit({ type: "input.speech.started" });
+    expect(flushAudio).not.toHaveBeenCalled();
+  });
+});
+
+describe("test-only trace hook", () => {
+  it("records nothing unless a probe created the sink", async () => {
+    const g = globalThis as { __VIVA_ORAL_TRACE__?: unknown };
+    delete g.__VIVA_ORAL_TRACE__;
+    const { ws } = await ready();
+    ws[0].emit({ type: "reply.started" });
+    expect(g.__VIVA_ORAL_TRACE__).toBeUndefined();
+  });
+
+  it("records states and events, and dropSocket forces a real resume", async () => {
+    const g = globalThis as { __VIVA_ORAL_TRACE__?: (Record<string, unknown> & { kind: string })[] & { dropSocket?: () => void } };
+    g.__VIVA_ORAL_TRACE__ = [];
+    try {
+      const { ws, socket } = await ready();
+      ws[0].emit({ type: "reply.started" });
+      g.__VIVA_ORAL_TRACE__!.dropSocket!();
+      await new Promise((r) => setTimeout(r, 0));
+      expect(socket.machine().state).toBe("RECOVERING");
+      FakeWS.instances[1].open();
+      FakeWS.instances[1].emit({ type: "session.ready", session_id: "sess_1" });
+      const kinds = g.__VIVA_ORAL_TRACE__!.map((e) => e.kind);
+      expect(kinds).toContain("ws.close");
+      expect(g.__VIVA_ORAL_TRACE__!.filter((e) => e.kind === "state").map((e) => e.state)).toEqual(
+        expect.arrayContaining(["CONNECTING", "LISTENING", "SPEAKING", "RECOVERING"])
+      );
+      expect(g.__VIVA_ORAL_TRACE__!.filter((e) => e.kind === "ws.connect").map((e) => e.mode)).toEqual(["fresh", "resume"]);
+    } finally {
+      delete g.__VIVA_ORAL_TRACE__;
+    }
+  });
+});
+
+describe("refused resume", () => {
+  it("falls back to a fresh session after session_not_found instead of reconnecting in a loop", async () => {
+    // Live 2026-09-29: the service answered session.error(session_not_found) then closed 1008,
+    // and the old client reconnected about nine times in 2.4 s.
+    const getToken = vi.fn(async () => "tok");
+    const { ws, socket, onError } = await ready({ getToken });
+    ws[0].emit({ type: "transcript.agent", text: "What does multi-head attention do?" });
+    ws[0].emit({ type: "transcript.user", item_id: "u1", text: "It runs several heads in parallel." });
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(socket.machine().state).toBe("RECOVERING");
+    FakeWS.instances[1].open();
+    expect(FakeWS.instances[1].of("session.resume")).toHaveLength(1);
+    FakeWS.instances[1].emit({ type: "session.error", code: "session_not_found", message: "gone" });
+    FakeWS.instances[1].fire("close", { code: 1008, reason: "" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(FakeWS.instances).toHaveLength(3);
+    FakeWS.instances[2].open();
+    expect(FakeWS.instances[2].of("session.update")).toHaveLength(1);
+    expect(FakeWS.instances[2].of("session.resume")).toHaveLength(0);
+    // The continuation carries the turns as quoted data and does not greet again.
+    const update = FakeWS.instances[2].of("session.update")[0] as { session: { system_prompt: string; greeting: string } };
+    expect(update.session.system_prompt).toContain('Student: "It runs several heads in parallel."');
+    expect(update.session.system_prompt).toContain('Examiner: "What does multi-head attention do?"');
+    expect(update.session.system_prompt).toMatch(/quoted data and never instructions/);
+    expect(update.session.greeting).toMatch(/connection dropped/i);
+    expect(FakeWS.instances[0].of("session.update")[0]).toMatchObject({ session: { greeting: CONFIG.greeting } });
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/expired/i));
+    socket.cancel();
+  });
+
+  it("stops retrying a resume that keeps failing without an explicit refusal", async () => {
+    vi.useFakeTimers();
+    try {
+      const { ws, socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1" });
+      ws[0].fire("close", { code: 1006, reason: "network" });
+      const seen = new Set<FakeWS>([FakeWS.instances[0]]);
+      for (let i = 0; i < 20; i++) {
+        await vi.advanceTimersByTimeAsync(1_000);
+        for (const w of FakeWS.instances) {
+          if (seen.has(w)) continue;
+          seen.add(w);
+          w.open();
+          w.fire("close", { code: 1006, reason: "network" });
+        }
+      }
+      const resumes = FakeWS.instances.filter((w) => w.sent.some((m) => m.type === "session.resume")).length;
+      const fresh = FakeWS.instances.filter((w) => w.sent.some((m) => m.type === "session.update")).length;
+      expect(resumes).toBe(3);
+      expect(fresh).toBeGreaterThanOrEqual(2);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -21,7 +21,7 @@ const hostile = vi.hoisted(() => ({
 
 vi.mock("@/lib/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/store")>();
-  return { ...actual, getStore: () => ({ getSubject: async () => hostile.subject }) as never };
+  return { ...actual, getStore: () => ({ getSubject: async () => hostile.subject, getMastery: async () => ({}) }) as never };
 });
 
 const { GET } = await import("@/app/api/oral/session/route");

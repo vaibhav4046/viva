@@ -168,7 +168,7 @@ describe("tool result queue, the interrupted-turn rule", () => {
     const interrupted = onReplyDone(m, { status: "interrupted" }).machine;
     const late = withToolResult(interrupted, "c1", { status: "contradicted" });
     expect(late.ready).toHaveLength(0);
-    expect(late.discards).toBe(2); // one on the interrupt, one on the late result
+    expect(late.discards).toBe(1); // counted once for the call id, not again when its late result lands
     const { send } = onReplyDone(late, { status: "completed" });
     expect(send).toHaveLength(0);
   });
@@ -331,5 +331,44 @@ describe("speech onset while the examiner speaks (Q2)", () => {
     const err = onError(toSpeaking(), "UNAUTHORIZED", true);
     expect(onReplyAudio(err).state).toBe("ERROR");
     expect(onSpeechStarted(err).state).toBe("ERROR");
+  });
+});
+
+describe("interruption and pending calls (Q9, Q10)", () => {
+  const started = (): OralMachine => {
+    // c1 belongs to a reply that already completed and is still running its HTTP call.
+    let m = onToolCall(toSpeaking(), { call_id: "c1", name: "verify_claim", arguments: {} });
+    m = onReplyDone(m, { status: "completed" }).machine;
+    m = onReplyStarted(m);
+    return onToolCall(m, { call_id: "c2", name: "search_my_material", arguments: {} });
+  };
+
+  it("discards only unreleased calls and answers a released slow call with an error result (Q9)", () => {
+    const { machine, send, discardCallIds } = onReplyDone(started(), { status: "interrupted" });
+    expect(discardCallIds).toEqual(["c2"]);
+    expect(send.map((s) => [s.callId, s.isError])).toEqual([["c1", true]]);
+    expect(machine.pending).toHaveLength(0);
+    expect(machine.discards).toBe(1);
+  });
+
+  it("sends the real result of a released call whose answer was already computed (Q9)", () => {
+    const m = withToolResult(started(), "c1", { status: "supported" });
+    const { send } = onReplyDone(m, { status: "interrupted" });
+    expect(send).toHaveLength(1);
+    expect(send[0].isError).toBe(false);
+    expect(JSON.parse(send[0].result)).toEqual({ status: "supported" });
+  });
+
+  it("does not count the late HTTP result of an answered or discarded call again (Q10)", () => {
+    let m = onReplyDone(started(), { status: "interrupted" }).machine;
+    m = withToolResult(m, "c1", { status: "supported" });
+    m = withToolResult(m, "c2", { found: true });
+    m = withToolResult(m, "c2", { found: true });
+    expect(m.discards).toBe(1);
+    expect(m.ready).toHaveLength(0);
+  });
+
+  it("still counts a result for a call the machine never knew", () => {
+    expect(withToolResult(toSpeaking(), "ghost", {}).discards).toBe(1);
   });
 });

@@ -83,6 +83,12 @@ export type OralMachine = {
   pending: PendingTool[];
   /** Results computed and ready to send at the next `reply.done`. */
   ready: QueuedResult[];
+  /**
+   * Call ids that left `pending` without a live result: discarded by an
+   * interruption, answered with an error, or dropped on a session change. A
+   * late HTTP result for one of these is expected and is not counted again.
+   */
+  gone: string[];
   /** Counters for the diagnostics panel. Real numbers only. */
   turns: number;
   interruptions: number;
@@ -104,6 +110,7 @@ export function initialMachine(): OralMachine {
     resumeToken: null,
     pending: [],
     ready: [],
+    gone: [],
     turns: 0,
     interruptions: 0,
     toolCalls: 0,
@@ -281,11 +288,25 @@ export function withToolResult(
   // result is dropped rather than resurrected into the next turn. This is the
   // single most important line in the file.
   if (!m.pending.some((p) => p.callId === callId)) {
-    return { ...m, discards: m.discards + 1 };
+    // Counted once per call id: an id already in `gone` was counted (or
+    // answered) when it left the queue, so its late result costs nothing more.
+    return m.gone.includes(callId) ? m : { ...m, discards: m.discards + 1 };
   }
   return {
     ...m,
     ready: [...m.ready, { callId, result: JSON.stringify(result ?? null), isError }],
+  };
+}
+
+const GONE_LIMIT = 200;
+const markGone = (gone: string[], ids: string[]): string[] => [...gone, ...ids].slice(-GONE_LIMIT);
+
+/** What the examiner is told when the student cut in before a slow check finished. */
+function interruptedResult(callId: string): QueuedResult {
+  return {
+    callId,
+    result: JSON.stringify({ error: "The learner interrupted before this check finished. Do not confirm or correct them on this point." }),
+    isError: true,
   };
 }
 
@@ -319,7 +340,14 @@ export function onReplyDone(
   const interrupted = ev.status === "interrupted";
 
   if (interrupted) {
-    const discarded = m.pending.map((p) => p.callId);
+    // Only calls from the reply that just died are discarded. A call whose own
+    // reply already completed (released) is one the service is still waiting
+    // on, so it gets its real result if it is ready and an error result if not.
+    // Silently dropping it would leave the examiner waiting on a call forever.
+    const unreleased = m.pending.filter((p) => !p.released);
+    const released = m.pending.filter((p) => p.released);
+    const send = released.map((p) => m.ready.find((r) => r.callId === p.callId) ?? interruptedResult(p.callId));
+    const discarded = unreleased.map((p) => p.callId).filter((id) => !m.gone.includes(id));
     return {
       // The server is authoritative about what happened to the reply, so the
       // state is forced rather than transitioned. A frame dropped between
@@ -331,12 +359,13 @@ export function onReplyDone(
         state: "INTERRUPTED",
         pending: [],
         ready: [],
+        gone: markGone(m.gone, m.pending.map((p) => p.callId)),
         interruptions: m.interruptions + 1,
         discards: m.discards + discarded.length,
         streaming: true,
       },
-      send: [],
-      discardCallIds: discarded,
+      send,
+      discardCallIds: unreleased.map((p) => p.callId),
     };
   }
 

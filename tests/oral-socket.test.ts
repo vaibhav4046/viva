@@ -666,3 +666,29 @@ describe("failures raised mid-exam", () => {
     }
   });
 });
+
+describe("interruption keeps an earlier reply's slow call answered (Q9, Q10)", () => {
+  it("sends an error result for the slow call instead of dropping it, and counts each id once", async () => {
+    let finishSlow!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finishSlow = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "slow", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    // A second reply starts and the student cuts it off while `slow` is still running.
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "input.speech.started" });
+    ws[0].emit({ type: "reply.done", status: "interrupted" });
+
+    const sent = ws[0].of("tool.result");
+    expect(sent).toHaveLength(1);
+    expect(sent[0].call_id).toBe("slow");
+    expect(sent[0].is_error).toBe(true);
+
+    finishSlow({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    expect(socket.machine().discards).toBe(0);
+    expect(socket.machine().interruptions).toBe(1);
+  });
+});

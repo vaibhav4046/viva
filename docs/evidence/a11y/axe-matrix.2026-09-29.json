@@ -1,0 +1,160 @@
+{
+  "measuredOn": "2026-09-29T22:45:17.453Z",
+  "base": "http://localhost:3141",
+  "widths": [
+    390,
+    1440
+  ],
+  "rows": [
+    {
+      "surface": "oral-idle",
+      "width": 390,
+      "violations": [
+        {
+          "id": "landmark-no-duplicate-contentinfo",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Document should not have more than one contentinfo landmark",
+          "sample": ".pb-6"
+        },
+        {
+          "id": "landmark-unique",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination",
+          "sample": ".pb-6"
+        }
+      ],
+      "passes": 40
+    },
+    {
+      "surface": "oral-idle",
+      "width": 1440,
+      "violations": [],
+      "passes": 41
+    },
+    {
+      "surface": "oral-speaking",
+      "width": 390,
+      "violations": [
+        {
+          "id": "landmark-no-duplicate-contentinfo",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Document should not have more than one contentinfo landmark",
+          "sample": ".pb-6"
+        },
+        {
+          "id": "landmark-unique",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination",
+          "sample": ".pb-6"
+        }
+      ],
+      "passes": 40
+    },
+    {
+      "surface": "oral-speaking",
+      "width": 1440,
+      "violations": [],
+      "passes": 39
+    },
+    {
+      "surface": "fail-mic_denied",
+      "width": 390,
+      "violations": [
+        {
+          "id": "landmark-no-duplicate-contentinfo",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Document should not have more than one contentinfo landmark",
+          "sample": ".pb-6"
+        },
+        {
+          "id": "landmark-unique",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination",
+          "sample": ".pb-6"
+        }
+      ],
+      "passes": 40
+    },
+    {
+      "surface": "fail-mic_denied",
+      "width": 1440,
+      "violations": [],
+      "passes": 41
+    },
+    {
+      "surface": "oral-typed",
+      "width": 390,
+      "violations": [
+        {
+          "id": "landmark-no-duplicate-contentinfo",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Document should not have more than one contentinfo landmark",
+          "sample": ".pb-6"
+        },
+        {
+          "id": "landmark-unique",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination",
+          "sample": ".pb-6"
+        }
+      ],
+      "passes": 42
+    },
+    {
+      "surface": "oral-typed",
+      "width": 1440,
+      "violations": [],
+      "passes": 41
+    },
+    {
+      "surface": "debrief",
+      "width": 390,
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Heading levels should only increase by one",
+          "sample": "#debrief-concepts"
+        },
+        {
+          "id": "landmark-no-duplicate-contentinfo",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Document should not have more than one contentinfo landmark",
+          "sample": ".grid.gap-2"
+        },
+        {
+          "id": "landmark-unique",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination",
+          "sample": ".pb-6"
+        }
+      ],
+      "passes": 44
+    },
+    {
+      "surface": "debrief",
+      "width": 1440,
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "nodes": 1,
+          "help": "Heading levels should only increase by one",
+          "sample": "#debrief-concepts"
+        }
+      ],
+      "passes": 45
+    }
+  ]
+}

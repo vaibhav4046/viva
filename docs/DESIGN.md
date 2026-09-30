@@ -79,11 +79,37 @@ Warnings are reviewed line by line in `design/audit-review.md`.
    `scripts/lint-copy-voice.mjs`.
 8. Run `npm run audit:vibe`, `npm run check:contrast` and `npm run lint:copy` before the commit.
 
+## The /oral screen and the debrief sheet
+
+`OralScreen` (`src/components/oral/OralScreen.tsx`) is presentational: the live page feeds it from `useOralSession`, and
+`/dev/oral-states?scenario=<state>` feeds it fixtures for the twelve machine states, seventeen failure screens, the typed
+exam, the empty diagnostics drawer and the debrief. That dev route is what the screenshot matrix and axe visit; it returns
+404 in production and nothing on it is measured.
+
+- State line: the machine state in words, one polite live region. It sits in a fixed-height strip with the two level meters,
+  so a state change moves nothing. Partial transcripts are never announced.
+- Level meters: RMS from an analyser on the real microphone and one on the real playback, read at 12 Hz in `LiveMeter`, which
+  holds its own state so the screen does not re-render.
+- Question card: the examiner's current line, in Newsreader, filling in word by word from the agent's transcript deltas and
+  then replaced by the final text. The learner's own words sit in a second card under it.
+- Passage card (`SourcePassage`): the learner's claim with a red-pen underline when the page contradicts it, the page number
+  and passage id in mono, the verbatim quote with each matched span marked, a status chip and a method label. Only a
+  `verify_claim` verdict that carries a quote makes a card.
+- Failures: `FailurePanel` names what happened, what to do, and offers the actions (start again, type instead, recorded exam,
+  reload, end). A blocking failure is `role="alert"`; a notice (tab hidden, long silence, source check timed out, session
+  replaced, ended early) is a polite status. Full border, no stripe.
+- Controls bar: sticky at the bottom, above the phone tab bar and the home indicator. Start or End, Type instead, and the
+  shortcut (Alt+Shift+M, hidden on coarse pointers).
+- Sources column: beside the question at 1024 px and up; a collapsible stack under it below that.
+- Debrief sheet: strong, shaky and weak concepts as a table with the turn evidence and pages, misconceptions with the page
+  quote, tomorrow's plan, the storage note, print stylesheet. Below 640 px the table becomes stacked rows.
+- Diagnostics (`?diag=1`): numbers derived from the socket trace of this session. Empty until events exist.
+
 ## Known follow-ups
 
 - Restyle by token only so far: `/study`, `/subjects`, `/today`, `/map`, `/exam`, `/connect`. They still use lucide icons,
   some `chip` pills that are not status chips, and older component names.
-- `/oral` and the debrief sheet belong to the next design pass; they should render the shared components in
-  `src/components/ui/exam.tsx`.
+- `/oral` and the debrief sheet are rebuilt (see the next section). Still open there: a manual screen-reader session, and
+  the sources column has no keyboard shortcut of its own.
 - Loading states on screens that fetch (`CoursePicker` callers, `MicButton`) were reviewed as warnings, not checked one by one.
 - After the branches merge, run `node scripts/strip-dashes.mjs --write --include-deferred` and set `VOICE_STRICT=1`.

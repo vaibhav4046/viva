@@ -123,10 +123,12 @@ export function SourcesColumn({ sources, live }: { sources: SourceCard[]; live: 
   return (
     <section className="oral-sources" data-open={open} aria-labelledby="oral-sources-h">
       <h2 id="oral-sources-h" className="oral-sources-h">Pages checked ({sources.length})</h2>
-      <button type="button" className="oral-sources-toggle" aria-expanded={open} aria-controls="oral-sources-body" onClick={() => setOpen((v) => !v)}>
-        <span>{open ? "Hide the pages" : "Show the pages"}</span>
-        <span className="mono">{sources.length}</span>
-      </button>
+      {sources.length > 0 ? (
+        <button type="button" className="oral-sources-toggle" aria-expanded={open} aria-controls="oral-sources-body" onClick={() => setOpen((v) => !v)}>
+          <span>{open ? "Hide the pages" : "Show the pages"}</span>
+          <span className="mono">{sources.length}</span>
+        </button>
+      ) : null}
       <div id="oral-sources-body" className="oral-sources-body">
         {sources.length === 0 ? (
           <p className="oral-empty">

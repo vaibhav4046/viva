@@ -104,7 +104,11 @@
 
 @media (max-width: 639px) {
   .debrief { padding: var(--space-4); }
-  .debrief table, .debrief tbody, .debrief tr, .debrief th, .debrief td { display: block; width: 100%; }
+  .debrief table, .debrief tbody, .debrief tr, .debrief tbody th, .debrief td, .debrief caption { display: block; width: 100%; }
+  .debrief td[data-label="Standing"] { width: auto; white-space: normal; }
+  .debrief .mono { white-space: normal; }
+  .debrief-plan li { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  .debrief-plan li > :last-child { grid-column: 2; }
   .debrief thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .debrief tr { padding: var(--space-3) 0; border-top: 1px solid var(--border); }
   .debrief th, .debrief td { border-top: 0; padding: var(--space-1) 0; }

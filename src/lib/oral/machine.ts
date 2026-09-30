@@ -144,7 +144,7 @@ const TRANSITIONS: Record<OralState, readonly OralState[]> = {
   // "Listening. Go ahead." while the examiner is already talking. Found by
   // driving the real service, where the greeting is the first thing that ever
   // comes back.
-  LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   // USER_SPEAKING -> SPEAKING: reply audio still arriving while the student is
   // audibly speaking (a cough, a false start) is the examiner still talking.
   USER_SPEAKING: ["LISTENING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
@@ -327,8 +327,12 @@ export function drainReleasedResults(m: OralMachine): { machine: OralMachine; se
     (a, b) => m.pending.findIndex((p) => p.callId === a.callId) - m.pending.findIndex((p) => p.callId === b.callId)
   );
   const sent = new Set(send.map((r) => r.callId));
+  const pending = m.pending.filter((p) => !sent.has(p.callId));
+  // The screen says CHECKING_SOURCE for exactly as long as a call is pending.
+  // Once the last one is delivered the agent has its answer and is composing.
+  const state = m.state === "CHECKING_SOURCE" && pending.length === 0 ? "THINKING" : m.state;
   return {
-    machine: { ...m, pending: m.pending.filter((p) => !sent.has(p.callId)), ready: m.ready.filter((r) => !sent.has(r.callId)) },
+    machine: { ...m, state, pending, ready: m.ready.filter((r) => !sent.has(r.callId)) },
     send,
   };
 }
@@ -381,9 +385,13 @@ export function onReplyDone(
   // A tool POST may still be running when reply.done arrives. Keep those calls
   // and release their results as each request resolves.
   const released = drainReleasedResults({ ...m, pending: m.pending.map((p) => ({ ...p, released: true })) });
+  // reply.done does not end a source check that is still running: the screen
+  // keeps saying so until the call is delivered (live: about 1.3 s of "Listening"
+  // over a running verify_claim before this).
+  const next = released.machine.pending.length > 0 ? "CHECKING_SOURCE" : "LISTENING";
   return {
     machine: {
-      ...transition(released.machine, "LISTENING"),
+      ...transition(released.machine, next),
       streaming: true,
     },
     send: released.send,

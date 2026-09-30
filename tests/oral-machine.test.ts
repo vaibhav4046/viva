@@ -14,6 +14,7 @@ import {
   onToolCall,
   withToolResult,
   onReplyDone,
+  drainReleasedResults,
   onAgentInterrupted,
   onRecovering,
   onError,
@@ -407,5 +408,43 @@ describe("transcript.agent interrupted is an interruption (Q3)", () => {
     m = onReplyStarted(m);
     m = onAgentInterrupted(m).machine;
     expect(m.interruptions).toBe(2);
+  });
+});
+
+describe("CHECKING_SOURCE lasts while a call is pending (Q8)", () => {
+  const calling = (): OralMachine => onCheckingSource(onToolCall(toSpeaking(), { call_id: "c1", name: "verify_claim", arguments: {} }));
+
+  it("stays CHECKING_SOURCE when reply.done completes with the call still running", () => {
+    expect(calling().state).toBe("CHECKING_SOURCE");
+    const { machine, send } = onReplyDone(calling(), { status: "completed" });
+    expect(send).toHaveLength(0);
+    expect(machine.state).toBe("CHECKING_SOURCE");
+    expect(machine.pending).toHaveLength(1);
+  });
+
+  it("goes to THINKING when the last pending call is delivered", () => {
+    const waiting = onReplyDone(calling(), { status: "completed" }).machine;
+    const drained = drainReleasedResults(withToolResult(waiting, "c1", { status: "supported" }));
+    expect(drained.send).toHaveLength(1);
+    expect(drained.machine.state).toBe("THINKING");
+  });
+
+  it("stays CHECKING_SOURCE while a second call is still running", () => {
+    let m = onToolCall(calling(), { call_id: "c2", name: "search_my_material", arguments: {} });
+    m = onReplyDone(m, { status: "completed" }).machine;
+    const drained = drainReleasedResults(withToolResult(m, "c1", { status: "supported" }));
+    expect(drained.send.map((r) => r.callId)).toEqual(["c1"]);
+    expect(drained.machine.state).toBe("CHECKING_SOURCE");
+  });
+
+  it("does not pull a speaking machine back to THINKING when a late call is delivered", () => {
+    let m = onReplyDone(calling(), { status: "completed" }).machine;
+    m = onReplyStarted(m);
+    const drained = drainReleasedResults(withToolResult(m, "c1", { status: "supported" }));
+    expect(drained.machine.state).toBe("SPEAKING");
+  });
+
+  it("still returns to LISTENING when nothing is pending", () => {
+    expect(onReplyDone(onCheckingSource(toSpeaking()), { status: "completed" }).machine.state).toBe("LISTENING");
   });
 });

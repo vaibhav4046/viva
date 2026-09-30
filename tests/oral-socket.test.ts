@@ -724,3 +724,19 @@ describe("agent transcript flagged interrupted (Q3, live trace)", () => {
     expect(playAudio).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("CHECKING_SOURCE while a call is pending (Q8)", () => {
+  it("holds CHECKING_SOURCE past reply.done until the slow call is delivered, then THINKING", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, states } = await ready({ runTool });
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "slow", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    expect(states[states.length - 1]).toBe("CHECKING_SOURCE");
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    expect(states[states.length - 1]).toBe("THINKING");
+  });
+});

@@ -858,3 +858,63 @@ describe("end() before the session exists leaves no ghost session (Q11)", () => 
     expect(FakeWS.instances).toHaveLength(1);
   });
 });
+
+describe("stale sockets and the backoff timer (Q14)", () => {
+  it("ignores messages and a second close from a socket that is no longer current", async () => {
+    const { ws, socket } = await ready();
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances).toHaveLength(2);
+    FakeWS.instances[1].open();
+    ws[0].emit({ type: "tool.call", call_id: "zombie", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "interrupted" });
+    expect(socket.machine().toolCalls).toBe(0);
+    expect(socket.machine().interruptions).toBe(0);
+    ws[0].fire("close", { code: 1006, reason: "again" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(FakeWS.instances).toHaveLength(2);
+    socket.cancel();
+  });
+
+  it("clears the reconnect backoff timer on cancel", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[1].open();
+      FakeWS.instances[1].fire("close", { code: 1006, reason: "network" });
+      // The second attempt waits out a 500 ms backoff.
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      socket.cancel();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the backoff timer when a resume succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[1].open();
+      FakeWS.instances[1].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(600);
+      FakeWS.instances[2].open();
+      FakeWS.instances[2].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(FakeWS.instances).toHaveLength(3);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

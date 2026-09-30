@@ -271,6 +271,12 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   /** Bumped when a session is replaced, so a slow call from the old one is ignored. */
   let sessionEpoch = 0;
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The short backoff before the next resume attempt. Cleared wherever the resume timer is. */
+  let backoffTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearReconnectTimers = () => {
+    if (resumeTimer) clearTimeout(resumeTimer);
+    if (backoffTimer) clearTimeout(backoffTimer);
+  };
 
   /**
    * After a barge-in flush the service keeps streaming the interrupted reply
@@ -387,6 +393,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     trace("ws.connect", { mode });
 
     ws.onopen = () => {
+      if (ws !== socket) return;
       if (cancelled || ending) {
         try { ws.close(); } catch { /* already closed */ }
         return;
@@ -425,6 +432,9 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     };
 
     ws.onmessage = (ev) => {
+      // A replaced socket can still deliver frames and a late close. Acting on
+      // them would run a second reconnect or apply the old session's events.
+      if (ws !== socket) return;
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(String((ev as MessageEvent).data)) as Record<string, unknown>;
@@ -450,6 +460,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     };
 
     ws.onclose = (ev) => {
+      if (ws !== socket) return;
       trace("ws.close", { code: ev.code });
       // A closed socket has no live session, whatever the state machine says.
       // Frames arriving now go to the buffer for the resume.
@@ -470,7 +481,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         // short capped backoff, then a fresh session.
         const refused = RESUME_REFUSED.has(lastErrorCode);
         if (refused || resumeAttempts >= MAX_RESUME_ATTEMPTS) {
-          if (resumeTimer) clearTimeout(resumeTimer);
+          clearReconnectTimers();
           resumeId = null;
           resumeAttempts = 0;
           lastErrorCode = "";
@@ -484,7 +495,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         resumeAttempts += 1;
         m = onRecovering(m, `socket closed ${ev.code}`);
         publish();
-        if (resumeTimer) clearTimeout(resumeTimer);
+        clearReconnectTimers();
         resumeTimer = setTimeout(() => {
           resumeId = null;
           continuing = true;
@@ -493,7 +504,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
           void connect("fresh");
         }, RESUME_GIVE_UP_MS);
         const delay = resumeAttempts === 1 ? 0 : RESUME_BACKOFF_MS * 2 ** (resumeAttempts - 2);
-        setTimeout(() => { if (!cancelled && !ending && resumeId) void connect("resume"); }, delay);
+        backoffTimer = setTimeout(() => { if (!cancelled && !ending && resumeId) void connect("resume"); }, delay);
         return;
       }
       m = onError(m, `socket closed ${ev.code}`, true);
@@ -516,7 +527,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         resumeAttempts = 0;
         lastErrorCode = "";
         continuing = false;
-        if (resumeTimer) clearTimeout(resumeTimer);
+        clearReconnectTimers();
         m = onSessionReady(m, { session_id: resumeId ?? undefined, resume_token: (msg.resume_token as string) ?? null });
         // Only now may audio go out; the API rejects input.audio before ready.
         sessionLive = true;
@@ -729,7 +740,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     async end() {
       if (cancelled || ending) return;
       ending = true;
-      if (resumeTimer) clearTimeout(resumeTimer);
+      clearReconnectTimers();
       const ws = socket;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         // A socket still CONNECTING would otherwise open, send session.update
@@ -764,7 +775,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     cancel() {
       cancelled = true;
       teardownWatchers();
-      if (resumeTimer) clearTimeout(resumeTimer);
+      clearReconnectTimers();
       const ws = socket;
       try {
         ws?.close();

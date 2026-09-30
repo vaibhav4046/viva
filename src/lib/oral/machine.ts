@@ -138,7 +138,9 @@ const TRANSITIONS: Record<OralState, readonly OralState[]> = {
   // has to be allowed to hand off to CHECKING_SOURCE. Without this the screen
   // would claim the agent is speaking while a retrieval was actually running.
   SPEAKING: ["INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
-  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  // After a barge-in the reply that follows must be able to leave INTERRUPTED,
+  // or the screen keeps saying the student cut in through the whole answer.
+  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   RECOVERING: ["READY", "LISTENING", "ERROR", "IDLE", "ENDED"],
   // A non-fatal ERROR (a retryable session.error) recovers through a resume, a
   // fresh connect, or the session.ready of a socket that stayed up.
@@ -220,7 +222,7 @@ export function onUserFinal(m: OralMachine, ev: { item_id?: string; text?: strin
     turns: m.turns + 1,
     userItemId: ev.item_id ?? m.userItemId,
     userPartial: ev.text ?? m.userPartial,
-    state: m.state === "USER_SPEAKING" ? "THINKING" : m.state,
+    state: m.state === "USER_SPEAKING" || m.state === "INTERRUPTED" ? "THINKING" : m.state,
   };
 }
 

@@ -287,3 +287,26 @@ describe("recovery from a transient error (found live: a refused resume left the
     expect(onConnecting(ended).state).toBe("CONNECTING");
   });
 });
+
+describe("state after a barge-in (Q1)", () => {
+  const interrupted = (): OralMachine => onReplyDone(toSpeaking(), { status: "interrupted" }).machine;
+
+  it("moves INTERRUPTED to THINKING when the student's transcript closes", () => {
+    const m = onUserFinal(interrupted(), { item_id: "i2", text: "I think it runs a single head" });
+    expect(m.state).toBe("THINKING");
+  });
+
+  it("moves INTERRUPTED to SPEAKING when the next reply starts", () => {
+    expect(onReplyStarted(interrupted()).state).toBe("SPEAKING");
+    expect(onReplyAudio(interrupted()).state).toBe("SPEAKING");
+  });
+
+  it("does not stay INTERRUPTED through a whole reply after a barge-in", () => {
+    let m = interrupted();
+    m = onUserFinal(m, { item_id: "i2", text: "single head" });
+    m = onReplyStarted(m);
+    m = onReplyAudio(m);
+    expect(m.state).toBe("SPEAKING");
+    expect(onReplyDone(m, { status: "completed" }).machine.state).toBe("LISTENING");
+  });
+});

@@ -146,6 +146,16 @@ export const ORAL_SAMPLE_RATE = 24_000;
  */
 const FRAME_SAMPLES = 2400;
 const MAX_PENDING_FRAMES = 32;
+/** One frame is 100 ms of audio, so sending one per 100 ms is exactly real time. */
+const FRAME_MS = (FRAME_SAMPLES / ORAL_SAMPLE_RATE) * 1000;
+/**
+ * Backlog kept when the session becomes ready. Drained at real time it never
+ * shrinks (the microphone keeps producing at real time too), so it is also the
+ * permanent extra latency: about 1 s at most. Older audio is dropped.
+ * ponytail: the API's tolerance for faster-than-real-time catch-up is not
+ * measured, so this stays at 1x; raise the drain rate only after a live probe.
+ */
+const MAX_BACKLOG_FRAMES = 10;
 
 export function voiceAgentUrl(token: string): string {
   return `${WS_BASE}?token=${encodeURIComponent(token)}`;
@@ -362,19 +372,31 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
    * 700-950 ms on the streaming socket, so buffering across it is the cost of
    * being correct, and `sendAudio` bounds the buffer.
    */
-  const flushPending = () => {
+  let drainTimer: ReturnType<typeof setTimeout> | undefined;
+  const pump = () => {
+    drainTimer = undefined;
     const ws = socket;
-    if (!ws || pending.length === 0) return;
-    for (const audio of pending) {
-      try {
-        ws.send(JSON.stringify({ type: "input.audio", audio }));
-      } catch {
-        // A dead socket is onclose's problem; the rest of the buffer is the
-        // resume's problem, not this connection's.
-        break;
-      }
+    // Not live any more: the frames stay queued for the next session.ready.
+    if (!sessionLive || !ws || ws.readyState !== WebSocket.OPEN) return;
+    const audio = pending.shift();
+    if (audio === undefined) return;
+    try {
+      ws.send(JSON.stringify({ type: "input.audio", audio }));
+    } catch {
+      // A dead socket is onclose's problem; the rest of the buffer is the
+      // resume's problem, not this connection's.
+      return;
     }
-    pending = [];
+    if (pending.length > 0) drainTimer = setTimeout(pump, FRAME_MS);
+  };
+  /**
+   * Send the buffered frames at real time, not all at once. The API raises
+   * `audio_rate_violation` when audio arrives faster than it was spoken, and a
+   * full 32-frame buffer dumped in one tick is 3.2 s of audio in no time.
+   */
+  const flushPending = () => {
+    while (pending.length > MAX_BACKLOG_FRAMES) pending.shift();
+    if (!drainTimer) pump();
   };
 
   const connect = async (mode: "fresh" | "resume") => {
@@ -768,7 +790,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       if (cancelled || ending) return;
       const audio = pcm16ToBase64(frame);
       const ws = socket;
-      if (sessionLive && ws && ws.readyState === WebSocket.OPEN) {
+      if (sessionLive && ws && ws.readyState === WebSocket.OPEN && pending.length === 0 && !drainTimer) {
         try {
           ws.send(JSON.stringify({ type: "input.audio", audio }));
         } catch {
@@ -778,13 +800,18 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         return;
       }
       pending.push(audio);
-      // Bounded, so a socket that never opens cannot grow this without limit.
-      while (pending.length > MAX_PENDING_FRAMES) pending.shift();
+      // Bounded, so a socket that never opens cannot grow this without limit,
+      // and a live session never lets the pacer fall more than a second behind.
+      const cap = sessionLive ? MAX_BACKLOG_FRAMES : MAX_PENDING_FRAMES;
+      while (pending.length > cap) pending.shift();
+      // A live frame that arrives behind a backlog waits its turn in the pacer.
+      if (sessionLive && !drainTimer) pump();
     },
     async end() {
       if (cancelled || ending) return;
       ending = true;
       clearReconnectTimers();
+      if (drainTimer) clearTimeout(drainTimer);
       const ws = socket;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         // A socket still CONNECTING would otherwise open, send session.update
@@ -820,6 +847,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       cancelled = true;
       teardownWatchers();
       clearReconnectTimers();
+      if (drainTimer) clearTimeout(drainTimer);
       const ws = socket;
       try {
         ws?.close();

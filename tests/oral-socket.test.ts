@@ -1009,3 +1009,83 @@ describe("token failure during recovery is retryable (Q15)", () => {
     expect(socket.machine().fatal).toBe(true);
   });
 });
+
+describe("buffered audio is paced, not dumped (Q23)", () => {
+  const frame = (i: number) => new Int16Array([i, i]);
+  const audioSent = (ws: FakeWS) => ws.of("input.audio").map((s) => s.audio as string);
+
+  it("sends the first buffered frame at once and the rest no faster than real time", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 0; i < 8; i++) socket.sendAudio(frame(i + 1));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      expect(audioSent(FakeWS.instances[0])).toHaveLength(1);
+      for (let t = 1; t <= 7; t++) {
+        await vi.advanceTimersByTimeAsync(100);
+        // 100 ms of audio per frame: never more frames than elapsed real time allows.
+        expect(audioSent(FakeWS.instances[0]).length).toBe(1 + t);
+      }
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(audioSent(FakeWS.instances[0])).toHaveLength(8);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps order, and queues a live frame behind the backlog", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 1; i <= 3; i++) socket.sendAudio(frame(i));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      socket.sendAudio(frame(99));
+      await vi.advanceTimersByTimeAsync(1_000);
+      const sent = audioSent(FakeWS.instances[0]);
+      const expected = [1, 2, 3, 99].map((i) => btoa(String.fromCharCode(i, 0, i, 0)));
+      expect(sent).toEqual(expected);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drops the oldest backlog beyond one second so latency stays bounded", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 1; i <= 30; i++) socket.sendAudio(frame(i));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      await vi.advanceTimersByTimeAsync(5_000);
+      const sent = audioSent(FakeWS.instances[0]);
+      expect(sent).toHaveLength(10);
+      expect(sent[0]).toBe(btoa(String.fromCharCode(21, 0, 21, 0)));
+      expect(sent[9]).toBe(btoa(String.fromCharCode(30, 0, 30, 0)));
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops the pacing timer on cancel", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 1; i <= 5; i++) socket.sendAudio(frame(i));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      socket.cancel();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

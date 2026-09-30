@@ -54,6 +54,7 @@ import {
   isRetryableCode,
   onCheckingSource,
   onConnecting,
+  onAgentInterrupted,
   onEnded,
   onError,
   onRecovering,
@@ -554,6 +555,16 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       case "transcript.agent": {
         const interrupted = msg.interrupted === true;
         remember("agent", String(msg.text ?? ""));
+        if (interrupted) {
+          // Live, this flag arrives with reply.done(completed) and no
+          // reply.done(interrupted) at all, so it has to act as the interruption.
+          trace("interrupted.flush.start", { via: "transcript.agent" });
+          flushAudio?.();
+          dropStaleAudio = true;
+          trace("interrupted.flush.end", { via: "transcript.agent" });
+          m = onAgentInterrupted(m).machine;
+          publish();
+        }
         opts.onTranscript?.(String(msg.text ?? ""), "agent", interrupted);
         return;
       }

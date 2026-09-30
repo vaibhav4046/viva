@@ -99,6 +99,13 @@ export type OralMachine = {
   userPartial: string;
   /** Whether the microphone is currently streaming to the socket. */
   streaming: boolean;
+  /**
+   * The current reply's interruption is already counted and its calls already
+   * discarded. transcript.agent(interrupted) and reply.done(interrupted) can
+   * both announce one barge-in; this keeps it to a single count. Cleared when
+   * the next reply starts.
+   */
+  interruptHandled: boolean;
 };
 
 export function initialMachine(): OralMachine {
@@ -118,6 +125,7 @@ export function initialMachine(): OralMachine {
     userItemId: null,
     userPartial: "",
     streaming: false,
+    interruptHandled: false,
   };
 }
 
@@ -239,7 +247,7 @@ export function onUserFinal(m: OralMachine, ev: { item_id?: string; text?: strin
 
 /** `reply.started`, the agent is composing. */
 export function onReplyStarted(m: OralMachine): OralMachine {
-  return transition(m, "SPEAKING");
+  return { ...transition(m, "SPEAKING"), interruptHandled: false };
 }
 
 /** `reply.audio`, speech is arriving. Also means we are speaking. */
@@ -360,7 +368,8 @@ export function onReplyDone(
         pending: [],
         ready: [],
         gone: markGone(m.gone, m.pending.map((p) => p.callId)),
-        interruptions: m.interruptions + 1,
+        interruptions: m.interruptHandled ? m.interruptions : m.interruptions + 1,
+        interruptHandled: true,
         discards: m.discards + discarded.length,
         streaming: true,
       },
@@ -379,6 +388,35 @@ export function onReplyDone(
     },
     send: released.send,
     discardCallIds: [],
+  };
+}
+
+/**
+ * `transcript.agent` with `interrupted: true`. Measured live (2026-09-29, the
+ * interrupt-during-pending-tool probe): the service sent this, then
+ * reply.done(status "completed"), and never reply.done(interrupted). The flag
+ * is therefore the interruption signal in that shape. Same effect as the
+ * interrupted reply.done minus the tool results, because reply.done is not the
+ * latest event here: unreleased calls are discarded, released ones wait for
+ * the next reply.done.
+ */
+export function onAgentInterrupted(m: OralMachine): { machine: OralMachine; discardCallIds: string[] } {
+  if (TERMINAL.has(m.state)) return { machine: m, discardCallIds: [] };
+  const unreleased = m.pending.filter((p) => !p.released).map((p) => p.callId);
+  const fresh = unreleased.filter((id) => !m.gone.includes(id));
+  return {
+    machine: {
+      ...m,
+      state: "INTERRUPTED",
+      pending: m.pending.filter((p) => p.released),
+      ready: m.ready.filter((r) => !unreleased.includes(r.callId)),
+      gone: markGone(m.gone, unreleased),
+      interruptions: m.interruptHandled ? m.interruptions : m.interruptions + 1,
+      interruptHandled: true,
+      discards: m.discards + fresh.length,
+      streaming: true,
+    },
+    discardCallIds: unreleased,
   };
 }
 

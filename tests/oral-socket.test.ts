@@ -692,3 +692,35 @@ describe("interruption keeps an earlier reply's slow call answered (Q9, Q10)", (
     expect(socket.machine().interruptions).toBe(1);
   });
 });
+
+describe("agent transcript flagged interrupted (Q3, live trace)", () => {
+  it("flushes audio, discards the pending result and counts one interruption, though reply.done says completed", async () => {
+    // Order taken from docs/evidence/probes/oral-live-interrupt-during-pending-tool-negative.*.json:
+    // tool.call, transcript.agent{interrupted:true}, reply.done{completed}, reply.started.
+    const { ws, flushAudio, socket, states } = await ready();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "c1", name: "verify_claim", arguments: {} });
+    await new Promise((r) => setTimeout(r, 0));
+    flushAudio.mockClear();
+    ws[0].emit({ type: "transcript.agent", text: "The notes on page 15 say", interrupted: true });
+    expect(flushAudio).toHaveBeenCalled();
+    expect(states[states.length - 1]).toBe("INTERRUPTED");
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    ws[0].emit({ type: "reply.started" });
+    expect(ws[0].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().interruptions).toBe(1);
+    expect(socket.machine().discards).toBe(1);
+  });
+
+  it("drops late audio of the interrupted reply until the next reply starts", async () => {
+    const { ws, playAudio } = await ready();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "transcript.agent", text: "well", interrupted: true });
+    playAudio.mockClear();
+    ws[0].emit({ type: "reply.audio", data: "AAAA" });
+    expect(playAudio).not.toHaveBeenCalled();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "reply.audio", data: "AAAA" });
+    expect(playAudio).toHaveBeenCalledTimes(1);
+  });
+});

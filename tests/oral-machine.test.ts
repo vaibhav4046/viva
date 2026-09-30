@@ -14,6 +14,7 @@ import {
   onToolCall,
   withToolResult,
   onReplyDone,
+  onAgentInterrupted,
   onRecovering,
   onError,
   onEnded,
@@ -370,5 +371,41 @@ describe("interruption and pending calls (Q9, Q10)", () => {
 
   it("still counts a result for a call the machine never knew", () => {
     expect(withToolResult(toSpeaking(), "ghost", {}).discards).toBe(1);
+  });
+});
+
+describe("transcript.agent interrupted is an interruption (Q3)", () => {
+  const withCall = (): OralMachine => onToolCall(toSpeaking(), { call_id: "c1", name: "verify_claim", arguments: {} });
+
+  it("moves to INTERRUPTED, discards the unreleased call and counts once", () => {
+    const { machine, discardCallIds } = onAgentInterrupted(withToolResult(withCall(), "c1", { status: "supported" }));
+    expect(machine.state).toBe("INTERRUPTED");
+    expect(discardCallIds).toEqual(["c1"]);
+    expect(machine.pending).toHaveLength(0);
+    expect(machine.ready).toHaveLength(0);
+    expect(machine.interruptions).toBe(1);
+    expect(machine.discards).toBe(1);
+  });
+
+  it("does not count the same interruption again when reply.done(interrupted) follows", () => {
+    const first = onAgentInterrupted(withCall()).machine;
+    const second = onReplyDone(first, { status: "interrupted" }).machine;
+    expect(second.interruptions).toBe(1);
+    expect(second.discards).toBe(1);
+    expect(onAgentInterrupted(second).machine.interruptions).toBe(1);
+  });
+
+  it("sends nothing on the reply.done(completed) that the service sends next (live trace)", () => {
+    const first = onAgentInterrupted(withToolResult(withCall(), "c1", { status: "supported" })).machine;
+    const { machine, send } = onReplyDone(first, { status: "completed" });
+    expect(send).toHaveLength(0);
+    expect(machine.state).toBe("LISTENING");
+  });
+
+  it("counts the next reply's interruption separately", () => {
+    let m = onAgentInterrupted(withCall()).machine;
+    m = onReplyStarted(m);
+    m = onAgentInterrupted(m).machine;
+    expect(m.interruptions).toBe(2);
   });
 });

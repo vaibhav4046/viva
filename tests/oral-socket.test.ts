@@ -822,3 +822,39 @@ describe("a tool result never crosses a session change (Q5)", () => {
     socket.cancel();
   });
 });
+
+describe("end() before the session exists leaves no ghost session (Q11)", () => {
+  it("opens no socket when end() is called while the token is still being minted", async () => {
+    let giveToken!: (t: string) => void;
+    const getToken = vi.fn(() => new Promise<string>((resolve) => { giveToken = resolve; }));
+    const onEnded = vi.fn();
+    const { socket } = setup({ getToken, onEnded });
+    await socket.end();
+    giveToken("tok_late");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances).toHaveLength(0);
+    expect(onEnded).toHaveBeenCalledTimes(1);
+    expect(socket.machine().state).toBe("IDLE");
+  });
+
+  it("closes a socket that is still CONNECTING and never sends session.update on it", async () => {
+    const { socket } = setup();
+    await new Promise((r) => setTimeout(r, 0));
+    const ws0 = FakeWS.instances[0];
+    ws0.readyState = 0;
+    await socket.end();
+    expect(ws0.closeCalls).toBeGreaterThan(0);
+    ws0.readyState = 1;
+    ws0.open();
+    expect(ws0.sent).toHaveLength(0);
+    expect(socket.machine().state).toBe("ENDED");
+  });
+
+  it("does not reconnect after end() when the old socket's close arrives late", async () => {
+    const { socket } = await ready();
+    await socket.end();
+    FakeWS.instances[0].fire("close", { code: 1006, reason: "late" });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(FakeWS.instances).toHaveLength(1);
+  });
+});

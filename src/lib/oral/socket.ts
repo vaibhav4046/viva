@@ -350,7 +350,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   };
 
   const connect = async (mode: "fresh" | "resume") => {
-    if (cancelled) return;
+    if (cancelled || ending) return;
     // The docs are explicit that a fresh token is needed immediately before
     // each connection attempt, and that a resumed session can still come back
     // `session_forbidden`. Reusing the old token is how a reconnect turns into
@@ -364,7 +364,9 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       opts.onError?.(voiceMessage("NO_API_KEY"));
       return;
     }
-    if (cancelled) return;
+    // end() during the token round trip: opening a socket now would leave a
+    // billed session nobody can see and nobody will close.
+    if (cancelled || ending) return;
 
     m = onConnecting(m);
     publish();
@@ -385,6 +387,10 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     trace("ws.connect", { mode });
 
     ws.onopen = () => {
+      if (cancelled || ending) {
+        try { ws.close(); } catch { /* already closed */ }
+        return;
+      }
       trace("ws.open", { mode });
       if (mode === "resume" && resumeId) {
         // session.resume is the first message on a resumed connection, and
@@ -726,6 +732,11 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       if (resumeTimer) clearTimeout(resumeTimer);
       const ws = socket;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
+        // A socket still CONNECTING would otherwise open, send session.update
+        // and start a session after the exam was ended.
+        if (ws?.readyState === WebSocket.CONNECTING) {
+          try { ws.close(); } catch { /* already closed */ }
+        }
         finish();
         return;
       }

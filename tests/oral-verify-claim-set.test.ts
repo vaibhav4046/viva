@@ -55,8 +55,27 @@ describe("replay of recorded decisions through verifyClaim", () => {
     const metrics = scoreVerdicts(out.map(({ row, final }) => ({ expected: row.expected, verdict: final.verdict })));
     expect(metrics.falseSupported).toBe(0);
     expect(metrics.falseContradicted).toBe(0);
-    // The committed evidence and today's code agree on every number.
-    expect(metrics).toEqual(evidence.metrics);
+    // evidence.metrics scores the raw model decisions. Today's code adds the
+    // sentence-alignment, polarity and overlap checks (src/lib/oral/claim-guard.ts),
+    // which can only turn a verdict into not_in_material, so the numbers below
+    // are the same run replayed through those checks. Re-record after a live rerun.
+    expect(metrics).toEqual({
+      n: 54,
+      falseSupported: 0,
+      falseContradicted: 0,
+      abstainedOnSettled: 7,
+      supported: { tp: 17, fp: 0, fn: 2, precision: 1, recall: 0.895 },
+      contradicted: { tp: 22, fp: 0, fn: 5, precision: 1, recall: 0.815 },
+    });
+    expect(metrics.supported.tp).toBeLessThanOrEqual(evidence.metrics.supported.tp);
+  });
+
+  it("never turns one decisive verdict into the other, only into not_in_material", async () => {
+    const out = await replay(evidence.rows);
+    for (const { row, final } of out) {
+      if (!row.raw) continue;
+      expect([row.raw.verdict, "not_in_material"], row.id).toContain(final.verdict);
+    }
   });
 
   it("only ever cites text that is verbatim in the named passage", async () => {

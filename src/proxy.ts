@@ -66,8 +66,8 @@ export function proxy(request: NextRequest) {
     // endpoint and no new fetch target anywhere.
     "connect-src 'self' https://*.vercel-insights.com wss://streaming.assemblyai.com wss://agents.assemblyai.com",
     "frame-src 'none'",
-    // The mic capture path loads an AudioWorklet module from a blob: URL.
-    "worker-src 'self' blob:",
+    // The mic path loads its AudioWorklet from /worklets/pcm16.js, same origin.
+    "worker-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -5,6 +5,7 @@ import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subj
 import { toolDefsForWire } from "@/lib/oral/tools";
 import { buildOralSystemPrompt, oralGreeting, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
 import { buildLearnerBrief } from "@/lib/oral/learner-brief";
+import { promptLabel } from "@/lib/oral/sanitize";
 import { err } from "@/lib/types";
 
 /**
@@ -27,7 +28,10 @@ import { err } from "@/lib/types";
 /** Documented range 0 to 1000 ms. Measured effect on stop latency: docs/evidence/probes/oral-live-bargein.*.json. */
 const INTERRUPTION_DELAY_MS = 0;
 
-/** The rules that make the exam an exam. */
+/** Bounds on what a learner-derived label may add to the system prompt. */
+const MAX_LABEL = 80;
+const MAX_CONCEPTS = 40;
+const MAX_SOURCES = 12;
 
 export async function GET(req: Request): Promise<Response> {
   const { identity, setCookie } = await resolveIdentity(req);
@@ -36,7 +40,10 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const store = getStore();
     const subject = await resolveSubject(store, identity.userId, subjectId ?? null);
-    const concepts = subject.concepts.slice(0, 40).map((c) => c.name);
+    // Titles and concept names come from uploads and from a model that read
+    // them. They are one-line labels: control characters and newlines out,
+    // length capped, instruction-shaped phrases made inert.
+    const concepts = subject.concepts.slice(0, MAX_CONCEPTS).map((c) => promptLabel(c.name, MAX_LABEL)).filter(Boolean);
     const keyterms = keytermsFrom(subject.concepts);
 
     // The stored map for this learner and this subject: the examiner opens on the
@@ -53,10 +60,10 @@ export async function GET(req: Request): Promise<Response> {
     });
 
     const system_prompt = buildOralSystemPrompt({
-      subjectTitle: subject.title,
+      subjectTitle: promptLabel(subject.title, MAX_LABEL),
       concepts,
-      languages: subject.languageCodes ?? ["en"],
-      sourceTitles: subject.sources?.map((s) => s.title) ?? [],
+      languages: (subject.languageCodes ?? ["en"]).map((l) => promptLabel(l, 12)),
+      sourceTitles: (subject.sources ?? []).slice(0, MAX_SOURCES).map((s) => promptLabel(s.title, MAX_LABEL)),
       brief,
     });
 

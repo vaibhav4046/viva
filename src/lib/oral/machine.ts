@@ -130,21 +130,25 @@ const TRANSITIONS: Record<OralState, readonly OralState[]> = {
   // driving the real service, where the greeting is the first thing that ever
   // comes back.
   LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
-  USER_SPEAKING: ["LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  // USER_SPEAKING -> SPEAKING: reply audio still arriving while the student is
+  // audibly speaking (a cough, a false start) is the examiner still talking.
+  USER_SPEAKING: ["LISTENING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   THINKING: ["CHECKING_SOURCE", "SPEAKING", "LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   CHECKING_SOURCE: ["SPEAKING", "THINKING", "LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   // A tool call arrives while a reply is still nominally in flight: the
   // documented flow is reply.started -> tool.call -> reply.done, so SPEAKING
   // has to be allowed to hand off to CHECKING_SOURCE. Without this the screen
   // would claim the agent is speaking while a retrieval was actually running.
-  SPEAKING: ["INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  // SPEAKING -> USER_SPEAKING: input.speech.started lands about 2 s before
+  // reply.done(interrupted), and the screen must show the student talking then.
+  SPEAKING: ["USER_SPEAKING", "INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   // After a barge-in the reply that follows must be able to leave INTERRUPTED,
   // or the screen keeps saying the student cut in through the whole answer.
   INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   RECOVERING: ["READY", "LISTENING", "ERROR", "IDLE", "ENDED"],
   // A non-fatal ERROR (a retryable session.error) recovers through a resume, a
   // fresh connect, or the session.ready of a socket that stayed up.
-  ERROR: ["CONNECTING", "RECOVERING", "READY", "LISTENING", "IDLE", "ENDED"],
+  ERROR: ["CONNECTING", "RECOVERING", "READY", "LISTENING", "SPEAKING", "USER_SPEAKING", "IDLE", "ENDED"],
   ENDED: ["CONNECTING", "IDLE"],
 };
 

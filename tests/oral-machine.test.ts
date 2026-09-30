@@ -310,3 +310,26 @@ describe("state after a barge-in (Q1)", () => {
     expect(onReplyDone(m, { status: "completed" }).machine.state).toBe("LISTENING");
   });
 });
+
+describe("speech onset while the examiner speaks (Q2)", () => {
+  it("moves SPEAKING to USER_SPEAKING on input.speech.started", () => {
+    expect(onSpeechStarted(toSpeaking()).state).toBe("USER_SPEAKING");
+  });
+
+  it("moves USER_SPEAKING back to SPEAKING when reply audio keeps arriving", () => {
+    expect(onReplyAudio(onSpeechStarted(toSpeaking())).state).toBe("SPEAKING");
+  });
+
+  it("recovers from a non-fatal ERROR straight into SPEAKING or USER_SPEAKING", () => {
+    const err = onError(toSpeaking(), "internal_error", false);
+    expect(err.state).toBe("ERROR");
+    expect(onReplyAudio(err).state).toBe("SPEAKING");
+    expect(onSpeechStarted(err).state).toBe("USER_SPEAKING");
+  });
+
+  it("does not leave a fatal ERROR", () => {
+    const err = onError(toSpeaking(), "UNAUTHORIZED", true);
+    expect(onReplyAudio(err).state).toBe("ERROR");
+    expect(onSpeechStarted(err).state).toBe("ERROR");
+  });
+});

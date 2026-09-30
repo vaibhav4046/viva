@@ -13,6 +13,15 @@ const publish = {
   bargein_tool: ["speechDetectedMs", "stopFromVoiceOnsetMs"],
   resume: ["recoveryMs"],
 };
+// A published key can differ from the evidence key when the evidence name over-claims.
+// recoveryMs is what the probe records; the service refused session.resume, so what it
+// times is a continuation in a fresh session, and the published name says that.
+const renamed = { "oral.resume.recoveryMs": "oral.resume.continuationMs" };
+const notes = {
+  "oral.resume.continuationMs": "Time from the socket drop to session.ready on a fresh session. A live session.resume was refused with session_not_found in every trial, so this is not a resumed session: the exam continues fresh with the last turns in the prompt.",
+  "oral.bargein.stopFromVoiceOnsetMs": "Detection latency: first loud learner sample to the client's flush call, which runs when the service reports speech. The probe's playback is a stub, so this is not a measured playback stop.",
+  "oral.bargein_tool.stopFromVoiceOnsetMs": "Detection latency: first loud learner sample to the client's flush call, which runs when the service reports speech. The probe's playback is a stub, so this is not a measured playback stop.",
+};
 const numbers = {};
 for (const [scenario, keys] of Object.entries(publish)) {
   const file = latest(new RegExp(`^oral-live-${scenario}\\.\\d{4}-\\d{2}-\\d{2}\\.json$`));
@@ -21,7 +30,9 @@ for (const [scenario, keys] of Object.entries(publish)) {
   for (const key of keys) {
     const s = ev.summary[key];
     if (!s || s.median === null || s.n < 1) continue;
-    numbers[`oral.${scenario}.${key}`] = { value: s.median, n: s.n, date: ev.measuredOn.slice(0, 10), evidence: `${dir}/${file}`, cmd: ev.cmd };
+    const evidenceKey = `oral.${scenario}.${key}`;
+    const name = renamed[evidenceKey] ?? evidenceKey;
+    numbers[name] = { value: s.median, n: s.n, date: ev.measuredOn.slice(0, 10), evidence: `${dir}/${file}`, cmd: ev.cmd, ...(notes[name] ? { note: notes[name] } : {}) };
   }
 }
 const vfile = latest(/^verify-claim-live-\d{4}-\d{2}-\d{2}\.json$/);

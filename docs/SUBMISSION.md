@@ -76,11 +76,10 @@ All from live sessions against the real AssemblyAI Voice Agent API on 2026-09-29
 | Session ready after connect | 444 ms | 3 | `docs/evidence/probes/oral-live-roundtrip.2026-09-29.json` |
 | First examiner audio | 958 ms | 3 | same file |
 | Tool round trip (`tool.call` to `tool.result`, the whole HTTP call to `/api/oral/tool`; the model judge took 415 ms of it in run 1) | 2470 ms | 3 | same file |
-| Barge-in: first loud learner sample to the service reporting speech | 1286 ms (values 1286, 1768, 1214) | 3 | `docs/evidence/probes/oral-live-bargein.2026-09-29.json` |
-| Barge-in: playback flush after the service reports speech | 0 ms | 3 | same file |
-| Barge-in with a tool in flight: first loud sample to speech reported | 1456 ms (values 1739, 1456, 1316) | 3 | `docs/evidence/probes/oral-live-bargein_tool.2026-09-29.json` |
-| Stale audio chunks played after the flush | 0 (147 to 209 dropped per run) | 6 | both barge-in files |
-| Reconnect after a socket drop | 986 ms (values 921, 1050) | 2 | `docs/evidence/probes/oral-live-resume.2026-09-29.json` |
+| Barge-in detection latency: first loud learner sample to the service reporting speech | 1286 ms (values 1286, 1768, 1214) | 3 | `docs/evidence/probes/oral-live-bargein.2026-09-29.json` |
+| Barge-in detection latency with a tool in flight: first loud sample to speech reported | 1456 ms (values 1739, 1456, 1316) | 3 | `docs/evidence/probes/oral-live-bargein_tool.2026-09-29.json` |
+| Stale audio chunks handed to playback after the flush call | 0 (147 to 209 dropped per run) | 6 | both barge-in files |
+| Continuation after a socket drop: drop to `session.ready` on a fresh session (the live `session.resume` was refused with `session_not_found`) | 986 ms (values 921, 1050) | 2 | `docs/evidence/probes/oral-live-resume.2026-09-29.json` |
 | `verify_claim` judge over a labelled set | 0 false supported, 0 false contradicted; supported precision 1.0 and recall 1.0 (19 of 19); contradicted precision 1.0 and recall 0.889 (24 of 27, the three misses abstained as "not in material") | 54 claims, 2 courses | `docs/evidence/probes/verify-claim-live-2026-09-29.json` |
 | `verify_claim` judge latency | median 590 ms, p95 2067 ms | 53 model calls | same file |
 | Front page, throttled mobile profile, local production build | 139.5 KB gzip JS, LCP 1080 ms, CLS 0.0001 | 5 | `docs/evidence/perf/perf.2026-09-29.json` |
@@ -88,7 +87,7 @@ All from live sessions against the real AssemblyAI Voice Agent API on 2026-09-29
 | Accessibility, axe wcag2a and wcag2aa, local production build | 0 serious or critical violations on 13 routes; 15 of 15 checks passed | 13 routes | `docs/evidence/a11y/axe-2026-09-29.txt` |
 | Unit tests, `npx vitest run` on branch `wt/core2`, 2026-09-29 | 1228 passed, 1 skipped, 80 files | n/a | run output |
 
-The 1.3 to 1.5 s barge-in figure is the service detecting speech. VIVA's own step, the flush, takes 0 ms after the event arrives. A second run (`oral-live-bargein-min_latency-ab.2026-09-29.json`) gave a median of 1454 ms, n=3.
+The 1.3 to 1.5 s barge-in figure is detection latency: the service noticing the learner's speech. The probe's playback is a stub, so it does not measure how long real audio takes to go silent in a browser. A second run (`oral-live-bargein-min_latency-ab.2026-09-29.json`) gave a median of 1454 ms, n=3.
 
 ## Verified live, and unit-tested only
 
@@ -112,7 +111,7 @@ The 1.3 to 1.5 s barge-in figure is the service detecting speech. VIVA's own ste
 
 - Claim verification is quote-checked, and the judge model can still be wrong. Code guarantees the quoted words are in the named passage. It does not guarantee the verdict is right: a wrong "contradicted" with a real quote would still pass the check. The labelled set has 54 claims over two courses, written in this repository, with no recorded split between tuning and testing. The misconception used in the demo ("multi-head attention runs a single head over the input") is claim T17 in that set. Read 0 false confirmations on 54 as a small result, not a rate.
 - The judge on 2026-09-29 was `openai/gpt-oss-120b` through a chain of model providers. Passage text is sent to the providers in the configured chain. `docs/evidence/data-inventory.md` shows where the chain is set and the privacy page describes it.
-- Barge-in stop is 1.3 to 1.5 s from the learner's first word, dominated by the service's detection. Discarding a pending tool result on interruption is unit-tested only.
+- Barge-in detection takes 1.3 to 1.5 s from the learner's first word (the service noticing speech). The time from the first word to real silence in a browser was not measured. Discarding a pending tool result on interruption is unit-tested only; the live probe for it failed 3 of 3, and in the recorded live shape the service flags `transcript.agent` as interrupted and then sends `reply.done` with status `completed`. The client now handles that shape, replayed in a unit test and not re-run live.
 - Reconnect is a new session with the recent turns. The service refused `session.resume` in every live trial.
 - Adaptive questioning is a computed choice of concept and kind, and the examiner's wording is still the model's: it named the chosen concept in 2 of 3 live runs (n=3, one seeded map, one synthetic learner utterance). The live runs did not exercise a move to a different concept after a correct answer; that path is unit-tested only. The stored map also holds evidence from the written study loop, and the exam prompt calls it "recorded answers". Without a Postgres store the history is lost on restart, and the prompt and the config's `memory` block say so.
 - The debrief is built from the session record by `/api/oral/debrief` and is derived, not stored. No screen calls it at this commit.

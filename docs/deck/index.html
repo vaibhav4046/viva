@@ -290,8 +290,7 @@
           <tr><td>Session ready</td><td class="v"><span data-num="oral.roundtrip.sessionReadyMs">444</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
           <tr><td>First examiner audio</td><td class="v"><span data-num="oral.roundtrip.firstAudioMs">958</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
           <tr><td>Tool round trip, call to result</td><td class="v"><span data-num="oral.roundtrip.toolCallToResultMs">2470</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
-          <tr><td>Interruption: first word to service reports speech</td><td class="v"><span data-num="oral.bargein.speechDetectedMs">1286</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
-          <tr><td>Interruption: playback flush after that</td><td class="v">0 ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Interruption detection: first word to service reports speech</td><td class="v"><span data-num="oral.bargein.speechDetectedMs">1286</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
           <tr><td>Claim check: labelled claims, false confirmations</td><td class="v"><span data-num="oral.verifyClaim.claimsInSet">54</span>, <span data-num="oral.verifyClaim.falseSupported">0</span></td><td class="n">54</td><td class="d">2026-09-29</td></tr>
           <tr><td>Claim check: contradicted recall</td><td class="v"><span data-num="oral.verifyClaim.contradictedRecall">0.889</span></td><td class="n">54</td><td class="d">2026-09-29</td></tr>
           <tr><td>Judge time, median and p95</td><td class="v"><span data-num="oral.verifyClaim.medianJudgeMs">590</span> and <span data-num="oral.verifyClaim.p95JudgeMs">2067</span> ms</td><td class="n">53</td><td class="d">2026-09-29</td></tr>
@@ -306,7 +305,7 @@
       <ul>
         <li>Handshake and first audio, 3 of 3</li>
         <li>Tool call, spoken quote and page, 3 of 3</li>
-        <li>Barge-in flush, 0 stale chunks played, 6 of 6</li>
+        <li>Barge-in: 0 stale chunks handed to playback, 6 of 6</li>
         <li>Reconnect as a new session, 2 of 2</li>
         <li>Production: token mint, session config, scripted false claim returns contradicted, page 15</li>
       </ul>
@@ -334,7 +333,7 @@
       <ol style="margin-top:18px">
         <li>The judge can be wrong. The quote check proves the words are in your notes, not that the verdict is right.</li>
         <li>54 labelled claims over two courses is a small set, written here, with no recorded split between tuning and testing.</li>
-        <li>An interruption stops the examiner 1.3 to 1.5 s after your first word. Nearly all of that is the service detecting speech.</li>
+        <li>The service reports your interruption 1.3 to 1.5 s after your first word, and VIVA clears the examiner's queued audio when it does. Time to silence in a browser was not measured.</li>
         <li>Code picks your next concept and question kind from your last verdict and your weakest concept. The examiner's wording is the model's: it named that concept in 2 of 3 live runs.</li>
         <li>The next oral session reads your stored map and opens on the weakest concept. History survives a restart only on the Postgres store.</li>
         <li>Text notes only. A scan with no text layer gives it nothing to quote.</li>

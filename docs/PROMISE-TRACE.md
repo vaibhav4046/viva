@@ -20,7 +20,7 @@ Live evidence in this repository means: the real AssemblyAI Voice Agent API, a N
 | 2 | Close the notes and talk | amber |
 | 3 | Adaptive follow-ups | amber |
 | 4 | Misconception caught against source passages | green |
-| 5 | Natural interruption | green |
+| 5 | Natural interruption | amber |
 | 6 | Remembered weaknesses | amber |
 | 7 | Tomorrow's revision plan | amber |
 
@@ -79,18 +79,20 @@ Public copy consequence: "the next question is chosen from your last answer and 
 
 Limits that stay attached to this clause: the set is small and was written in this repository; the judge model can be wrong; the quote check proves the words are in the passage, not that the verdict is right. On screen today the correction appears as spoken audio and as transcript text. The passage card and the "Checking page N" state line in the storyboard are not on the `/oral` screen at this commit: the state line reads "Checking your material" (`src/app/(app)/oral/page.tsx`). The UI worker's screen may add them; re-check before recording.
 
-## 5. Natural interruption: green
+## 5. Natural interruption: amber
 
 | Item | Where |
 |---|---|
-| Code | `src/lib/oral/socket.ts` (flush playback on `input.speech.started`, drop audio that arrives after the flush), `src/lib/oral/machine.ts` (tool-result queue, discard on `reply.done` with status `interrupted`). |
-| Tests | `tests/oral-wire.test.ts` ("discards a queued result when the student barges in", "drops a result that resolves after the interruption", "keeps the mic open"), `tests/oral-machine.test.ts`. Run alone: 41 passed. |
-| Live evidence | `docs/evidence/probes/oral-live-bargein.2026-09-29.json` and `oral-live-bargein_tool.2026-09-29.json`, 3 of 3 runs each. Playback flush 0 ms after the service reported speech. Speech reported a median of 1286 ms after the first loud sample of the learner clip (values 1286, 1768, 1214 ms, n=3); with a tool in flight, 1456 ms (values 1739, 1456, 1316). Stale audio chunks played after the flush: 0 in all 6 runs. Chunks dropped after the flush: 147 to 209 per run. The examiner answers the interruption: "Wait, can you repeat the question?" is followed by the quote again. |
+| Code | `src/lib/oral/socket.ts` (flush playback on `input.speech.started`, drop audio that arrives after the flush; `transcript.agent` with `interrupted: true` also counts as an interruption), `src/lib/oral/machine.ts` (tool-result queue; on an interruption only the dying reply's calls are discarded and an earlier reply's slow call gets an error result; each call id is counted once; a tool result is sent only when `reply.done` is the latest event and never onto a new session; the screen leaves INTERRUPTED when the next reply starts and shows the student talking over the examiner). |
+| Tests | `tests/oral-wire.test.ts` ("discards a queued result when the student barges in", "drops a result that resolves after the interruption", "keeps the mic open"), `tests/oral-machine.test.ts`, `tests/oral-socket.test.ts`, `tests/oral-mic.test.ts`. Run alone: oral-wire and oral-machine 62 passed; oral-socket and oral-mic 71 passed. |
+| Live evidence | `docs/evidence/probes/oral-live-bargein.2026-09-29.json` and `oral-live-bargein_tool.2026-09-29.json`, 3 of 3 runs each. The probe hands the client a stub in place of audio playback, so it shows that the client calls flush and hands no later chunk to playback; it does not measure how long real audio takes to go silent in a browser. Speech reported a median of 1286 ms after the first loud sample of the learner clip (values 1286, 1768, 1214 ms, n=3); with a tool in flight, 1456 ms (values 1739, 1456, 1316). Stale audio chunks played after the flush: 0 in all 6 runs. Chunks dropped after the flush: 147 to 209 per run. The examiner answers the interruption: "Wait, can you repeat the question?" is followed by the quote again. |
 | Demo moment | 1:55 to 2:15: the interruption line. |
 
-Read the number honestly: the 1.3 to 1.5 s is the provider's detection of speech after the learner starts. VIVA's own part, the flush, is 0 ms. Do not write "instant" or "prompt". A second run (`oral-live-bargein-min_latency-ab.2026-09-29.json`) gave a median of 1454 ms, n=3; the file does not record what differed.
+Read the number honestly: the 1.3 to 1.5 s is detection latency, the time from the learner's first loud sample to the service reporting speech (`stopFromVoiceOnsetMs` in the evidence file is that interval to the client's flush call). It is not a measured playback stop, and no browser take measures the time to silence. Do not write "instant", "prompt" or "flush 0 ms". A second run (`oral-live-bargein-min_latency-ab.2026-09-29.json`) gave a median of 1454 ms, n=3; the file does not record what differed.
 
-Not proven live: discarding a tool result that is still pending when the learner interrupts. The probe for it (`oral-live-interrupt-during-pending-tool-negative.2026-09-29.json`) failed 3 of 3 with "timeout waiting for input.speech.started" and is kept as a negative result. That rule is unit-tested only. In the live tool-plus-interruption runs, `discards` was 0.
+Not proven live, and the reason this clause is amber: discarding a tool result that is still pending when the learner interrupts. The probe for it (`oral-live-interrupt-during-pending-tool-negative.2026-09-29.json`) failed 3 of 3 with "timeout waiting for input.speech.started" and is kept as a negative result. That rule is unit-tested only. In the live tool-plus-interruption runs, `discards` was 0.
+
+That same file records what the service sent when it did interrupt a reply: `transcript.agent` with `interrupted: true`, then `reply.done` with status `completed`, then a new `reply.started`, and no `reply.done` with status `interrupted`. Before commit a02946a the client did nothing on that shape (no flush, no discard, no INTERRUPTED). It now treats the flag as the interruption, and `tests/oral-socket.test.ts` replays that recorded order. That fix has not been re-run against the live service.
 
 ## 6. Remembered weaknesses: amber
 

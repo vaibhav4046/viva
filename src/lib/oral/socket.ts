@@ -61,6 +61,7 @@ import {
   onReplyAudio,
   onReplyDone,
   onReplyStarted,
+  onSessionChanged,
   onSessionReady,
   onSpeechStarted,
   onStartStreaming,
@@ -262,6 +263,13 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   };
   let lastErrorCode = "";
   let sawEnded = false;
+  /**
+   * Type of the latest server event on the current socket. tool.result may only
+   * go out when this is reply.done, and a new socket starts with nothing.
+   */
+  let lastEvent = "";
+  /** Bumped when a session is replaced, so a slow call from the old one is ignored. */
+  let sessionEpoch = 0;
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 
   /**
@@ -373,6 +381,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       return;
     }
     socket = ws;
+    lastEvent = "";
     trace("ws.connect", { mode });
 
     ws.onopen = () => {
@@ -426,6 +435,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         ...(typeof msg.text === "string" ? { text: msg.text.slice(0, 160) } : {}),
         ...(typeof msg.delta === "string" ? { delta: msg.delta.slice(0, 80) } : {}),
       });
+      lastEvent = String(msg.type);
       handle(msg);
     };
 
@@ -489,7 +499,14 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   const handle = (msg: Record<string, unknown>) => {
     switch (msg.type) {
       case "session.ready": {
-        resumeId = typeof msg.session_id === "string" ? msg.session_id : null;
+        const nextId = typeof msg.session_id === "string" ? msg.session_id : null;
+        if (nextId !== resumeId) {
+          // A different session (a refused resume that fell back to a fresh
+          // one): calls queued on the dead one must never reach this one.
+          sessionEpoch += 1;
+          m = onSessionChanged(m);
+        }
+        resumeId = nextId;
         resumeAttempts = 0;
         lastErrorCode = "";
         continuing = false;
@@ -616,7 +633,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
 
   const deliver = (r: QueuedResult) => {
     const ws = socket;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!ws || !sessionLive || ws.readyState !== WebSocket.OPEN) return;
     try {
       trace("tool.result.send", { call_id: r.callId, is_error: r.isError });
       ws.send(JSON.stringify({ type: "tool.result", call_id: r.callId, result: r.result, is_error: r.isError }));
@@ -630,6 +647,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     const callId = String(msg.call_id ?? "");
     const name = String(msg.name ?? "");
     const args = (msg.arguments ?? {}) as Record<string, unknown>;
+    const epoch = sessionEpoch;
     trace("tool.http.start", { call_id: callId, name });
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -651,9 +669,15 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     } finally {
       if (timer) clearTimeout(timer);
     }
-    const released = drainReleasedResults(m);
-    m = released.machine;
-    for (const r of released.send) deliver(r);
+    // The call's session is gone: its result was already counted as discarded.
+    if (epoch !== sessionEpoch) return;
+    // tool.result is only valid while reply.done is the latest event. Anything
+    // else, and the result waits in the queue for the next reply.done.
+    if (lastEvent === "reply.done") {
+      const released = drainReleasedResults(m);
+      m = released.machine;
+      for (const r of released.send) deliver(r);
+    }
     publish();
   };
 

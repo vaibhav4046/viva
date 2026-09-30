@@ -14,6 +14,7 @@ import {
   onToolCall,
   withToolResult,
   onReplyDone,
+  onSessionChanged,
   drainReleasedResults,
   onAgentInterrupted,
   onRecovering,
@@ -446,5 +447,20 @@ describe("CHECKING_SOURCE lasts while a call is pending (Q8)", () => {
 
   it("still returns to LISTENING when nothing is pending", () => {
     expect(onReplyDone(onCheckingSource(toSpeaking()), { status: "completed" }).machine.state).toBe("LISTENING");
+  });
+});
+
+describe("session change clears the queue (Q5)", () => {
+  it("drops pending and ready calls once each, and ignores their late results", () => {
+    let m = onToolCall(toSpeaking(), { call_id: "c1", name: "verify_claim", arguments: {} });
+    m = onToolCall(m, { call_id: "c2", name: "search_my_material", arguments: {} });
+    m = withToolResult(m, "c2", { found: true });
+    m = onSessionChanged(m);
+    expect(m.pending).toHaveLength(0);
+    expect(m.ready).toHaveLength(0);
+    expect(m.discards).toBe(2);
+    m = withToolResult(m, "c1", { status: "supported" });
+    expect(m.ready).toHaveLength(0);
+    expect(m.discards).toBe(2);
   });
 });

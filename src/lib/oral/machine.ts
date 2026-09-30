@@ -428,6 +428,18 @@ export function onAgentInterrupted(m: OralMachine): { machine: OralMachine; disc
   };
 }
 
+/**
+ * The session changed (a fresh session replaced a dead one). Every call still
+ * queued belongs to a session that no longer exists, and a tool.result for its
+ * call_id would be sent to the new session. Each is counted as one discard.
+ */
+export function onSessionChanged(m: OralMachine): OralMachine {
+  if (m.pending.length === 0 && m.ready.length === 0) return m;
+  const ids = m.pending.map((p) => p.callId);
+  const fresh = ids.filter((id) => !m.gone.includes(id));
+  return { ...m, pending: [], ready: [], gone: markGone(m.gone, ids), discards: m.discards + fresh.length, interruptHandled: false };
+}
+
 /** A socket drop that we intend to resume from. */
 export function onRecovering(m: OralMachine, reason?: string): OralMachine {
   const next = transition(m, "RECOVERING");

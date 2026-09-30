@@ -740,3 +740,85 @@ describe("CHECKING_SOURCE while a call is pending (Q8)", () => {
     expect(states[states.length - 1]).toBe("THINKING");
   });
 });
+
+describe("a tool result never crosses a session change (Q5)", () => {
+  /** Drop the session, get the resume refused, and reach a fresh session on FakeWS 2. */
+  async function toFreshSession(ws: FakeWS[], socket: OralSocket) {
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    FakeWS.instances[1].open();
+    FakeWS.instances[1].emit({ type: "session.error", code: "session_not_found", message: "gone" });
+    FakeWS.instances[1].fire("close", { code: 1008, reason: "" });
+    await new Promise((r) => setTimeout(r, 20));
+    FakeWS.instances[2].open();
+    return socket;
+  }
+
+  it("does not send a dead session's tool.result on the new session", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "old", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    await toFreshSession(ws, socket);
+    // Result lands after the new socket opened but before its session.ready.
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    FakeWS.instances[2].emit({ type: "session.ready", session_id: "sess_2", resume_token: "rt2" });
+    expect(FakeWS.instances[2].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().pending).toHaveLength(0);
+    expect(socket.machine().ready).toHaveLength(0);
+    expect(socket.machine().discards).toBe(1);
+    socket.cancel();
+  });
+
+  it("drops a result that lands after the new session is ready", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "old", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    await toFreshSession(ws, socket);
+    FakeWS.instances[2].emit({ type: "session.ready", session_id: "sess_2", resume_token: "rt2" });
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances[2].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().discards).toBe(1);
+    socket.cancel();
+  });
+
+  it("keeps a call across a resume that the service accepts (same session id)", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "keep", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    FakeWS.instances[1].open();
+    FakeWS.instances[1].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+    FakeWS.instances[1].emit({ type: "reply.done", status: "completed" });
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances[1].of("tool.result")).toHaveLength(1);
+    socket.cancel();
+  });
+
+  it("delivers a finished call only when reply.done is the latest event", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "c1", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    ws[0].emit({ type: "input.speech.started" });
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().ready).toHaveLength(1);
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    socket.cancel();
+  });
+});

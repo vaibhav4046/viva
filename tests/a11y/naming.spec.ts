@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
  * aria-labelledby, or an associated <label> — placeholders do not count).
  * Run: A11Y_BASE=http://127.0.0.1:3111 npx playwright test
  */
-const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map", "/demo", "/connect"];
+const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map", "/demo", "/connect", "/redteam"];
 
 for (const route of ROUTES) {
   test(`${route} names every control and structures headings`, async ({ page }) => {

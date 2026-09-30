@@ -1,0 +1,43 @@
+1
+00:00:00,000 --> 00:00:04,500
+"…but your document says automatic replica failover is not configured."
+
+2
+00:00:04,500 --> 00:00:12,000
+"Recovery is manual. An on-call operator promotes a replica…"
+
+3
+00:00:12,000 --> 00:00:17,500
+YOU (interrupting): "Wait. I meant manual failover."
+
+4
+00:00:17,500 --> 00:00:24,000
+VIVA's voice stops. The claim is marked: cut off, awaiting your correction.
+
+5
+00:00:24,000 --> 00:00:32,000
+The document is searched again. Contradicted → Supported.
+
+6
+00:00:32,000 --> 00:00:40,000
+"That changes it. The document supports manual failover — section two, data storage."
+
+7
+00:00:40,000 --> 00:00:55,000
+This is VIVA RedTeam. Rehearse the questions your document cannot answer.
+
+8
+00:00:55,000 --> 00:01:15,000
+Unsupported means the document is silent. "I can't find that in the supplied material."
+
+9
+00:01:15,000 --> 00:01:45,000
+The Voice Agent listens, takes turns, and speaks. The server holds the document and checks every claim. No tool can write a verdict.
+
+10
+00:01:45,000 --> 00:02:05,000
+The Defensibility Report: what held, what needed qualifying, what was contradicted, what is unsupported. No score.
+
+11
+00:02:05,000 --> 00:02:30,000
+For anyone who wrote something important and wants it attacked first. The claim check is lexical, and the README says so.

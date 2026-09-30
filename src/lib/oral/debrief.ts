@@ -145,7 +145,8 @@ export function buildDebrief(input: {
     return { ...entry, verdict: "not_in_material" as const, quote: null, page: null, passageId: null };
   });
 
-  const resolved = verified.map((e) => ({ ...e, conceptId: e.conceptId ?? resolveConceptId(concepts, e.learner) }));
+  // A conceptId from the browser may be a spoken concept name (verify_claim passes the name the agent used), so resolve it first, then the learner's own words.
+  const resolved = verified.map((e) => ({ ...e, conceptId: resolveConceptId(concepts, e.conceptId, e.learner) }));
   const byConcept = new Map<string, SessionEntry[]>();
   for (const entry of resolved) {
     if (!entry.conceptId) continue;

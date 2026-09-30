@@ -1,5 +1,5 @@
 {
-  "files": 158,
+  "files": 181,
   "failing": 0,
   "unreviewedWarnings": 0,
   "findings": [
@@ -19,42 +19,6 @@
       "line": 447,
       "snippet": "<span aria-hidden>✓</span> {p}",
       "why": "checkmark bullets",
-      "status": "reviewed"
-    },
-    {
-      "rule": "R02",
-      "sev": "error",
-      "file": "src/app/(app)/oral/page.tsx",
-      "line": 3,
-      "snippet": "import { Mic, PhoneOff, RotateCcw } from \"lucide-react\";",
-      "why": "icon library on the golden path",
-      "status": "allowlisted"
-    },
-    {
-      "rule": "R11",
-      "sev": "error",
-      "file": "src/app/(app)/oral/page.tsx",
-      "line": 282,
-      "snippet": "style={t.speaker === \"agent\" ? { borderLeft: \"2px solid var(--color-mist)\" } : u",
-      "why": "coloured left stripe",
-      "status": "allowlisted"
-    },
-    {
-      "rule": "X06",
-      "sev": "warn",
-      "file": "src/app/(app)/oral/page.tsx",
-      "line": 259,
-      "snippet": "<p className=\"mono text-[11px]\" style={{ color: \"var(--color-ash)\" }}>",
-      "why": "tiny text",
-      "status": "reviewed"
-    },
-    {
-      "rule": "X06",
-      "sev": "warn",
-      "file": "src/app/(app)/oral/page.tsx",
-      "line": 284,
-      "snippet": "<p className=\"mono mb-1 text-[10px] font-semibold uppercase tracking-widest\" sty",
-      "why": "tiny text",
       "status": "reviewed"
     },
     {
@@ -134,7 +98,7 @@
       "sev": "warn",
       "file": "(repo)",
       "line": 0,
-      "snippet": "12 distinct icon-library imports",
+      "snippet": "10 distinct icon-library imports",
       "why": "more than 8 icon-library imports",
       "status": "reviewed"
     }

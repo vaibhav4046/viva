@@ -183,6 +183,8 @@ export type OralSocketOptions = {
   flushAudio?: () => void;
   onState: (m: OralMachine) => void;
   onTranscript?: (text: string, speaker: "user" | "agent", interrupted?: boolean) => void;
+  /** One word of the examiner's line as it is spoken, for live captions. */
+  onAgentDelta?: (word: string, replyId: string) => void;
   /** The exam cannot go on. The screen shows the message and offers a new start. */
   onError?: (message: string) => void;
   /** The exam goes on and the learner should know: a continued session, a hidden tab, a long silence. */
@@ -546,6 +548,8 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         playAudio?.(String(msg.data ?? ""));
         return;
       case "transcript.agent.delta":
+        // One word per event (events reference). Forwarded for live captions only.
+        if (typeof msg.delta === "string") opts.onAgentDelta?.(msg.delta, String(msg.reply_id ?? ""));
         return;
       case "transcript.agent": {
         const interrupted = msg.interrupted === true;

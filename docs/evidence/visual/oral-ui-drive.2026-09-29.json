@@ -1,0 +1,560 @@
+{
+  "measuredOn": "2026-09-29T22:43:41.365Z",
+  "base": "http://localhost:3141",
+  "states": [
+    {
+      "t": 2013,
+      "text": "Ready"
+    },
+    {
+      "t": 2223,
+      "text": "Loading your material"
+    },
+    {
+      "t": 4551,
+      "text": "Ready"
+    },
+    {
+      "t": 5504,
+      "text": "Connecting"
+    },
+    {
+      "t": 15691,
+      "text": "Listening"
+    },
+    {
+      "t": 15698,
+      "text": "Speaking"
+    },
+    {
+      "t": 20843,
+      "text": "Listening"
+    }
+  ],
+  "meterSamples": [
+    {
+      "ms": 3,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 271,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 538,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 805,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 1062,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 1331,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 1592,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 1863,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 2126,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 2400,
+      "state": "Ready",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 2673,
+      "state": "Ready",
+      "learner": 60,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 2930,
+      "state": "Ready",
+      "learner": 40,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 3195,
+      "state": "Ready",
+      "learner": 22,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 3456,
+      "state": "Connecting",
+      "learner": 19,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 3721,
+      "state": "Connecting",
+      "learner": 65,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 3983,
+      "state": "Connecting",
+      "learner": 37,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 4243,
+      "state": "Connecting",
+      "learner": 29,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 4506,
+      "state": "Connecting",
+      "learner": 20,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 4769,
+      "state": "Connecting",
+      "learner": 55,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 5035,
+      "state": "Connecting",
+      "learner": 37,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 5297,
+      "state": "Connecting",
+      "learner": 60,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 5561,
+      "state": "Connecting",
+      "learner": 41,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 5826,
+      "state": "Connecting",
+      "learner": 24,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 6090,
+      "state": "Connecting",
+      "learner": 14,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 6355,
+      "state": "Connecting",
+      "learner": 18,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 6622,
+      "state": "Connecting",
+      "learner": 12,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 6886,
+      "state": "Connecting",
+      "learner": 12,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 7150,
+      "state": "Connecting",
+      "learner": 8,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 7408,
+      "state": "Connecting",
+      "learner": 44,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 7673,
+      "state": "Connecting",
+      "learner": 24,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 7936,
+      "state": "Connecting",
+      "learner": 19,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 8199,
+      "state": "Connecting",
+      "learner": 23,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 8470,
+      "state": "Connecting",
+      "learner": 18,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 8733,
+      "state": "Connecting",
+      "learner": 38,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 8997,
+      "state": "Connecting",
+      "learner": 22,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 9262,
+      "state": "Connecting",
+      "learner": 18,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 9529,
+      "state": "Connecting",
+      "learner": 12,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 9795,
+      "state": "Connecting",
+      "learner": 54,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 10060,
+      "state": "Connecting",
+      "learner": 36,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 10324,
+      "state": "Connecting",
+      "learner": 27,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 10587,
+      "state": "Connecting",
+      "learner": 18,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 10852,
+      "state": "Connecting",
+      "learner": 55,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 11116,
+      "state": "Connecting",
+      "learner": 30,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 11379,
+      "state": "Connecting",
+      "learner": 20,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 11644,
+      "state": "Connecting",
+      "learner": 13,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 11909,
+      "state": "Connecting",
+      "learner": 37,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 12172,
+      "state": "Connecting",
+      "learner": 20,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 12441,
+      "state": "Connecting",
+      "learner": 17,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 12705,
+      "state": "Connecting",
+      "learner": 9,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 12969,
+      "state": "Connecting",
+      "learner": 18,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 13229,
+      "state": "Connecting",
+      "learner": 46,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 13496,
+      "state": "Speaking",
+      "learner": 32,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 13825,
+      "state": "Speaking",
+      "learner": 57,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 14079,
+      "state": "Speaking",
+      "learner": 31,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 14335,
+      "state": "Speaking",
+      "learner": 24,
+      "examiner": 80,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 14595,
+      "state": "Speaking",
+      "learner": 19,
+      "examiner": 92,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 14851,
+      "state": "Speaking",
+      "learner": 55,
+      "examiner": 86,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15115,
+      "state": "Speaking",
+      "learner": 30,
+      "examiner": 67,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15380,
+      "state": "Speaking",
+      "learner": 23,
+      "examiner": 41,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15638,
+      "state": "Speaking",
+      "learner": 15,
+      "examiner": 28,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15907,
+      "state": "Speaking",
+      "learner": 11,
+      "examiner": 67,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16165,
+      "state": "Speaking",
+      "learner": 6,
+      "examiner": 86,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16422,
+      "state": "Speaking",
+      "learner": 11,
+      "examiner": 89,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16685,
+      "state": "Speaking",
+      "learner": 6,
+      "examiner": 75,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16941,
+      "state": "Speaking",
+      "learner": 17,
+      "examiner": 59,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17193,
+      "state": "Speaking",
+      "learner": 9,
+      "examiner": 37,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17448,
+      "state": "Speaking",
+      "learner": 10,
+      "examiner": 36,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17704,
+      "state": "Speaking",
+      "learner": 5,
+      "examiner": 74,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17959,
+      "state": "Speaking",
+      "learner": 9,
+      "examiner": 65,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18218,
+      "state": "Speaking",
+      "learner": 6,
+      "examiner": 47,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18481,
+      "state": "Speaking",
+      "learner": 42,
+      "examiner": 26,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18747,
+      "state": "Listening",
+      "learner": 71,
+      "examiner": 14,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    }
+  ],
+  "captions": [],
+  "diag": "Diagnostics, this session only\nClick to session.ready\n13489 ms\nClick to first examiner audio\n13991 ms\nTurns heard\n0\nTrace events\n931\nStale tool results dropped\n0\nBarge-in: speech-started event to playback flushed\nnone this session\nSource check, request to result\nnone this session\nPartial transcript timeline\n\nNo partial transcript yet.\n\nSocket events\n+3292 ms ws.connect\n+13196 ms ws.open\n+13489 ms session.ready",
+  "debrief": "Nothing to debrief yet\n\nNo answer was checked in this exam, so there is nothing to grade yet. Start again and answer at least one question.\n\nBack to the exam",
+  "errors": [],
+  "shotSpeaking": true,
+  "examinerCard": "ExaminerYou're being examined. Tell me what you want to be asked on, and I'll start there.",
+  "statesAfterEnd": [
+    {
+      "t": 15698,
+      "text": "Speaking"
+    },
+    {
+      "t": 20843,
+      "text": "Listening"
+    },
+    {
+      "t": 21298,
+      "text": "Ended"
+    }
+  ]
+}

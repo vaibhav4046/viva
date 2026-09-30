@@ -918,3 +918,94 @@ describe("stale sockets and the backoff timer (Q14)", () => {
     }
   });
 });
+
+describe("token failure during recovery is retryable (Q15)", () => {
+  /** getToken that succeeds for the first `okCalls` calls, then follows `after`. */
+  const flaky = (okCalls: number, after: () => Promise<string>) => {
+    let n = 0;
+    return vi.fn(() => (++n <= okCalls ? Promise.resolve("tok") : after()));
+  };
+
+  it("retries after a failed token mint on a resume instead of ending the exam", async () => {
+    vi.useFakeTimers();
+    try {
+      let failures = 1;
+      const getToken = flaky(1, () => (failures-- > 0 ? Promise.reject(new Error("mint down")) : Promise.resolve("tok2")));
+      const { socket, onError } = setup({ getToken });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onError).not.toHaveBeenCalled();
+      expect(socket.machine().state).toBe("RECOVERING");
+      expect(FakeWS.instances).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(600);
+      expect(FakeWS.instances).toHaveLength(2);
+      FakeWS.instances[1].open();
+      expect(FakeWS.instances[1].sent[0]).toEqual({ type: "session.resume", session_id: "sess_1" });
+      expect(onError).not.toHaveBeenCalled();
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives up with a message after a bounded number of failed mints", async () => {
+    vi.useFakeTimers();
+    try {
+      const getToken = flaky(1, () => Promise.reject(new Error("mint down")));
+      const { socket, onError } = setup({ getToken });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(getToken.mock.calls.length).toBeLessThanOrEqual(8);
+      expect(socket.machine().state).toBe("ERROR");
+      expect(socket.machine().fatal).toBe(true);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits for the browser's online event instead of burning retries while offline", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, () => void> = {};
+    vi.stubGlobal("addEventListener", (type: string, fn: () => void) => { handlers[type] = fn; });
+    vi.stubGlobal("removeEventListener", () => {});
+    vi.stubGlobal("navigator", { onLine: false });
+    try {
+      let mintOk = false;
+      const getToken = flaky(1, () => (mintOk ? Promise.resolve("tok2") : Promise.reject(new Error("offline"))));
+      const { socket, onError } = setup({ getToken });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(20_000);
+      // Offline for 20 s: no fatal error, and the mint was tried once, not on a timer loop.
+      expect(onError).not.toHaveBeenCalled();
+      expect(getToken.mock.calls.length).toBe(2);
+      expect(FakeWS.instances).toHaveLength(1);
+      mintOk = true;
+      vi.stubGlobal("navigator", { onLine: true });
+      handlers.online?.();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(FakeWS.instances).toHaveLength(2);
+      socket.cancel();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it("still ends the exam when the very first token cannot be minted", async () => {
+    const { socket, onError } = setup({ getToken: async () => { throw new Error("no key"); } });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(socket.machine().fatal).toBe(true);
+  });
+});

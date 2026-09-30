@@ -107,6 +107,9 @@ function trace(kind: string, fields: Record<string, unknown> = {}): void {
 const RESUME_REFUSED: ReadonlySet<string> = new Set(["session_not_found", "session_forbidden", "session_expired"]);
 const MAX_RESUME_ATTEMPTS = 3;
 const RESUME_BACKOFF_MS = 500;
+/** A token mint that fails while recovering is a network blip, not a missing key: retry with backoff, then give up. */
+const MAX_TOKEN_RETRIES = 5;
+const TOKEN_RETRY_MS = 500;
 
 /** A source check that has not answered by now is given up on, so the agent is never left waiting. */
 export const TOOL_TIMEOUT_MS = 10_000;
@@ -273,9 +276,15 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
   /** The short backoff before the next resume attempt. Cleared wherever the resume timer is. */
   let backoffTimer: ReturnType<typeof setTimeout> | undefined;
+  let tokenRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  let tokenRetries = 0;
+  /** Set while offline: the mode to reconnect in as soon as the browser reports the network back. */
+  let awaitingOnline: "fresh" | "resume" | null = null;
   const clearReconnectTimers = () => {
     if (resumeTimer) clearTimeout(resumeTimer);
     if (backoffTimer) clearTimeout(backoffTimer);
+    if (tokenRetryTimer) clearTimeout(tokenRetryTimer);
+    awaitingOnline = null;
   };
 
   /**
@@ -307,9 +316,22 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   };
   const docTarget = (globalThis as { document?: EventTarget }).document;
   docTarget?.addEventListener?.("visibilitychange", onVisibility);
+  const netTarget = globalThis as { addEventListener?: (t: string, f: () => void) => void; removeEventListener?: (t: string, f: () => void) => void };
+  const isOffline = () => (globalThis as { navigator?: { onLine?: boolean } }).navigator?.onLine === false;
+  const onOnline = () => {
+    trace("net.online");
+    const mode = awaitingOnline;
+    awaitingOnline = null;
+    if (mode && !cancelled && !ending && !finished) void connect(mode);
+  };
+  const onOffline = () => trace("net.offline");
+  netTarget.addEventListener?.("online", onOnline);
+  netTarget.addEventListener?.("offline", onOffline);
   const teardownWatchers = () => {
     if (silenceTimer) clearTimeout(silenceTimer);
     docTarget?.removeEventListener?.("visibilitychange", onVisibility);
+    netTarget.removeEventListener?.("online", onOnline);
+    netTarget.removeEventListener?.("offline", onOffline);
   };
 
   const publish = () => {
@@ -365,13 +387,35 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     try {
       url = voiceAgentUrl(await opts.getToken());
     } catch {
+      // While recovering, a failed mint is usually the network still being down,
+      // so it retries. On the very first connect it is a real setup failure.
+      const recovering = mode === "resume" || continuing || m.state === "RECOVERING";
+      if (recovering && !cancelled && !ending) {
+        if (isOffline()) {
+          // Do not spend retries while the browser says there is no network.
+          trace("token.wait_online", { mode });
+          awaitingOnline = mode;
+          return;
+        }
+        if (tokenRetries < MAX_TOKEN_RETRIES) {
+          tokenRetries += 1;
+          trace("token.retry", { mode, attempt: tokenRetries });
+          if (tokenRetryTimer) clearTimeout(tokenRetryTimer);
+          tokenRetryTimer = setTimeout(() => { if (!cancelled && !ending) void connect(mode); }, TOKEN_RETRY_MS * 2 ** (tokenRetries - 1));
+          return;
+        }
+        m = onError(m, "token", true);
+        publish();
+        opts.onError?.(errorSentence("network"));
+        return;
+      }
       m = onError(m, "token", true);
       publish();
       opts.onError?.(voiceMessage("NO_API_KEY"));
       return;
     }
-    // end() during the token round trip: opening a socket now would leave a
-    // billed session nobody can see and nobody will close.
+    tokenRetries = 0;
+    // end() during the token round trip: opening a socket now would leave a    // billed session nobody can see and nobody will close.
     if (cancelled || ending) return;
 
     m = onConnecting(m);

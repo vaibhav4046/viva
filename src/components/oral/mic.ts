@@ -164,6 +164,18 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
   let node: AudioWorkletNode | null = null;
   let torn = false;
 
+  // A context can start suspended (autoplay policy) or be suspended or
+  // interrupted later (a call, another tab taking the audio device). A
+  // suspended context produces no frames and no error, so the exam would sit
+  // in LISTENING hearing nothing: ask for it to run now, inside the user
+  // gesture, and again on every state change.
+  const resumeIfStopped = () => {
+    if (torn) return;
+    if (ctx.state === "suspended" || (ctx.state as string) === "interrupted") void ctx.resume().catch(() => {});
+  };
+  ctx.onstatechange = resumeIfStopped;
+  resumeIfStopped();
+
   // The examiner's meter reads the same signal the speakers get.
   const outAnalyser = ctx.createAnalyser();
   outAnalyser.fftSize = 1024;
@@ -182,6 +194,7 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
   const teardown = () => {
     if (torn) return;
     torn = true;
+    ctx.onstatechange = null;
     node?.disconnect();
     stream.getTracks().forEach((t) => t.stop());
     playback.close();
@@ -190,6 +203,31 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
 
   try {
     await ctx.audioWorklet.addModule("/worklets/pcm16.js");
+  } catch {
+    teardown();
+    throw new Error(oralMessage("NO_WORKLET"));
+  }
+
+  // Build the graph BEFORE the socket exists. A browser that refuses the source
+  // or the worklet node would otherwise leave a live session (and a billed
+  // one) behind an exam that never started, with the microphone still open.
+  let socketRef: OralSocket | null = null;
+  try {
+    const source = ctx.createMediaStreamSource(stream);
+    node = new AudioWorkletNode(ctx, "pcm16-24k", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+    node.port.onmessage = (e: MessageEvent<{ type: string; frame?: Int16Array }>) => {
+      if (e.data.type === "pcm" && e.data.frame) socketRef?.sendAudio(e.data.frame);
+    };
+
+    // The worklet only runs while its output reaches the destination, so the
+    // chain has to terminate there, through a muted gain, or the student's own
+    // voice is played back into the room and picked up again as an interruption.
+    const mute = ctx.createGain();
+    mute.gain.value = 0;
+    source.connect(node);
+    source.connect(inAnalyser);
+    node.connect(mute);
+    mute.connect(ctx.destination);
   } catch {
     teardown();
     throw new Error(oralMessage("NO_WORKLET"));
@@ -210,22 +248,7 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
     ...(args.onNotice ? { onNotice: args.onNotice } : {}),
     onEnded: args.onEnded,
   });
-
-  const source = ctx.createMediaStreamSource(stream);
-  node = new AudioWorkletNode(ctx, "pcm16-24k", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
-  node.port.onmessage = (e: MessageEvent<{ type: string; frame?: Int16Array }>) => {
-    if (e.data.type === "pcm" && e.data.frame) socket.sendAudio(e.data.frame);
-  };
-
-  // The worklet only runs while its output reaches the destination, so the
-  // chain has to terminate there, through a muted gain, or the student's own
-  // voice is played back into the room and picked up again as an interruption.
-  const mute = ctx.createGain();
-  mute.gain.value = 0;
-  source.connect(node);
-  source.connect(inAnalyser);
-  node.connect(mute);
-  mute.connect(ctx.destination);
+  socketRef = socket;
 
   return {
     get live() {

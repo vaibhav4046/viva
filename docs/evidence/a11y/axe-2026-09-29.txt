@@ -1,0 +1,23 @@
+Command: A11Y_BASE=http://localhost:3122 npx playwright test tests/a11y/axe.spec.ts --project=chromium
+Target: local production build (npm run build, next start -p 3122), branch wt/ui, 2026-09-29
+Rules: axe-core wcag2a and wcag2aa, fails on serious or critical impact (includes colour contrast)
+
+  ok  1 / has no serious accessibility violations (3.6s)
+  ok  2 /oral has no serious accessibility violations (4.9s)
+  ok  3 /recorded has no serious accessibility violations (3.7s)
+  ok  4 /privacy has no serious accessibility violations (4.1s)
+  ok  5 /terms has no serious accessibility violations (3.9s)
+  ok  6 /accessibility has no serious accessibility violations (3.7s)
+  ok  7 /about has no serious accessibility violations (3.7s)
+  ok  8 /study has no serious accessibility violations (7.0s)
+  ok  9 /subjects has no serious accessibility violations (4.7s)
+  ok 10 /exam has no serious accessibility violations (4.2s)
+  ok 11 /today has no serious accessibility violations (4.1s)
+  ok 12 /map has no serious accessibility violations (3.8s)
+  ok 13 /demo has no serious accessibility violations (4.3s)
+  ok 14 keyboard reaches the mic and the typed box (4.1s)
+  ok 15 new notes are announced via a polite live region (12.3s)
+
+  15 passed (1.5m)
+
+Not covered: mobile project (Pixel 7) was not run in this pass; no manual keyboard pass or screen-reader session is recorded.

@@ -7,7 +7,7 @@ import { extractSubjectBody } from "@/lib/intake/extract";
  * What a student gets when they paste their own notes.
  *
  * A judge pasted 851 words of their own lecture notes on binary search trees.
- * The subject was called "Your notes — your notes", the map it built had
+ * The subject was called "Your notes, your notes", the map it built had
  * concepts called Plain, Correct and Practical difference, and the question
  * it then asked them three times was "Where does Plain come up, and what does
  * it change?". Every passage opened halfway through a clause and every one
@@ -16,7 +16,7 @@ import { extractSubjectBody } from "@/lib/intake/extract";
  *
  * The aliases are the half of this that is not cosmetic. The claim checker
  * matches what a learner says against concept names and aliases, so a bare
- * ordinary word in that list — "cost", "order", "tree", "difference" — is how
+ * ordinary word in that list, "cost", "order", "tree", "difference", is how
  * a correct sentence gets matched to the wrong passage and the student is
  * told they are wrong when they are right. That guard is the strict one here.
  */
@@ -74,7 +74,7 @@ describe("concepts named from a student's own notes", () => {
     const { body, text } = bodyOfNotes();
     // A term of art is marked as one by the way the student wrote it: an
     // acronym, a symbol, or a hyphenated compound. Anything else has to be a
-    // phrase — one word of ordinary English matches far too much.
+    // phrase, one word of ordinary English matches far too much.
     const termOfArt = (alias: string) =>
       new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\b`).test(text) &&
       (/[A-Z]/.test(alias.slice(1)) || /\d/.test(alias) || /[A-Za-z]-[A-Za-z]/.test(alias));
@@ -112,9 +112,9 @@ describe("what the subject is called", () => {
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     expect(built.subject.title).toBe("Binary Search Trees and Balancing");
-    // "Your notes — your notes" was the whole of what a judge was told their
+    // "Your notes, your notes" was the whole of what a judge was told their
     // subject was.
-    expect(built.subject.sources[0].title).not.toMatch(/notes — your notes/i);
+    expect(built.subject.sources[0].title).not.toMatch(/notes, your notes/i);
     // And the heading it found is what a citation says, rather than nothing.
     expect(built.subject.sources[0].chunks[0].locator.section).toBe("Binary Search Trees and Balancing");
   });
@@ -132,11 +132,11 @@ describe("what the subject is called", () => {
  * true for a student to go and check it.
  *
  * A student judge, 13 Sep: "Own-notes passages are blind ~750-char overlapping
- * windows cited only as '§Your notes · Passage N' — no section or page, unlike
+ * windows cited only as '§Your notes · Passage N', no section or page, unlike
  * built-in subjects." Reproduced on 788 words of enzyme kinetics notes: seven
  * passages of 789, 784, 781, 715, 603, 781 and 256 characters, one of them
  * ending "Three things fall straight out of that equation: 1." and the next
- * opening with it, and the same six characters — "Your notes" — printed under
+ * opening with it, and the same six characters, "Your notes", printed under
  * all seven.
  */
 const HEADED_BULLETS = `Enzyme kinetics revision
@@ -189,7 +189,7 @@ describe("where a passage came from", () => {
       // Not the document's own name, which is the same string on every passage
       // and points at nothing inside it.
       expect(c.locator.section).not.toBe("Your notes");
-      expect(c.locator.section).toMatch(/^Paragraphs? \d+(–\d+)?$/);
+      expect(c.locator.section).toMatch(/^Paragraphs? \d+(-\d+)?$/);
     }
     // Counted through the document, in order, with nothing skipped.
     const first = chunks[0].locator.section ?? "";

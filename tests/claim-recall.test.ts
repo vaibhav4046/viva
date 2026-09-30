@@ -16,14 +16,14 @@ import {
 } from "./fixtures/claim-corpus";
 
 /**
- * How much of what a student gets wrong VIVA actually catches, and — the half
- * that matters more — how often it corrects somebody who was right.
+ * How much of what a student gets wrong VIVA actually catches, and, the half
+ * that matters more, how often it corrects somebody who was right.
  *
  * This header used to say the corpus was fixed before the fix. Git does not
  * support that: the fixture, this test and the change to `claim.ts` all landed
- * in one commit, `f127cca`. An audit then measured what that costs — five of
+ * in one commit, `f127cca`. An audit then measured what that costs, five of
  * the seven catches had a bespoke lexical lever added in the same diff, two
- * keyed on words that appear nowhere else in the shipped library — and wrote a
+ * keyed on words that appear nowhere else in the shipped library, and wrote a
  * genuinely held-out set of true sentences. **Six of its fourteen were
  * contradicted.** Two strategies were narrowed to fix that, and three real
  * catches were lost doing it.
@@ -42,8 +42,8 @@ import {
  * set, never against the fitted one.
  *
  * 13 Sep, second pass, after a student judge got the "I could not check that"
- * line for nine claims out of ten. That round moved only the SUPPORT check —
- * the one exit that may tell a learner they are right — and moved nothing in
+ * line for nine claims out of ten. That round moved only the SUPPORT check, 
+ * the one exit that may tell a learner they are right, and moved nothing in
  * the contradiction strategies:
  *
  *   two-line verbatim quote of the open passage   missed → confirmed
@@ -60,7 +60,7 @@ import {
  * both are recorded below the recall block.
  *
  * 13 Sep, third pass. An adversarial pass on a running server swapped ONE word
- * of a passage line for its opposite and left the rest of the sentence alone —
+ * of a passage line for its opposite and left the rest of the sentence alone, 
  * "the ABDOMINAL cavity", "PRODUCERS are willing and able to SELL", "this
  * DIRECT relationship", "a low Km means LOW affinity". Thirteen of fourteen
  * came back "That matches", quoting the line that says the reverse, with the
@@ -79,8 +79,8 @@ import {
  * The last two rows are the price and they are quoted rather than buried: 36
  * true sentences VIVA used to confirm now get "I could not check that", and
  * one more gets contradicted. Every one of the 36 is a paraphrase VIVA itself
- * wrote — a concept description or a formal explainer, not a line of anyone's
- * source — and the newly contradicted one is `course_os_bio`'s three-sentence
+ * wrote, a concept description or a formal explainer, not a line of anyone's
+ * source, and the newly contradicted one is `course_os_bio`'s three-sentence
  * description of what all cells share.
  */
 
@@ -96,14 +96,14 @@ const CAUGHT = new Set([
  * Still missed, and why. None of the three is a gate that can be widened
  * without asserting something the passages do not say:
  *
- *   w06  "self-attention ONLY lets a token look at the tokens before it" —
+ *   w06  "self-attention ONLY lets a token look at the tokens before it", 
  *        a scope error. Catching it means reading "only" against p.4's
  *        "every other token", and the same rule fires on true sentences that
  *        narrow a claim honestly.
- *   w08  "positional encoding is only needed for very long sequences" — the
+ *   w08  "positional encoding is only needed for very long sequences", the
  *        source never says when it is needed, so there is no line to quote.
  *        This one is a correct refusal.
- *   w10  "self-attention is not permutation invariant…" — a real denial, and
+ *   w10  "self-attention is not permutation invariant…", a real denial, and
  *        denials stay conservative on purpose. The passage says
  *        "permutation-equivariant", which shares no word with "permutation
  *        invariant"; nothing lexical connects them.
@@ -117,7 +117,7 @@ const STILL_MISSED = new Set([
   // a contrast word, which also contradicted "All the heads read the same
   // input embeddings" and "So um the heads are all the same size I think".
   // w05 was caught by a verb-class clash that also contradicted "Positional
-  // encodings are scaled by a constant factor" — a vector can be scaled and
+  // encodings are scaled by a constant factor", a vector can be scaled and
   // added, so that was never a contradiction. Both are recorded here rather
   // than deleted: they are recall we would like back, on evidence, from a rule
   // that reads meaning instead of shape.
@@ -140,7 +140,7 @@ describe("recall on ten sentences that are plainly wrong", () => {
   it("catches at least four of the ten, and improving that is allowed", () => {
     const hits = WRONG.filter((w) => runClaim(TRANSFORMERS, w.text).status === "contradicted");
     // A floor, not a snapshot. This was exact set equality, which went red if
-    // recall *improved* — a pin wearing a ratchet's name. Raise the floor when
+    // recall *improved*, a pin wearing a ratchet's name. Raise the floor when
     // a change earns it; never lower it to make a gate green.
     expect(hits.length).toBeGreaterThanOrEqual(4);
   });
@@ -200,9 +200,9 @@ describe("precision: nobody who was right gets told they were wrong", () => {
 });
 
 /**
- * The whole library, both directions. Every sentence VIVA itself asserts —
+ * The whole library, both directions. Every sentence VIVA itself asserts, 
  * every passage sentence, every authored correction, every formal explainer,
- * every concept description — none of which a student should be corrected for
+ * every concept description, none of which a student should be corrected for
  * saying back. 27 of 3910 come back contradicted. The one added by the order
  * check is `course_os_bio`'s "All cells share four common components…", a
  * three-sentence description that used to exit as a match and now falls
@@ -214,7 +214,7 @@ describe("precision: nobody who was right gets told they were wrong", () => {
  * somebody else's re-seed and said nothing about the checker. The measured
  * rate is 0.665% (26 of 3910); the ratchet sits just above it, so widening
  * recall again cannot quietly buy itself precision. If it goes red right after
- * somebody re-runs the seed script, run it again — a half-written library.json
+ * somebody re-runs the seed script, run it again, a half-written library.json
  * is not a checker regression.
  */
 const FALSE_POSITIVE_RATE_CEILING = 0.008;
@@ -263,14 +263,14 @@ describe("precision across every subject VIVA ships", () => {
  *
  *   a. a near-verbatim quote of two consecutive lines of the open passage.
  *      Was `consistent`. The support check scored the whole two-sentence claim
- *      against ONE passage line and got 0.75 against a bar of 0.80 — neither
+ *      against ONE passage line and got 0.75 against a bar of 0.80, neither
  *      half of what the student said could ever cover the whole of it. Each
  *      sentence now finds its own line and all of them must.
  *   b. the same passage in the student's own words ("shuffle" for "permute",
  *      and the source's "without position information" dropped). Still a miss,
  *      and deliberately: it uses words the line does not, in an order the line
  *      does not, and that line carries a denial the claim does not. Relaxing
- *      the bars to reach it was measured — it endorses two labelled-false
+ *      the bars to reach it was measured, it endorses two labelled-false
  *      sentences the library ships, including "A light-year is a unit of time,
  *      not distance". A miss says "I could not check that"; that would say
  *      "correct" to a student who is wrong. A paraphrase is the price of
@@ -316,7 +316,7 @@ describe("the shapes a student actually typed", () => {
  * before: every sentence the library ships that its own author labelled WRONG.
  * Sixty-five of them across twenty-six subjects, none of which VIVA may agree
  * with. Widening the support check is the change that could break this, and it
- * has already tried twice — dropping the word floor from six to five endorses
+ * has already tried twice, dropping the word floor from six to five endorses
  * "Ionic compounds are made of covalent bonds", and dropping the pair floor
  * that `saysInOrder` has since replaced endorsed "A light-year is a unit of
  * time, not distance", which shares five of its six words with a line that
@@ -365,7 +365,7 @@ describe("held out: sentences the checker was not written against", () => {
   for (const h of HELD_OUT_TRUE) {
     it(`never contradicts ${h.id}`, () => {
       const check = runClaim(TRANSFORMERS, h.text);
-      expect(check.status, `"${h.text}" — ${check.lead ?? ""}`).not.toBe("contradicted");
+      expect(check.status, `"${h.text}", ${check.lead ?? ""}`).not.toBe("contradicted");
     });
   }
 

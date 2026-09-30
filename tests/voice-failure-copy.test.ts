@@ -33,7 +33,7 @@ const GENERIC = voiceMessage(undefined);
 
 describe("every voice failure says something a student can act on", () => {
   // An explicit entry, not the generic fallback by accident. TRANSCRIPTION_FAILED
-  // is allowed to read the same as the fallback — the fallback IS its sentence —
+  // is allowed to read the same as the fallback, the fallback IS its sentence, 
   // but it still has to be spelled out here, or a code added later inherits it
   // silently and nobody notices the student was told the wrong thing.
   it.each(EVERY_CODE)("%s has a sentence of its own", (code) => {
@@ -59,7 +59,7 @@ describe("a hold that captured nothing is not a hold that was too short", () => 
     expect(shortClipCode(DEAD_INPUT_MS - 1)).toBe("AUDIO_TOO_SHORT");
   });
 
-  // The judged state: permission granted, "Listening — release" on screen, the
+  // The judged state: permission granted, "Listening, release" on screen, the
   // timer running, and an input device that delivered no samples at all.
   it("blames the microphone once the hold was long enough to say something", () => {
     expect(shortClipCode(DEAD_INPUT_MS)).toBe("NO_AUDIO");

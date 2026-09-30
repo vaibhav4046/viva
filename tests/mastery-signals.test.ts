@@ -14,8 +14,8 @@ function oneTurn(event: Signal) {
 }
 
 /*
- * A judge said three things about one subject — one right, one flatly wrong,
- * one VIVA could not check — and the map read "Shaky" with 0 got and 0 missed
+ * A judge said three things about one subject, one right, one flatly wrong,
+ * one VIVA could not check, and the map read "Shaky" with 0 got and 0 missed
  * for all three. These are the rules that stop that: what may move a counter,
  * what may only move the number, and what may move nothing at all.
  */
@@ -36,7 +36,7 @@ describe("study-turn signals move the record", () => {
     expect(bandLabelFor(r.next)).toBe("Mixed up");
   });
 
-  it("a down signal is a missed-it too — being found wrong is being found wrong", () => {
+  it("a down signal is a missed-it too, being found wrong is being found wrong", () => {
     const r = oneTurn({ masterySignal: "down" });
     expect(r.next.failedRecallCount).toBe(1);
     expect(r.next.successfulRecallCount).toBe(0);
@@ -45,7 +45,7 @@ describe("study-turn signals move the record", () => {
     expect(r.delta).toBeGreaterThan(oneTurn({ assessment: "incorrect" }).delta!);
   });
 
-  it("an up signal is NOT a got-it — a model liking the sound of it verifies nothing", () => {
+  it("an up signal is NOT a got-it, a model liking the sound of it verifies nothing", () => {
     const r = oneTurn({ masterySignal: "up" });
     expect(r.next.successfulRecallCount).toBe(0);
     expect(r.next.lastSuccessfulRecallAt).toBeNull();

@@ -6,7 +6,7 @@ import { storageWorks } from "@/components/mirror";
  * One sentence about where this student's record actually lives.
  *
  * It used to read "tonight's notes stay on this device only" and it was on
- * /study alone — which named the one part that survived. The notes were already
+ * /study alone, which named the one part that survived. The notes were already
  * written to this browser; the map, the plan and the subjects were the parts
  * that vanished. Now the whole record is mirrored here, so the sentence is true
  * of all of it, and it belongs on every screen that shows a piece of it.
@@ -18,7 +18,7 @@ import { storageWorks } from "@/components/mirror";
  * that instead, in the band colour the rest of the app uses for trouble.
  */
 const BLOCKED =
-  "Heads up — this browser is blocking saved data, so your map and your subjects will not be here after a reload. Everything else still works.";
+  "Heads up, this browser is blocking saved data, so your map and your subjects will not be here after a reload. Everything else still works.";
 
 export function DeviceNote({ note }: { note: string | null }) {
   // Resolved in an effect, not in render: storage is probed by writing to it,

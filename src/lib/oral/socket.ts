@@ -54,12 +54,14 @@ import {
   isRetryableCode,
   onCheckingSource,
   onConnecting,
+  onAgentInterrupted,
   onEnded,
   onError,
   onRecovering,
   onReplyAudio,
   onReplyDone,
   onReplyStarted,
+  onSessionChanged,
   onSessionReady,
   onSpeechStarted,
   onStartStreaming,
@@ -105,6 +107,9 @@ function trace(kind: string, fields: Record<string, unknown> = {}): void {
 const RESUME_REFUSED: ReadonlySet<string> = new Set(["session_not_found", "session_forbidden", "session_expired"]);
 const MAX_RESUME_ATTEMPTS = 3;
 const RESUME_BACKOFF_MS = 500;
+/** A token mint that fails while recovering is a network blip, not a missing key: retry with backoff, then give up. */
+const MAX_TOKEN_RETRIES = 5;
+const TOKEN_RETRY_MS = 500;
 
 /** A source check that has not answered by now is given up on, so the agent is never left waiting. */
 export const TOOL_TIMEOUT_MS = 10_000;
@@ -141,6 +146,16 @@ export const ORAL_SAMPLE_RATE = 24_000;
  */
 const FRAME_SAMPLES = 2400;
 const MAX_PENDING_FRAMES = 32;
+/** One frame is 100 ms of audio, so sending one per 100 ms is exactly real time. */
+const FRAME_MS = (FRAME_SAMPLES / ORAL_SAMPLE_RATE) * 1000;
+/**
+ * Backlog kept when the session becomes ready. Drained at real time it never
+ * shrinks (the microphone keeps producing at real time too), so it is also the
+ * permanent extra latency: about 1 s at most. Older audio is dropped.
+ * ponytail: the API's tolerance for faster-than-real-time catch-up is not
+ * measured, so this stays at 1x; raise the drain rate only after a live probe.
+ */
+const MAX_BACKLOG_FRAMES = 10;
 
 export function voiceAgentUrl(token: string): string {
   return `${WS_BASE}?token=${encodeURIComponent(token)}`;
@@ -183,6 +198,8 @@ export type OralSocketOptions = {
   flushAudio?: () => void;
   onState: (m: OralMachine) => void;
   onTranscript?: (text: string, speaker: "user" | "agent", interrupted?: boolean) => void;
+  /** One word of the examiner's line as it is spoken, for live captions. */
+  onAgentDelta?: (word: string, replyId: string) => void;
   /** The exam cannot go on. The screen shows the message and offers a new start. */
   onError?: (message: string) => void;
   /** The exam goes on and the learner should know: a continued session, a hidden tab, a long silence. */
@@ -259,7 +276,26 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   };
   let lastErrorCode = "";
   let sawEnded = false;
+  /**
+   * Type of the latest server event on the current socket. tool.result may only
+   * go out when this is reply.done, and a new socket starts with nothing.
+   */
+  let lastEvent = "";
+  /** Bumped when a session is replaced, so a slow call from the old one is ignored. */
+  let sessionEpoch = 0;
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The short backoff before the next resume attempt. Cleared wherever the resume timer is. */
+  let backoffTimer: ReturnType<typeof setTimeout> | undefined;
+  let tokenRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  let tokenRetries = 0;
+  /** Set while offline: the mode to reconnect in as soon as the browser reports the network back. */
+  let awaitingOnline: "fresh" | "resume" | null = null;
+  const clearReconnectTimers = () => {
+    if (resumeTimer) clearTimeout(resumeTimer);
+    if (backoffTimer) clearTimeout(backoffTimer);
+    if (tokenRetryTimer) clearTimeout(tokenRetryTimer);
+    awaitingOnline = null;
+  };
 
   /**
    * After a barge-in flush the service keeps streaming the interrupted reply
@@ -290,9 +326,22 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   };
   const docTarget = (globalThis as { document?: EventTarget }).document;
   docTarget?.addEventListener?.("visibilitychange", onVisibility);
+  const netTarget = globalThis as { addEventListener?: (t: string, f: () => void) => void; removeEventListener?: (t: string, f: () => void) => void };
+  const isOffline = () => (globalThis as { navigator?: { onLine?: boolean } }).navigator?.onLine === false;
+  const onOnline = () => {
+    trace("net.online");
+    const mode = awaitingOnline;
+    awaitingOnline = null;
+    if (mode && !cancelled && !ending && !finished) void connect(mode);
+  };
+  const onOffline = () => trace("net.offline");
+  netTarget.addEventListener?.("online", onOnline);
+  netTarget.addEventListener?.("offline", onOffline);
   const teardownWatchers = () => {
     if (silenceTimer) clearTimeout(silenceTimer);
     docTarget?.removeEventListener?.("visibilitychange", onVisibility);
+    netTarget.removeEventListener?.("online", onOnline);
+    netTarget.removeEventListener?.("offline", onOffline);
   };
 
   const publish = () => {
@@ -323,23 +372,35 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
    * 700-950 ms on the streaming socket, so buffering across it is the cost of
    * being correct, and `sendAudio` bounds the buffer.
    */
-  const flushPending = () => {
+  let drainTimer: ReturnType<typeof setTimeout> | undefined;
+  const pump = () => {
+    drainTimer = undefined;
     const ws = socket;
-    if (!ws || pending.length === 0) return;
-    for (const audio of pending) {
-      try {
-        ws.send(JSON.stringify({ type: "input.audio", audio }));
-      } catch {
-        // A dead socket is onclose's problem; the rest of the buffer is the
-        // resume's problem, not this connection's.
-        break;
-      }
+    // Not live any more: the frames stay queued for the next session.ready.
+    if (!sessionLive || !ws || ws.readyState !== WebSocket.OPEN) return;
+    const audio = pending.shift();
+    if (audio === undefined) return;
+    try {
+      ws.send(JSON.stringify({ type: "input.audio", audio }));
+    } catch {
+      // A dead socket is onclose's problem; the rest of the buffer is the
+      // resume's problem, not this connection's.
+      return;
     }
-    pending = [];
+    if (pending.length > 0) drainTimer = setTimeout(pump, FRAME_MS);
+  };
+  /**
+   * Send the buffered frames at real time, not all at once. The API raises
+   * `audio_rate_violation` when audio arrives faster than it was spoken, and a
+   * full 32-frame buffer dumped in one tick is 3.2 s of audio in no time.
+   */
+  const flushPending = () => {
+    while (pending.length > MAX_BACKLOG_FRAMES) pending.shift();
+    if (!drainTimer) pump();
   };
 
   const connect = async (mode: "fresh" | "resume") => {
-    if (cancelled) return;
+    if (cancelled || ending) return;
     // The docs are explicit that a fresh token is needed immediately before
     // each connection attempt, and that a resumed session can still come back
     // `session_forbidden`. Reusing the old token is how a reconnect turns into
@@ -348,12 +409,36 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     try {
       url = voiceAgentUrl(await opts.getToken());
     } catch {
+      // While recovering, a failed mint is usually the network still being down,
+      // so it retries. On the very first connect it is a real setup failure.
+      const recovering = mode === "resume" || continuing || m.state === "RECOVERING";
+      if (recovering && !cancelled && !ending) {
+        if (isOffline()) {
+          // Do not spend retries while the browser says there is no network.
+          trace("token.wait_online", { mode });
+          awaitingOnline = mode;
+          return;
+        }
+        if (tokenRetries < MAX_TOKEN_RETRIES) {
+          tokenRetries += 1;
+          trace("token.retry", { mode, attempt: tokenRetries });
+          if (tokenRetryTimer) clearTimeout(tokenRetryTimer);
+          tokenRetryTimer = setTimeout(() => { if (!cancelled && !ending) void connect(mode); }, TOKEN_RETRY_MS * 2 ** (tokenRetries - 1));
+          return;
+        }
+        m = onError(m, "token", true);
+        publish();
+        opts.onError?.(errorSentence("network"));
+        return;
+      }
       m = onError(m, "token", true);
       publish();
       opts.onError?.(voiceMessage("NO_API_KEY"));
       return;
     }
-    if (cancelled) return;
+    tokenRetries = 0;
+    // end() during the token round trip: opening a socket now would leave a    // billed session nobody can see and nobody will close.
+    if (cancelled || ending) return;
 
     m = onConnecting(m);
     publish();
@@ -370,9 +455,15 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       return;
     }
     socket = ws;
+    lastEvent = "";
     trace("ws.connect", { mode });
 
     ws.onopen = () => {
+      if (ws !== socket) return;
+      if (cancelled || ending) {
+        try { ws.close(); } catch { /* already closed */ }
+        return;
+      }
       trace("ws.open", { mode });
       if (mode === "resume" && resumeId) {
         // session.resume is the first message on a resumed connection, and
@@ -407,6 +498,9 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     };
 
     ws.onmessage = (ev) => {
+      // A replaced socket can still deliver frames and a late close. Acting on
+      // them would run a second reconnect or apply the old session's events.
+      if (ws !== socket) return;
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(String((ev as MessageEvent).data)) as Record<string, unknown>;
@@ -423,6 +517,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         ...(typeof msg.text === "string" ? { text: msg.text.slice(0, 160) } : {}),
         ...(typeof msg.delta === "string" ? { delta: msg.delta.slice(0, 80) } : {}),
       });
+      lastEvent = String(msg.type);
       handle(msg);
     };
 
@@ -431,6 +526,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     };
 
     ws.onclose = (ev) => {
+      if (ws !== socket) return;
       trace("ws.close", { code: ev.code });
       // A closed socket has no live session, whatever the state machine says.
       // Frames arriving now go to the buffer for the resume.
@@ -451,7 +547,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         // short capped backoff, then a fresh session.
         const refused = RESUME_REFUSED.has(lastErrorCode);
         if (refused || resumeAttempts >= MAX_RESUME_ATTEMPTS) {
-          if (resumeTimer) clearTimeout(resumeTimer);
+          clearReconnectTimers();
           resumeId = null;
           resumeAttempts = 0;
           lastErrorCode = "";
@@ -465,7 +561,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         resumeAttempts += 1;
         m = onRecovering(m, `socket closed ${ev.code}`);
         publish();
-        if (resumeTimer) clearTimeout(resumeTimer);
+        clearReconnectTimers();
         resumeTimer = setTimeout(() => {
           resumeId = null;
           continuing = true;
@@ -474,7 +570,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
           void connect("fresh");
         }, RESUME_GIVE_UP_MS);
         const delay = resumeAttempts === 1 ? 0 : RESUME_BACKOFF_MS * 2 ** (resumeAttempts - 2);
-        setTimeout(() => { if (!cancelled && !ending && resumeId) void connect("resume"); }, delay);
+        backoffTimer = setTimeout(() => { if (!cancelled && !ending && resumeId) void connect("resume"); }, delay);
         return;
       }
       m = onError(m, `socket closed ${ev.code}`, true);
@@ -486,11 +582,18 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
   const handle = (msg: Record<string, unknown>) => {
     switch (msg.type) {
       case "session.ready": {
-        resumeId = typeof msg.session_id === "string" ? msg.session_id : null;
+        const nextId = typeof msg.session_id === "string" ? msg.session_id : null;
+        if (nextId !== resumeId) {
+          // A different session (a refused resume that fell back to a fresh
+          // one): calls queued on the dead one must never reach this one.
+          sessionEpoch += 1;
+          m = onSessionChanged(m);
+        }
+        resumeId = nextId;
         resumeAttempts = 0;
         lastErrorCode = "";
         continuing = false;
-        if (resumeTimer) clearTimeout(resumeTimer);
+        clearReconnectTimers();
         m = onSessionReady(m, { session_id: resumeId ?? undefined, resume_token: (msg.resume_token as string) ?? null });
         // Only now may audio go out; the API rejects input.audio before ready.
         sessionLive = true;
@@ -546,10 +649,22 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         playAudio?.(String(msg.data ?? ""));
         return;
       case "transcript.agent.delta":
+        // One word per event (events reference). Forwarded for live captions only.
+        if (typeof msg.delta === "string") opts.onAgentDelta?.(msg.delta, String(msg.reply_id ?? ""));
         return;
       case "transcript.agent": {
         const interrupted = msg.interrupted === true;
         remember("agent", String(msg.text ?? ""));
+        if (interrupted) {
+          // Live, this flag arrives with reply.done(completed) and no
+          // reply.done(interrupted) at all, so it has to act as the interruption.
+          trace("interrupted.flush.start", { via: "transcript.agent" });
+          flushAudio?.();
+          dropStaleAudio = true;
+          trace("interrupted.flush.end", { via: "transcript.agent" });
+          m = onAgentInterrupted(m).machine;
+          publish();
+        }
         opts.onTranscript?.(String(msg.text ?? ""), "agent", interrupted);
         return;
       }
@@ -601,7 +716,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
 
   const deliver = (r: QueuedResult) => {
     const ws = socket;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!ws || !sessionLive || ws.readyState !== WebSocket.OPEN) return;
     try {
       trace("tool.result.send", { call_id: r.callId, is_error: r.isError });
       ws.send(JSON.stringify({ type: "tool.result", call_id: r.callId, result: r.result, is_error: r.isError }));
@@ -615,6 +730,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     const callId = String(msg.call_id ?? "");
     const name = String(msg.name ?? "");
     const args = (msg.arguments ?? {}) as Record<string, unknown>;
+    const epoch = sessionEpoch;
     trace("tool.http.start", { call_id: callId, name });
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -636,9 +752,15 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     } finally {
       if (timer) clearTimeout(timer);
     }
-    const released = drainReleasedResults(m);
-    m = released.machine;
-    for (const r of released.send) deliver(r);
+    // The call's session is gone: its result was already counted as discarded.
+    if (epoch !== sessionEpoch) return;
+    // tool.result is only valid while reply.done is the latest event. Anything
+    // else, and the result waits in the queue for the next reply.done.
+    if (lastEvent === "reply.done") {
+      const released = drainReleasedResults(m);
+      m = released.machine;
+      for (const r of released.send) deliver(r);
+    }
     publish();
   };
 
@@ -668,7 +790,7 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
       if (cancelled || ending) return;
       const audio = pcm16ToBase64(frame);
       const ws = socket;
-      if (sessionLive && ws && ws.readyState === WebSocket.OPEN) {
+      if (sessionLive && ws && ws.readyState === WebSocket.OPEN && pending.length === 0 && !drainTimer) {
         try {
           ws.send(JSON.stringify({ type: "input.audio", audio }));
         } catch {
@@ -678,15 +800,25 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
         return;
       }
       pending.push(audio);
-      // Bounded, so a socket that never opens cannot grow this without limit.
-      while (pending.length > MAX_PENDING_FRAMES) pending.shift();
+      // Bounded, so a socket that never opens cannot grow this without limit,
+      // and a live session never lets the pacer fall more than a second behind.
+      const cap = sessionLive ? MAX_BACKLOG_FRAMES : MAX_PENDING_FRAMES;
+      while (pending.length > cap) pending.shift();
+      // A live frame that arrives behind a backlog waits its turn in the pacer.
+      if (sessionLive && !drainTimer) pump();
     },
     async end() {
       if (cancelled || ending) return;
       ending = true;
-      if (resumeTimer) clearTimeout(resumeTimer);
+      clearReconnectTimers();
+      if (drainTimer) clearTimeout(drainTimer);
       const ws = socket;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
+        // A socket still CONNECTING would otherwise open, send session.update
+        // and start a session after the exam was ended.
+        if (ws?.readyState === WebSocket.CONNECTING) {
+          try { ws.close(); } catch { /* already closed */ }
+        }
         finish();
         return;
       }
@@ -714,7 +846,8 @@ export function openOralSocket(opts: OralSocketOptions): OralSocket {
     cancel() {
       cancelled = true;
       teardownWatchers();
-      if (resumeTimer) clearTimeout(resumeTimer);
+      clearReconnectTimers();
+      if (drainTimer) clearTimeout(drainTimer);
       const ws = socket;
       try {
         ws?.close();

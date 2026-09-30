@@ -10,7 +10,7 @@ import { extractReadable, type Readable } from "./html";
  * in the URL, every hop's host resolved and refused if it points inside the
  * network, a byte cap, a time cap, and a content type this app can actually
  * read. What comes back is the page's own prose, kept with the page's own URL
- * and title so a citation still names where the sentence came from — never
+ * and title so a citation still names where the sentence came from, never
  * relabelled as something the student wrote.
  */
 
@@ -36,11 +36,11 @@ const MESSAGES: Record<UrlFetchError, string> = {
   BAD_URL: "That does not look like a web address. Paste the full link, starting with https://.",
   BLOCKED_HOST: "VIVA will only read pages on the public web, and that address is not one.",
   UNREACHABLE: "VIVA could not reach that page. Check the link, or paste the text instead.",
-  HTTP_ERROR: "That page would not open — it may need a sign-in, or it may be gone. Paste the text instead.",
+  HTTP_ERROR: "That page would not open, it may need a sign-in, or it may be gone. Paste the text instead.",
   UNSUPPORTED_TYPE: "That link is not a web page VIVA can read. Upload the file, or paste the text.",
   TOO_LARGE: "That page is too big to read in one go. Try a single article, or paste the part you are studying.",
   NO_READABLE_TEXT:
-    "There was not enough readable text on that page — it may be mostly video, images or a sign-in wall. VIVA will not guess at what it said. Paste the text and it will read that.",
+    "There was not enough readable text on that page, it may be mostly video, images or a sign-in wall. VIVA will not guess at what it said. Paste the text and it will read that.",
 };
 
 function fail(code: UrlFetchError): UrlFetchResult {
@@ -60,8 +60,8 @@ function fail(code: UrlFetchError): UrlFetchResult {
  * and were fetched, and the body came back to the student as subject text.
  *
  * BlockList decides on the parsed bytes and folds an IPv4-mapped v6 address
- * onto the v4 rules itself, so every spelling of one address — dotted,
- * decimal, octal, hex, mapped, IPv4-compatible, 6to4, NAT64 — gets the same
+ * onto the v4 rules itself, so every spelling of one address, dotted,
+ * decimal, octal, hex, mapped, IPv4-compatible, 6to4, NAT64, gets the same
  * answer. That is the difference between a guard and a filter: a filter can
  * always be beaten by writing the address a different way.
  */
@@ -134,7 +134,7 @@ function parseTarget(raw: string): URL | null {
   const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
   // "example.com/notes" is a web address a person typed. "file:///etc/passwd"
   // is not, and gluing https:// onto it would turn it into a host named
-  // "file" — a refusal for the wrong reason, from code that already knew.
+  // "file", a refusal for the wrong reason, from code that already knew.
   if (hasScheme && !/^https?:\/\//i.test(trimmed)) return null;
   let url: URL;
   try {

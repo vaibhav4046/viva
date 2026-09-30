@@ -22,8 +22,8 @@ import { normalizePlan, planSubject, writePassages } from "./model";
 /**
  * One document inside a subject.
  *
- * A subject can be several of these — a lecture PDF, a page from the module
- * website, the student's own notes — and each keeps its own title, its own
+ * A subject can be several of these, a lecture PDF, a page from the module
+ * website, the student's own notes, and each keeps its own title, its own
  * passages and its own licence, so a citation resolves to the document the
  * sentence is actually in rather than to "the subject".
  */
@@ -56,10 +56,10 @@ export type Progress = (line: string) => void;
 const MIN_INPUT_CHARS = 400;
 
 /**
- * A subject title, cleaned of things that cannot be rendered — and nothing else.
+ * A subject title, cleaned of things that cannot be rendered, and nothing else.
  *
  * Two copies of this lived in two routes with two different allowlists, and
- * neither allowed an em dash: "COMP319 Networks — TCP congestion control" was
+ * neither allowed an em dash: "COMP319 Networks, TCP congestion control" was
  * stored as "COMP319 Networks TCP congestion control". The first thing a
  * student's own subject tells them about itself was already wrong, silently.
  * Strip control characters, keep typography.
@@ -80,11 +80,11 @@ export function cleanTitle(raw: unknown, fallback: string): string {
 
 function sourceTitleFor(kind: IntakeInput["kind"], title: string): string {
   if (kind === "pdf" || kind === "docs") return title;
-  // "Your notes — your notes" is what a judge was shown, because the route
+  // "Your notes, your notes" is what a judge was shown, because the route
   // has to name the subject before anything has read it and its fallback is
   // the word "notes". Say it once.
-  if (kind === "paste") return /\bnotes$/i.test(title) ? title : `${title} — your notes`;
-  return `${title} — written for you`;
+  if (kind === "paste") return /\bnotes$/i.test(title) ? title : `${title}, your notes`;
+  return `${title}, written for you`;
 }
 
 /**
@@ -118,20 +118,20 @@ function titleFromNotes(text: string): string | null {
 /**
  * Pasted notes, cut at the headings the student wrote.
  *
- * Every passage of a paste used to be stamped "§Your notes · p.—", which
+ * Every passage of a paste used to be stamped "§Your notes · p., ", which
  * locates nothing: it is the same string on all seven of them. Text with no
  * pages still has structure, and the heading a passage sat under is the
  * truest thing a citation can say about where it came from.
  *
  * Conservative on purpose. A heading has to start a block, must not itself be
- * a bullet, and must have a real body under it, so a bulleted list — short
- * lines, no full stops, exactly the shape of a heading — is not chopped into
+ * a bullet, and must have a real body under it, so a bulleted list, short
+ * lines, no full stops, exactly the shape of a heading, is not chopped into
  * one passage per bullet. If that reading produces an implausible number of
  * sections it is abandoned and the paste stays one page.
  *
  * What "a real body" means was the miss. It used to be one line longer than
  * 120 characters, which is prose and only prose: notes written as a heading
- * over a bullet list — the commonest revision shape there is — matched
+ * over a bullet list, the commonest revision shape there is, matched
  * nothing, so the headings were swallowed into the text and every passage was
  * cited "§Your notes". It is now the whole run of lines under the heading,
  * which is one paragraph in prose notes and the whole list in bulleted ones.
@@ -180,14 +180,14 @@ export function notePages(text: string): IntakePage[] {
 }
 
 /**
- * Every document becomes its own source, and the total is capped once — but
+ * Every document becomes its own source, and the total is capped once, but
  * the cap is shared out, not handed to whoever arrives first.
  *
  * Measured: four uploads of one 300-page PDF gave the first file all 120
  * passages and the other three none, and the subject was then announced as
  * ready without a word about the files that were not in it. That is the same
  * failure the create route already refuses when a file cannot be opened at
- * all — a student revising from a quarter of their material and not knowing.
+ * all, a student revising from a quarter of their material and not knowing.
  *
  * So each document is guaranteed its share of the budget first, and only what
  * nobody claimed is handed back out in order. Four big uploads become 30
@@ -309,7 +309,7 @@ export async function buildSubject(
       ok: false,
       error: {
         code: "TOO_THIN",
-        message: "That is not quite enough to study from. A few paragraphs — around 100 words or more — gives VIVA something to work with.",
+        message: "That is not quite enough to study from. A few paragraphs, around 100 words or more, gives VIVA something to work with.",
       },
     };
   }

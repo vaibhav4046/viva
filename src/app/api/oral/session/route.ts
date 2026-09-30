@@ -1,9 +1,11 @@
 import { resolveIdentity } from "@/lib/auth/identity";
 import { withIdentityCookie } from "@/lib/http";
-import { getStore } from "@/lib/store";
+import { getStore, storeDurability } from "@/lib/store";
 import { resolveSubject, subjectMissing, keytermsFrom } from "@/lib/courses/subject";
 import { toolDefsForWire } from "@/lib/oral/tools";
-import { ORAL_EXAMINER_RULES } from "@/lib/oral/prompt";
+import { buildOralSystemPrompt, oralGreeting, ORAL_PROMPT_VERSION } from "@/lib/oral/prompt";
+import { buildLearnerBrief } from "@/lib/oral/learner-brief";
+import { promptLabel } from "@/lib/oral/sanitize";
 import { err } from "@/lib/types";
 
 /**
@@ -26,7 +28,10 @@ import { err } from "@/lib/types";
 /** Documented range 0 to 1000 ms. Measured effect on stop latency: docs/evidence/probes/oral-live-bargein.*.json. */
 const INTERRUPTION_DELAY_MS = 0;
 
-/** The rules that make the exam an exam. */
+/** Bounds on what a learner-derived label may add to the system prompt. */
+const MAX_LABEL = 80;
+const MAX_CONCEPTS = 40;
+const MAX_SOURCES = 12;
 
 export async function GET(req: Request): Promise<Response> {
   const { identity, setCookie } = await resolveIdentity(req);
@@ -35,30 +40,41 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const store = getStore();
     const subject = await resolveSubject(store, identity.userId, subjectId ?? null);
-    const concepts = subject.concepts.slice(0, 40).map((c) => c.name);
+    // Titles and concept names come from uploads and from a model that read
+    // them. They are one-line labels: control characters and newlines out,
+    // length capped, instruction-shaped phrases made inert.
+    const concepts = subject.concepts.slice(0, MAX_CONCEPTS).map((c) => promptLabel(c.name, MAX_LABEL)).filter(Boolean);
     const keyterms = keytermsFrom(subject.concepts);
 
-    const system_prompt = [
-      ORAL_EXAMINER_RULES,
-      "",
-      `THE STUDENT'S SUBJECT: ${subject.title}`,
-      concepts.length ? `CONCEPTS IN PLAY: ${concepts.join(", ")}` : "",
-      `SOURCE LANGUAGES: ${(subject.languageCodes ?? ["en"]).join(", ")}`,
-      subject.sources?.length
-        ? `THEIR SOURCES: ${subject.sources.map((s) => s.title).join("; ")}`
-        : "",
-      "",
-      "Open the exam by asking for the first thing they want to be examined on.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // The stored map for this learner and this subject: the examiner opens on the
+    // weakest concept and is told, in words, when there is no history or the
+    // store is the temporary one. A failed read is an empty brief, never a guess.
+    const [mastery, durability] = await Promise.all([
+      store.getMastery(identity.userId).catch(() => ({})),
+      storeDurability().catch(() => ({ durable: false })),
+    ]);
+    const brief = buildLearnerBrief({
+      concepts: subject.concepts.map((c) => ({ id: c.id, name: c.name })),
+      mastery,
+      durable: durability.durable,
+    });
+
+    const system_prompt = buildOralSystemPrompt({
+      subjectTitle: promptLabel(subject.title, MAX_LABEL),
+      concepts,
+      languages: (subject.languageCodes ?? ["en"]).map((l) => promptLabel(l, 12)),
+      sourceTitles: (subject.sources ?? []).slice(0, MAX_SOURCES).map((s) => promptLabel(s.title, MAX_LABEL)),
+      brief,
+    });
 
     return withIdentityCookie(
       Response.json(
         {
           subjectId: subject.id,
           system_prompt,
-          greeting: "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+          promptVersion: ORAL_PROMPT_VERSION,
+          memory: { status: brief.status, durable: brief.durable, note: brief.note, opening: brief.opening?.name ?? null },
+          greeting: oralGreeting(brief),
           // Only the fields the turn-detection reference documents. An earlier
           // version sent undocumented names (silence_duration_ms, interrupt_*),
           // which the service accepted and ignored, so the settings looked

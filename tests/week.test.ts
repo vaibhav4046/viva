@@ -180,7 +180,7 @@ describe("projectWeek", () => {
     const { days } = projectWeek(input, FIXED_NOW);
     expect(dayOf(days, "c_self_attention")).toBe(0);
 
-    // One correct answer buys a two-day gap, so it is due again on day 2 —
+    // One correct answer buys a two-day gap, so it is due again on day 2, 
     // not absent from the projection, which is what "Nothing projected" under
     // every future day meant.
     const back = days.slice(1).findIndex((d) => d.segments.some((x) => x.conceptId === "c_self_attention"));
@@ -237,7 +237,7 @@ describe("projectWeek", () => {
     };
     const { days } = projectWeek(input, FIXED_NOW);
     // Three concepts is five minutes of questions, so all three belong in
-    // today's ten — spreading them one per day was what starved the plan.
+    // today's ten, spreading them one per day was what starved the plan.
     expect(days[0].segments.map((s) => s.conceptId)).toEqual(["c_a", "c_b", "c_c"]);
     // None has been recalled right yet, so all three come back tomorrow.
     expect(days[1].segments.map((s) => s.conceptId)).toEqual(["c_a", "c_b", "c_c"]);

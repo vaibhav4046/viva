@@ -2,7 +2,7 @@ import type { SourceChunk } from "@/lib/types";
 import type { Course } from "./types";
 
 /**
- * Lab 2 — Probability Traps (STAT201).
+ * Lab 2, Probability Traps (STAT201).
  * Original educational text written for this project; every citation resolves
  * to a real chunk. Six topics, each with 2 chunks (12 total).
  */
@@ -72,7 +72,7 @@ const SOURCE_CHUNKS: SourceChunk[] = [
   ),
   chunk(
     "ch_pr_monty_2", 12,
-    "Monty Hall is a conditional probability problem, not a choice between two equally likely doors. After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize. His choice reveals information about where the prize is not. A larger version makes the logic obvious. With 100 doors, your first pick wins 1% of the time. The host then opens 98 goat doors, carefully avoiding the prize. The chance that the remaining unopened door is the prize is 99%, because the host's constrained choices concentrated the probability there. Switching is not a gamble between equal doors; it is a Bayes update on the host's behaviour.",
+    "Monty Hall is a conditional probability problem, not a choice between two equally likely doors. After the host opens a goat door, the two closed doors look symmetric, which tempts people to say the odds are 50/50. But the host's action is informative because it is constrained: he must open a goat door, he must not open your door, and he never reveals the prize. His choice reveals information about where the prize is not. A larger version makes the logic obvious. With 100 doors, your first pick wins 1% of the time. The host then opens 98 goat doors, carefully avoiding the prize. The chance that the remaining unopened door is the prize is 99%, because the host's constrained choices concentrated the probability there. Switching is a Bayes update on the host's behaviour, and the two closed doors are not equally likely.",
     "6 · The Monty Hall update", 19
   ),
 ];
@@ -177,8 +177,8 @@ export const PROBABILITY: Course = {
       id: "ex_pr_monty_1",
       conceptId: "c_monty",
       question: "The host has opened a goat door and two doors are left. Explain why switching wins two times in three rather than half the time.",
-      // "third" as a bare word appears nowhere in the passages — they write it
-      // as 1/3 and 2/3 — so demanding it marked down a student who had read
+      // "third" as a bare word appears nowhere in the passages, they write it
+      // as 1/3 and 2/3, so demanding it marked down a student who had read
       // them and answered correctly. Ask for what the source actually says.
       requiredKeywords: ["switch", "host", "probability"],
       hint: "Your first pick was right 1/3 of the time and the host cannot move the prize. Where does the other 2/3 go?",
@@ -196,7 +196,7 @@ export const PROBABILITY: Course = {
     hints: {
       c_cond: "Define P(A|B) and say what conditioning does to the denominator.",
       c_indep: "State the multiplication rule and say whether independence is an assumption or a measured fact.",
-      c_bayes: "Name the three ingredients — prior, likelihood, posterior — and where the normalising denominator comes from.",
+      c_bayes: "Name the three ingredients, prior, likelihood, posterior, and where the normalising denominator comes from.",
       c_baserate: "Imagine 10,000 people and count the false positives. What does the base rate do to the answer?",
       c_ev: "Multiply each outcome by its probability and add. What does that total actually describe?",
       c_monty: "Why is the host's choice informative? Compare the 1/3 you started with to the 2/3 behind the remaining door.",
@@ -235,7 +235,7 @@ export const PROBABILITY: Course = {
       formal:
         "The expected value of a discrete random variable is E[X] = Σ P(x)·x, the probability-weighted average of its outcomes. It describes long-run behaviour, not the result of any single trial (§5, p.15).",
       jargonFree:
-        "Roll a die many times and average the results: you will hover near 3.5. Expected value is that long-run average — a number no individual roll can produce.",
+        "Roll a die many times and average the results: you will hover near 3.5. Expected value is that long-run average, a number no individual roll can produce.",
       missing: ["the probability-weighted sum", "expected value is a long-run average"],
     },
     c_monty: {
@@ -260,7 +260,7 @@ export const PROBABILITY: Course = {
       conceptId: "c_indep",
       statement: "Mutually exclusive events are independent.",
       whyWrong:
-        "If A happens, B cannot happen, so knowing A changes B's probability to zero — the strongest possible dependence. Mutual exclusivity means P(A∩B) = 0; independence means P(A∩B) = P(A)P(B). With positive probabilities the two cannot both hold.",
+        "If A happens, B cannot happen, so knowing A changes B's probability to zero, the strongest possible dependence. Mutual exclusivity means P(A∩B) = 0; independence means P(A∩B) = P(A)P(B). With positive probabilities the two cannot both hold.",
       correct: "Mutually exclusive implies dependent (when both probabilities are positive); independence requires the multiplication rule to hold.",
     },
     {

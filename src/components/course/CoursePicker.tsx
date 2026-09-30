@@ -45,7 +45,7 @@ export function writeStoredCourse(id: string): void {
   try {
     window.localStorage.setItem(COURSE_STORAGE_KEY, id);
   } catch {
-    /* private mode / storage disabled — selection simply doesn't persist */
+    /* private mode / storage disabled, selection simply doesn't persist */
   }
 }
 
@@ -75,7 +75,7 @@ export function CoursePicker({
   /*
    * Two groups, because the list is thirteen shipped subjects long now and a
    * flat thirteen-line menu makes a student read every line to find the one
-   * they built. Order is preserved inside each group — the server already
+   * they built. Order is preserved inside each group, the server already
    * returns starters first, then the newest of their own.
    */
   const shipped = courses.filter((c) => c.demo !== false);
@@ -90,10 +90,10 @@ export function CoursePicker({
     <label className="flex min-w-0 items-center gap-2">
       {/* shrink-0: body sets `overflow-wrap: anywhere` so a student's own long
           words cannot widen a page, and on /study this label shares a squeezed
-          row with the orb — so the rule broke "SUBJECT" into SUB / JEC / T,
+          row with the orb, so the rule broke "SUBJECT" into SUB / JEC / T,
           three lines, at 390 px. The select beside it already carries min-w-0,
           so it is the one that gives way. */}
-      <span className="mono shrink-0 text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }}>
+      <span className="mono shrink-0 text-xs tracking-widest" style={{ color: "var(--color-ash)" }}>
         {label.toUpperCase()}
       </span>
       {/* The chevron is ours, not the OS's: globals.css strips `appearance`

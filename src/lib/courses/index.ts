@@ -19,9 +19,17 @@ export const COURSES: Record<string, Course> = {
 
 export const DEFAULT_COURSE_ID = "course_transformers_w4";
 
+/**
+ * True only for an id VIVA ships. `COURSES[id]` is also truthy for "constructor"
+ * and "__proto__", which would hand a caller the Object prototype as a course.
+ */
+export function hasCourse(id: string | null | undefined): id is string {
+  return typeof id === "string" && Object.hasOwn(COURSES, id);
+}
+
 /** Resolve a course by id; unknown or missing ids fall back to the default. */
 export function getCourse(idOrNull?: string | null): Course {
-  if (idOrNull && COURSES[idOrNull]) return COURSES[idOrNull];
+  if (hasCourse(idOrNull)) return COURSES[idOrNull];
   return COURSES[DEFAULT_COURSE_ID];
 }
 

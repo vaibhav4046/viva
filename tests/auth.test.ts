@@ -3,7 +3,7 @@ import { demoCookieName, DEMO_USER_PREFIX, resolveIdentity } from "@/lib/auth/id
 
 /**
  * `resolveIdentity` with the real `next/headers`, which throws outside a
- * request scope — so everything here is the mint branch. The cookie-reading
+ * request scope, so everything here is the mint branch. The cookie-reading
  * branch needs a jar and lives in `auth-cookie.test.ts`; this file used to
  * claim to cover it and could not, because `expect(setCookie).toBeDefined()`
  * only ever holds when the cookie was missing.
@@ -34,7 +34,7 @@ describe("resolveIdentity with no cookie jar", () => {
   /*
    * Fail-closed guard, restated for the cookie-only world: there is no bearer
    * token path left, so an Authorization header a caller invents must be inert
-   * — it can neither be promoted to some other identity nor cause a 401. With
+   *, it can neither be promoted to some other identity nor cause a 401. With
    * a cookie present it must also lose to the cookie, which is asserted in
    * `auth-cookie.test.ts`; with no cookie it resolves to a fresh isolated
    * identity, exactly as no header at all would.

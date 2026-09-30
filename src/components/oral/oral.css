@@ -1,0 +1,125 @@
+/*
+ * /oral and the debrief sheet: the examiner's table.
+ * Reads tokens only (src/styles/tokens.css). No gradient, no shadow, no left
+ * stripe: surfaces are separated by tone and a full hairline border.
+ */
+
+:root:has(.oral) { scroll-padding-bottom: 9rem; scroll-padding-top: 4.5rem; }
+
+.oral { display: grid; gap: var(--space-4); }
+
+.oral-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-4); }
+.oral-h1 { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: -0.008em; }
+.oral-clock { color: var(--text-secondary); }
+
+/* The strip: state line on the left, the two level meters on the right. Fixed height so a state change moves nothing. */
+.oral-strip { display: grid; gap: var(--space-3); padding: var(--space-4); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); }
+@media (min-width: 640px) { .oral-strip { grid-template-columns: minmax(0, 1fr) minmax(0, 17rem); align-items: center; column-gap: var(--space-5); } }
+.oral-state-wrap { min-height: 4.5rem; }
+.oral-state .mono { font-family: var(--font-ui); font-size: 1.25rem; font-weight: 600; line-height: 1.3; color: var(--text-primary); min-height: 1.6em; }
+.oral-hint { margin-top: var(--space-1); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-secondary); max-width: 46ch; min-height: 3em; }
+
+.oral-desk { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1024px) { .oral-desk { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; gap: var(--space-5); } }
+.oral-main { display: grid; gap: var(--space-3); min-width: 0; }
+
+.oral-question > section { min-height: 11rem; }
+.oral-question-muted { color: var(--text-secondary) !important; }
+.oral-cut { margin-top: var(--space-2); color: var(--correction); }
+
+.oral-line { padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-1); min-height: 5.5rem; }
+.oral-line p:last-child { margin-top: var(--space-1); }
+.oral-line-empty { color: var(--text-muted); }
+
+.oral-transcript > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--text-secondary); }
+.oral-transcript ol { display: grid; gap: var(--space-2); margin-top: var(--space-2); max-height: 22rem; overflow: auto; }
+.oral-transcript li { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--surface-1); }
+
+/* Sources: a column beside the question on desktop, a collapsible stack under it on a phone. */
+.oral-sources { display: grid; gap: var(--space-3); min-width: 0; }
+.oral-sources-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-1); font: inherit; font-weight: 600; color: var(--text-primary); text-align: left; cursor: pointer; }
+.oral-sources-body { display: grid; gap: var(--space-3); }
+.oral-sources[data-open="false"] .oral-sources-body { display: none; }
+.oral-sources-h { font-family: var(--font-display); font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: 500; }
+@media (min-width: 1024px) {
+  .oral-sources-toggle { display: none; }
+  .oral-sources[data-open="false"] .oral-sources-body { display: grid; }
+}
+.oral-source-claim { margin-bottom: var(--space-2); font-size: var(--fs-body-sm); }
+.oral-empty { padding: var(--space-4); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); color: var(--text-secondary); font-size: var(--fs-body-sm); }
+
+/* Failure and notice panels: a full border and a title, never a stripe. */
+.oral-alert { padding: var(--space-4); border: 1px solid var(--border-error); border-radius: var(--radius-md); background: var(--surface-1); display: grid; gap: var(--space-2); }
+.oral-notice { padding: var(--space-3) var(--space-4); border: 1px solid var(--warning); border-radius: var(--radius-md); background: var(--surface-1); display: grid; gap: var(--space-1); }
+.oral-alert-title, .oral-notice-title { font-family: var(--font-display); font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: 500; }
+.oral-alert-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+
+.oral-prep { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-1); }
+
+/* The primary control sits at the bottom, above the phone's tab bar and home indicator. */
+.oral-controls { position: sticky; bottom: calc(57px + env(safe-area-inset-bottom)); z-index: var(--z-nav); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; background: var(--canvas); border-top: 1px solid var(--border); }
+@media (min-width: 768px) { .oral-controls { bottom: 0; } }
+.oral-controls .btn-primary { flex: 1 1 9rem; min-height: 52px; font-size: 1rem; }
+.oral-controls .btn-ghost { flex: 0 1 auto; min-height: 52px; }
+.oral-kbd { font-family: var(--font-mono); font-size: var(--fs-caption); border: 1px solid var(--border-strong); border-radius: var(--radius-xs); padding: 1px 6px; background: var(--elevated); color: var(--text-primary); white-space: nowrap; }
+.oral-shortcut { flex-basis: 100%; font-size: var(--fs-caption); color: var(--text-secondary); }
+@media (pointer: coarse) { .oral-shortcut { display: none; } }
+
+.oral-counts { color: var(--text-secondary); }
+
+/* Diagnostics: only ever holds numbers measured in this session. */
+.oral-diag { border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-1); padding: var(--space-4); display: grid; gap: var(--space-3); }
+.oral-diag dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: var(--space-3); }
+.oral-diag dt { color: var(--text-secondary); font-size: var(--fs-caption); }
+.oral-diag dd { font-family: var(--font-mono); font-size: var(--fs-body-sm); }
+.oral-diag ol { max-height: 12rem; overflow: auto; font-family: var(--font-mono); font-size: var(--fs-caption); display: grid; gap: 2px; }
+
+/* Typed exam */
+.oral-typed { display: grid; gap: var(--space-3); }
+.oral-typed textarea { min-height: 7.5rem; width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; font-size: var(--fs-body); resize: vertical; }
+.oral-result { padding: var(--space-3) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-1); display: grid; gap: var(--space-2); }
+
+/* ------------------------------ debrief sheet ------------------------------ */
+
+.debrief { display: grid; gap: var(--space-5); padding: var(--space-5); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-1); }
+.debrief h2, .debrief h3 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.008em; }
+.debrief-title { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-h1); line-height: var(--lh-h1); }
+.debrief td[data-label="Standing"] { width: 8.5rem; white-space: nowrap; }
+.debrief .mono { white-space: nowrap; }
+.debrief .debrief-sec { font-size: var(--fs-h2); line-height: var(--lh-h2); margin-bottom: var(--space-2); }
+.debrief-meta { color: var(--text-secondary); }
+.debrief table { width: 100%; border-collapse: collapse; }
+.debrief caption { text-align: left; color: var(--text-secondary); font-size: var(--fs-body-sm); padding-bottom: var(--space-2); }
+.debrief th, .debrief td { text-align: left; vertical-align: top; padding: var(--space-3) var(--space-2); border-top: 1px solid var(--border); }
+.debrief thead th { border-top: 0; border-bottom: 1px solid var(--border-strong); font-size: var(--fs-label); color: var(--text-secondary); font-weight: 500; }
+.debrief tbody th { font-weight: 600; width: 28%; }
+.debrief-evidence { display: grid; gap: var(--space-2); font-size: var(--fs-body-sm); }
+.debrief-evidence q { quotes: "\201C" "\201D"; }
+.debrief-misc { display: grid; gap: var(--space-3); }
+.debrief-misc li { display: grid; gap: var(--space-2); }
+.debrief-plan { display: grid; gap: var(--space-2); }
+.debrief-plan li { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+.debrief-note { color: var(--text-secondary); font-size: var(--fs-body-sm); }
+.debrief-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+@media (max-width: 639px) {
+  .debrief { padding: var(--space-4); }
+  .debrief table, .debrief tbody, .debrief tr, .debrief tbody th, .debrief td, .debrief caption { display: block; width: 100%; }
+  .debrief td[data-label="Standing"] { width: auto; white-space: normal; }
+  .debrief .mono { white-space: normal; }
+  .debrief-plan li { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  .debrief-plan li > :last-child { grid-column: 2; }
+  .debrief thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .debrief tr { padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+  .debrief th, .debrief td { border-top: 0; padding: var(--space-1) 0; }
+  .debrief td[data-label]::before { content: attr(data-label); display: block; font-size: var(--fs-caption); color: var(--text-secondary); }
+}
+
+@media print {
+  header:has(nav[aria-label="Primary"]), [data-tabbar], footer, .site-footer, .no-print, .oral-controls, .oral-desk, .oral-strip, .oral-head, .oral-diag, .oral-alert, .oral-notice, .oral-prep { display: none !important; }
+  html, body { background: none !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  .debrief { border: 0; padding: 0; background: none; }
+  .debrief tr, .debrief li { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+}

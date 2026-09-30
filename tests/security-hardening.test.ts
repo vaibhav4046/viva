@@ -10,7 +10,7 @@ import type { EventStore } from "@/lib/store/repo";
  * Four small controls that were each one line away from being right.
  *
  * They share a shape: something the app already knew is true was reported, or
- * trusted, in a form that gives it away — an unverified TLS peer, a database
+ * trusted, in a form that gives it away, an unverified TLS peer, a database
  * host handed to an unauthenticated prober, a rate-limit key the caller picks,
  * and a page that claims a stronger guarantee than the code implements.
  */

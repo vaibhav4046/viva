@@ -3,7 +3,7 @@ import type { ConceptDef, ExamQuestion } from "./courses/types";
 import { TRANSFORMERS } from "./courses/transformers";
 
 /**
- * Compatibility shim — the Transformers lab now lives in the course registry
+ * Compatibility shim, the Transformers lab now lives in the course registry
  * (src/lib/courses). These exports keep existing imports/tests working.
  * New code should use getCourse()/listCourses() from "@/lib/courses".
  */

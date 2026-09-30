@@ -39,7 +39,8 @@
     "n": 3,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-bargein.2026-09-29.json",
-    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein --runs 3"
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein --runs 3",
+    "note": "Detection latency: first loud learner sample to the client's flush call, which runs when the service reports speech. The probe's playback is a stub, so this is not a measured playback stop."
   },
   "oral.bargein.interruptedReplyDoneMs": {
     "value": 3243,
@@ -60,14 +61,16 @@
     "n": 3,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-bargein_tool.2026-09-29.json",
-    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein_tool --runs 3"
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts bargein_tool --runs 3",
+    "note": "Detection latency: first loud learner sample to the client's flush call, which runs when the service reports speech. The probe's playback is a stub, so this is not a measured playback stop."
   },
-  "oral.resume.recoveryMs": {
+  "oral.resume.continuationMs": {
     "value": 986,
     "n": 2,
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/oral-live-resume.2026-09-29.json",
-    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts resume --runs 2"
+    "cmd": "ORAL_PROBE_BASE=http://localhost:3101 npx tsx scripts/probes/oral-live.mts resume --runs 2",
+    "note": "Time from the socket drop to session.ready on a fresh session. A live session.resume was refused with session_not_found in every trial, so this is not a resumed session: the exam continues fresh with the last turns in the prompt."
   },
   "oral.verifyClaim.claimsInSet": {
     "value": 54,
@@ -124,5 +127,12 @@
     "date": "2026-09-29",
     "evidence": "docs/evidence/probes/verify-claim-live-2026-09-29.json",
     "cmd": "npx tsx --env-file=.env.local scripts/probes/oral-verify-eval.mts"
-  }
+  },
+  "landingGzipJsKB": { "value": 139.5, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
+  "landingCls": { "value": 0.0001, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
+  "landingLcpMsThrottled": { "value": 1080, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
+  "oralGzipJsKB": { "value": 178.4, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
+  "oralCls": { "value": 0, "n": 5, "date": "2026-09-29", "evidence": "docs/evidence/perf/perf.2026-09-29.json", "cmd": "npm run build && node scripts/perf.mjs" },
+  "oral.memory.runsOpenedOnStoredWeakest": { "value": 3, "n": 3, "date": "2026-09-29", "evidence": "docs/evidence/probes/oral-memory-live.2026-09-29.json", "cmd": "ORAL_PROBE_BASE=http://localhost:3161 npx tsx scripts/probes/oral-memory-live.mts --runs 3" },
+  "oral.followup.runsNamingChosenConcept": { "value": 2, "n": 3, "date": "2026-09-29", "evidence": "docs/evidence/probes/oral-memory-live.2026-09-29.json", "cmd": "ORAL_PROBE_BASE=http://localhost:3161 npx tsx scripts/probes/oral-memory-live.mts --runs 3" }
 }

@@ -18,7 +18,7 @@ import { getCourse } from "@/lib/courses";
  *
  * These cases pin both halves of the contract: a learner with history gets a
  * plan that fills the time with real questions, and a learner with NO history
- * still gets nothing at all — an empty plan beats a fabricated session.
+ * still gets nothing at all, an empty plan beats a fabricated session.
  */
 
 let tmp: string;
@@ -71,7 +71,7 @@ async function inputFor(user: string): Promise<PlannerInput> {
   const mastery = await s.getMastery(user);
   const events = await s.listEvents(user, 50);
   const concepts = await s.getConcepts(user);
-  // queue: [] is what /today folds with — see src/components/today/snapshot.ts.
+  // queue: [] is what /today folds with, see src/components/today/snapshot.ts.
   return { mastery, events, queue: [], concepts };
 }
 
@@ -89,7 +89,7 @@ describe("selectDailyPath", () => {
     await answered(user, "c_qkv", "correct");
     const plan = selectDailyPath(await inputFor(user));
 
-    // Before: [weak_concept 3, summary 1] — "4 of 10 min planned".
+    // Before: [weak_concept 3, summary 1], "4 of 10 min planned".
     expect(plan.length).toBeGreaterThanOrEqual(4);
     expect(minutesOf(plan)).toBeGreaterThanOrEqual(8);
     expect(minutesOf(plan)).toBeLessThanOrEqual(PATH_MINUTES);
@@ -171,7 +171,7 @@ describe("selectDailyPath", () => {
     const step = plan.find((s) => s.conceptId === "bio_cell");
     // The library's own name for it, not the id. It used to be asserted as the
     // literal "cell", which is what that subject shipped before concept names
-    // were normalised into headings — the point of the check is that a plan
+    // were normalised into headings, the point of the check is that a plan
     // never shows a student a raw id, so it now asks the library.
     expect(step?.conceptName).toBe(getCourse("course_os_bio").concepts.find((c) => c.id === "bio_cell")?.name);
     expect(step?.conceptName).not.toBe("bio_cell");

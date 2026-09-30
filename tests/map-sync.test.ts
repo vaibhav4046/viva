@@ -15,7 +15,7 @@ import { blankMastery } from "@/lib/mastery";
  * There is no DOM in this suite, so the page is driven through a hook runtime
  * small enough to fit here: render the component function, run its effects,
  * repeat until the state settles. What is asserted is what the page would put
- * on screen — the element tree it returns.
+ * on screen, the element tree it returns.
  */
 
 /* ------------------------------ hook runtime ----------------------------- */
@@ -134,7 +134,7 @@ function text(node: unknown, out: string[] = []): string[] {
   return out;
 }
 
-/** Find the first element whose props satisfy `pick` — the map, in practice. */
+/** Find the first element whose props satisfy `pick`, the map, in practice. */
 function findProps(node: unknown, pick: (p: Record<string, unknown>) => boolean): Record<string, unknown> | null {
   if (node == null || typeof node !== "object") return null;
   if (Array.isArray(node)) {

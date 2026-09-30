@@ -1,0 +1,22 @@
+/* Kitchen sink layout, and forced states that mirror the real selectors. */
+.ks-section { margin-top: var(--space-7); }
+.ks-row { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-top: var(--space-4); align-items: flex-start; }
+.ks-cell { min-width: 0; flex: 1 1 260px; max-width: 100%; }
+.ks-label { color: var(--text-muted); margin-bottom: var(--space-2); }
+.ks-stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.ks-swatch { display: flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; min-width: 12rem; }
+.ks-chip { width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); flex: none; }
+.ks-modal {
+  max-width: 26rem;
+  padding: var(--space-5);
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
+}
+
+.btn-primary.ks-hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-ghost.ks-hover { background: var(--surface-2); border-color: var(--text-secondary); }
+.btn-primary.ks-active { background: var(--primary-active); border-color: var(--primary-active); }
+.btn-ghost.ks-active { background: var(--border-subtle); }
+.ks-focus { outline: 2px solid var(--border-focus); outline-offset: 2px; }

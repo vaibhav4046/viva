@@ -46,7 +46,7 @@ function input(over: Partial<RecordInput> = {}): RecordInput {
 describe("cross-user isolation (IDOR)", () => {
   /*
    * B writes first. Until now B never did: `bEvents` was the empty list, so
-   * "B sees none of A's events" was `[].find(...)` — a sentence that cannot
+   * "B sees none of A's events" was `[].find(...)`, a sentence that cannot
    * fail, and the same for the two assertions after the delete. An exclusion
    * assertion over an empty collection is not evidence of isolation, it is
    * evidence that nothing was there to look at.

@@ -171,21 +171,23 @@ describe("the screen can only show real protocol events", () => {
   it("has no synthetic latency or metric to display", () => {
     // The diagnostics panel reads the state machine. A hardcoded number here
     // would be a fabricated benchmark on a judge-facing screen.
-    const src = code("app", "(app)", "oral", "page.tsx");
-    expect(src).not.toMatch(/latencyMs:\s*\d/);
-    expect(src).not.toMatch(/\d{2,}\s*ms/);
+    for (const file of [["app", "(app)", "oral", "page.tsx"], ["components", "oral", "OralParts.tsx"], ["components", "oral", "OralScreen.tsx"], ["components", "oral", "useOralSession.ts"], ["components", "oral", "diag.ts"]]) {
+      const src = code(...file);
+      expect(src, file.join("/")).not.toMatch(/latencyMs:\s*\d/);
+      expect(src, file.join("/")).not.toMatch(/\d{2,}\s*ms\b/);
+    }
   });
 
   it("reports tool-result discards, which is the protocol rule made visible", () => {
-    const src = code("app", "(app)", "oral", "page.tsx");
-    expect(src).toContain("Stale results dropped");
+    const src = code("components", "oral", "OralParts.tsx");
+    expect(src).toContain("Stale tool results dropped");
   });
 
   it("uses every declared state in the screen's copy", () => {
     // A state with no line is a state the student stares at as a dead label.
-    const src = code("app", "(app)", "oral", "page.tsx");
+    const src = code("components", "oral", "model.ts");
     for (const s of ORAL_STATES) {
-      expect(src, `${s} needs a label`).toContain(`${s}:`);
+      expect(src, `${s} needs a label`).toContain(`case "${s}":`);
     }
   });
 });
@@ -194,8 +196,8 @@ describe("honest failure", () => {
   it("has a learner-facing sentence for every state it can land in", () => {
     // ERROR is the state a student meets when something breaks. It must be
     // prose, not a code.
-    const src = code("app", "(app)", "oral", "page.tsx");
-    expect(src).toMatch(/ERROR:\s*"Something went wrong\."/);
+    const src = code("components", "oral", "model.ts");
+    expect(src).toMatch(/case "ERROR": return "The exam stopped\./);
   });
 
   it("reuses the shared voice messages rather than inventing new ones", () => {
@@ -204,8 +206,9 @@ describe("honest failure", () => {
   });
 
   it("offers a real recovery action after a failure", () => {
-    const src = code("app", "(app)", "oral", "page.tsx");
-    expect(src).toMatch(/<ErrorBanner[\s\S]*onRetry/);
+    const parts = code("components", "oral", "OralParts.tsx");
+    expect(parts).toMatch(/retry: "Start again"/);
+    expect(code("app", "(app)", "oral", "page.tsx")).toContain("onFailureAction");
   });
 });
 

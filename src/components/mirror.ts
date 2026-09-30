@@ -7,7 +7,7 @@ import type { ConceptMastery, LearningEvent, SourceChunk } from "@/lib/types";
  *
  * Measured on the deployment: ten parallel reads of one student's record on one
  * cookie, four came back empty. Every write goes to one lambda's own `/tmp`, so
- * two page loads are two different memories of the same person — the map drops
+ * two page loads are two different memories of the same person, the map drops
  * a band while the student is reading it, the plan is empty on the screen whose
  * whole job is a plan, and a subject built ninety seconds ago is not in the
  * list. "Your notes" survived all of that, because it was already written down
@@ -21,7 +21,7 @@ import type { ConceptMastery, LearningEvent, SourceChunk } from "@/lib/types";
  *      mirror disagree about how much history exists, more history wins.
  *   2. REPLAY. Hand the record back to `POST /api/learner/sync` on load. That
  *      endpoint dedupes on `clientEventId`, replays the events through the one
- *      fold in src/lib/mastery.ts, and writes any subject the server has lost —
+ *      fold in src/lib/mastery.ts, and writes any subject the server has lost, 
  *      which is what makes the next read on that lambda correct rather than
  *      just optimistic.
  *
@@ -45,7 +45,7 @@ const MAX_EVENTS = 200;
 const MAX_SUBJECTS = 10;
 const MAX_SYNC_BYTES = 512_000;
 
-/** An event plus the id the turn was posted with — the replay dedupe key. */
+/** An event plus the id the turn was posted with, the replay dedupe key. */
 export type MirroredEvent = LearningEvent & { clientEventId?: string };
 
 export type VivaRecord = {
@@ -63,7 +63,7 @@ const EMPTY: VivaRecord = { v: 1, mastery: {}, events: [], subjects: {} };
 /**
  * Is there writable storage at all?
  *
- * Private mode, a browser set to block site data, and a full quota all throw —
+ * Private mode, a browser set to block site data, and a full quota all throw, 
  * two of them on the read, before anything has been written. Probed once and
  * remembered, because every caller asks and the answer cannot change mid-page.
  */
@@ -87,7 +87,7 @@ export function storageWorks(): boolean {
  *
  * Without DATABASE_URL a subject built two minutes ago is invisible to
  * whichever instance answers the next upload, so recognition bias went out
- * empty for exactly the vocabulary that needs it — their own. Returns nothing
+ * empty for exactly the vocabulary that needs it, their own. Returns nothing
  * for a starter subject, which the server can already resolve, and nothing
  * when storage is unreadable.
  */
@@ -124,7 +124,7 @@ export function readRecord(): VivaRecord {
  *
  * A quota failure is not something a student can act on, so it is never shown.
  * What it gets instead is two attempts to make room, cheapest first: half the
- * event log, then the passage bodies — the only large thing in here, and the one
+ * event log, then the passage bodies, the only large thing in here, and the one
  * thing the server can always re-serve. The last attempt keeps the map, the
  * event log and the subject titles, which are the parts that vanish server-side.
  */
@@ -201,7 +201,7 @@ function mergeEvents(server: MirroredEvent[], mirror: MirroredEvent[]): Mirrored
  * That is true WITHIN one lineage and false across two, which is the shape this
  * deployment actually has: every instance keeps its own /tmp, so a cold one
  * answers with a row it folded from scratch. Reproduced on a local file-backed
- * server — one turn earns a got-it (exposure 1, got 1, mastery 0.56); the next
+ * server, one turn earns a got-it (exposure 1, got 1, mastery 0.56); the next
  * turn lands on an instance whose store is empty, which folds that one turn
  * alone and answers exposure 1, got 0, miss 1, mastery 0.44. Equal counts, a
  * later `lastSeenAt`, and the tie goes to the server: the got-it is gone, and
@@ -311,7 +311,7 @@ export function mergeLearner<C extends ConceptLite>(
     : ((mine?.concepts ?? Object.values(mirror.subjects).flatMap((s) => s.concepts)) as unknown as C[]);
 
   // Persist only what the browser minted. An event that came back from the
-  // server has no `clientEventId`, because the server does not return one —
+  // server has no `clientEventId`, because the server does not return one, 
   // and the replay contract requires it, so storing those poisoned the record:
   // the very next POST /api/learner/sync was rejected whole on
   // `events.0.clientEventId`, and it stayed rejected for the life of that
@@ -400,7 +400,7 @@ export type SyncResult = LearnerPayload & {
  *
  * Trimmed to fit the contract's 512 KB before it is sent: events first (the
  * cheapest thing to lose, and the server already has the old ones), then the
- * oldest subjects. Sending nothing is a valid call — the reply is still the
+ * oldest subjects. Sending nothing is a valid call, the reply is still the
  * authoritative snapshot, so this is also the plain read.
  *
  * Resolves to null on any failure. A record that could not be handed back is a
@@ -411,7 +411,7 @@ export async function syncRecord(subjectId?: string | null): Promise<SyncResult 
   const mirror = readRecord();
   // Belt and braces for records already poisoned by the bug above: a browser
   // that stored server events before this shipped still holds them, and one
-  // such event rejects the whole call. Nothing replayable is lost — an event
+  // such event rejects the whole call. Nothing replayable is lost, an event
   // without this key was never replayable.
   let events = mirror.events.filter((e) => e.clientEventId).slice(0, MAX_EVENTS);
   let subjects = Object.values(mirror.subjects)

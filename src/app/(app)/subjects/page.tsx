@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FileText, Layers, Link2, Sparkles, Type } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -12,7 +11,7 @@ import { mergeSubjectList, rememberSubject, syncRecord } from "@/components/mirr
 import type { SourceLicence, Subject } from "@/lib/courses/types";
 
 /*
- * /subjects — pick what you're studying, or bring your own.
+ * /subjects, pick what you're studying, or bring your own.
  *
  * "Bring your own" posts to /api/subjects/create and reads the reply as it
  * arrives: the route streams one sentence per step, so the page shows the work
@@ -25,7 +24,7 @@ import type { SourceLicence, Subject } from "@/lib/courses/types";
  *
  * It also says whose work it is. Most of what VIVA ships now is a chapter of an
  * openly licensed textbook, and showing the credit is the condition on using it
- * — so the credit is part of the card, not a page in a footer somewhere.
+ *, so the credit is part of the card, not a page in a footer somewhere.
  */
 
 type Tab = "paste" | "link" | "files" | "name";
@@ -54,7 +53,7 @@ type SubjectCard = {
  * the browser kept into whichever instance answers, so the list that comes back
  * contains it; `mergeSubjectList` then adds anything the browser holds that the
  * reply still missed. A plain read is the fallback, and the mirror alone is the
- * fallback after that — a subject the student built is never not on this page.
+ * fallback after that, a subject the student built is never not on this page.
  */
 async function loadSubjects(): Promise<{ cards: SubjectCard[]; storageNote: string | null }> {
   const synced = await syncRecord();
@@ -87,7 +86,7 @@ type Built = {
 
 /**
  * Mirrors `PDF_MAX_BYTES` in src/lib/intake/pdf.ts and `MAX_DOCS` in
- * src/lib/intake/sources.ts, neither of which can be imported here — the first
+ * src/lib/intake/sources.ts, neither of which can be imported here, the first
  * pulls the parser into the bundle. The page refused at 15 MB while the route
  * refused at 4, so the student picked a lecture deck, waited for the upload and
  * was turned away after committing to the flow.
@@ -99,7 +98,7 @@ const MAX_DOCS = 4;
 /**
  * How many shipped subjects the shelf shows before it asks.
  *
- * Six is two full rows on a laptop and six phone-lengths of scrolling — enough
+ * Six is two full rows on a laptop and six phone-lengths of scrolling, enough
  * to see what kind of thing is on offer. Thirteen is a wall you scroll past to
  * reach the box where you add your own, which is the thing most people came
  * for the second time.
@@ -117,13 +116,13 @@ const SHELF_PREVIEW = 6;
 const CREATE_ERROR: Record<string, string> = {
   BAD_URL: "That does not look like a web address. Paste the whole link, starting with https://.",
   BLOCKED_HOST: "VIVA only reads pages on the open web, and that address is not one of them.",
-  HTTP_ERROR: "That page would not open. It may want a sign-in, or it may be gone — paste the text instead.",
+  HTTP_ERROR: "That page would not open. It may want a sign-in, or it may be gone, paste the text instead.",
   UNSUPPORTED_TYPE: "That link is not a page VIVA can read. Upload the file itself, or paste the text.",
   TOO_LARGE: "That page is too long to read in one go. Try a single article, or paste the part you are studying.",
   NO_READABLE_TEXT:
-    "There was too little to read on that page — it may be mostly video, pictures or a sign-in wall. VIVA will not guess at what it said, so paste the text and it will read that.",
+    "There was too little to read on that page, it may be mostly video, pictures or a sign-in wall. VIVA will not guess at what it said, so paste the text and it will read that.",
   NO_TEXT_IN_FILE: "There is no readable text in that file. Paste the text instead and VIVA will read that.",
-  BAD_FILE: "VIVA reads PDFs, Word documents and plain text. That file is something else — paste the text instead.",
+  BAD_FILE: "VIVA reads PDFs, Word documents and plain text. That file is something else, paste the text instead.",
 };
 
 function phrase(code: string | null | undefined, message: string | null | undefined): string {
@@ -133,14 +132,14 @@ function phrase(code: string | null | undefined, message: string | null | undefi
 /** One plain sentence per build path. No jargon, no hedging. */
 function builtByLine(builtBy: string | null | undefined): string | null {
   if (builtBy === "model") return "A language model read this and wrote the map.";
-  if (builtBy === "reading") return "VIVA read these notes itself — no model helped.";
+  if (builtBy === "reading") return "VIVA read these notes itself, no model helped.";
   return null;
 }
 
 /**
  * What the two hand-written labs say instead of a credit.
  *
- * They borrow nothing, so there is nothing to attribute — but a card that ends
+ * They borrow nothing, so there is nothing to attribute, but a card that ends
  * where the others carry a credit reads as a card that lost something. The
  * truthful sentence costs one line and the shelf stops looking broken.
  */
@@ -204,7 +203,7 @@ export default function SubjectsPage() {
       if (urls.length > MAX_DOCS) { setError(`VIVA reads up to ${MAX_DOCS} pages at once. Keep the ones that matter most.`); return; }
       body = JSON.stringify({ kind: "url", urls, ...(title.trim() ? { title: title.trim() } : {}) });
     } else if (tab === "paste") {
-      if (text.trim().length < 200) { setError("Paste a bit more — a few paragraphs is enough."); return; }
+      if (text.trim().length < 200) { setError("Paste a bit more, a few paragraphs is enough."); return; }
       body = JSON.stringify({ kind: "paste", title: title.trim() || "Your notes", text });
     } else {
       if (title.trim().length < 3) { setError("Give the topic a name first."); return; }
@@ -268,32 +267,32 @@ export default function SubjectsPage() {
        */
       if (subject && !failed) open(subject.id);
     } catch {
-      setError("The connection dropped while VIVA was reading. Nothing was saved — try again.");
+      setError("The connection dropped while VIVA was reading. Nothing was saved, try again.");
     } finally {
       setBusy(false);
       reload();
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: typeof Type }[] = [
-    { key: "paste", label: "Paste notes", icon: Type },
-    { key: "link", label: "Add a link", icon: Link2 },
-    { key: "files", label: "Upload files", icon: FileText },
-    { key: "name", label: "Just name it", icon: Sparkles },
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "paste", label: "Paste notes" },
+    { key: "link", label: "Add a link" },
+    { key: "files", label: "Upload files" },
+    { key: "name", label: "Just name it" },
   ];
 
   /*
    * Thirteen shipped subjects and however many the student built read as one
    * undifferentiated wall in a single list, and the two kinds are not the same
    * thing: one is a shelf, the other is their own work. Two groups, in the
-   * order the page's own sentence promises — ours, then yours.
+   * order the page's own sentence promises, ours, then yours.
    */
   const shipped = (subjects ?? []).filter((s) => s.demo);
   const own = (subjects ?? []).filter((s) => !s.demo);
   const visible = showAll ? shipped : shipped.slice(0, SHELF_PREVIEW);
 
   /*
-   * The card is the surface and the button is what fills it — the credit
+   * The card is the surface and the button is what fills it, the credit
    * carries links, and a link inside a button is not a thing a browser can
    * render. So the button stops above the hairline and the credit sits under
    * it, still inside the same card.
@@ -301,7 +300,7 @@ export default function SubjectsPage() {
    * There is no pill on the card any more. Six paper pills on a shelf plus the
    * lime one under the form is seven things shouting the same volume, and only
    * one of them is the thing this page is for. The card was always the control
-   * — the pill was a second copy of it — so the card keeps the words and gives
+   *, the pill was a second copy of it, so the card keeps the words and gives
    * them the weight of a caption instead of a button.
    */
   function card(s: SubjectCard) {
@@ -336,12 +335,12 @@ export default function SubjectsPage() {
             </span>
             <span className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap transition-colors group-hover:text-[var(--color-paper)]">
               Start talking
-              <ArrowRight size={13} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
+              <span aria-hidden>{"\u2192"}</span>
             </span>
           </span>
         </button>
         {/* Every card ends the same way: a rule, then one sentence about whose
-            words these are — and the card pushes it down to its own foot
+            words these are, and the card pushes it down to its own foot
             rather than directly under the title.
 
             The row is `items-stretch`, so a card whose credit is one line is
@@ -350,16 +349,16 @@ export default function SubjectsPage() {
             323 px side by side and the row left a 140 px notch of bare ground
             under the short ones. Equal height was rejected once because it
             left empty card below the credit; anchoring the credit to the foot
-            is what that attempt was missing — the slack now falls between the
+            is what that attempt was missing, the slack now falls between the
             title and the rule, where a card is supposed to breathe.
 
             The slack is taken by `grow` on the button above, not by `mt-auto`
-            here: with no slack to take — one column at 390 — `auto` resolves
+            here: with no slack to take, one column at 390, `auto` resolves
             to 0, and the rule ended up hard against the counts row. */}
         {credit || licences.length ? (
           <div className="hairline mt-4 border-t pt-3">
             {credit ? (
-              <p className="text-[11px] leading-relaxed" style={{ color: "var(--color-ash)" }}>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--color-ash)" }}>
                 {credit}
               </p>
             ) : null}
@@ -443,7 +442,7 @@ export default function SubjectsPage() {
 
       <section aria-labelledby="byo" className="surface-card mt-8 p-5">
         <span className="eyebrow inline-flex items-center gap-1.5">
-          <Layers size={13} aria-hidden /> Bring your own
+          Bring your own
         </span>
         <h2 id="byo" className="heading mt-1 text-lg">
           Your own notes
@@ -461,7 +460,7 @@ export default function SubjectsPage() {
         </div>
 
         <div role="tablist" aria-label="How to add a subject" className="mt-4 flex flex-wrap gap-2">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label }) => (
             <button
               key={key}
               type="button"
@@ -486,15 +485,15 @@ export default function SubjectsPage() {
                   : { borderColor: "transparent" }
               }
             >
-              <Icon size={13} aria-hidden /> {label}
+              {label}
             </button>
           ))}
         </div>
 
         <div className="mt-4 grid gap-3">
           <label className="grid gap-1.5">
-            <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
-              {tab === "name" ? "TOPIC" : "NAME IT (OPTIONAL)"}
+            <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+              {tab === "name" ? "Topic" : "Name it (optional)"}
             </span>
             <input
               type="text"
@@ -508,8 +507,8 @@ export default function SubjectsPage() {
 
           {tab === "paste" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
-                YOUR NOTES
+              <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+                Your notes
               </span>
               <textarea
                 value={text}
@@ -519,7 +518,7 @@ export default function SubjectsPage() {
                 className="rounded-lg border px-3 py-2 text-sm leading-relaxed"
                 style={{ background: "var(--color-obsidian)", borderColor: "var(--color-hairline)", color: "var(--color-paper)" }}
               />
-              <span className="mono text-[11px]" style={{ color: "var(--color-ash)" }}>
+              <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
                 <span className="tnum">{text.trim() ? text.trim().split(/\s+/).length : 0}</span> words
               </span>
             </label>
@@ -527,8 +526,8 @@ export default function SubjectsPage() {
 
           {tab === "link" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
-                ADDRESS · UP TO {MAX_DOCS}, ONE PER LINE
+              <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+                Web addresses, up to {MAX_DOCS}, one per line
               </span>
               <textarea
                 value={links}
@@ -547,8 +546,8 @@ export default function SubjectsPage() {
 
           {tab === "files" ? (
             <label className="grid gap-1.5">
-              <span className="mono text-[11px] tracking-widest" style={{ color: "var(--color-ash)" }}>
-                PDF, WORD OR TEXT · UP TO {MAX_DOCS}, {MAX_UPLOAD_MB} MB TOGETHER
+              <span className="text-sm font-medium" style={{ color: "var(--color-ash)" }}>
+                PDF, Word or text files, up to {MAX_DOCS}, {MAX_UPLOAD_MB} MB together
               </span>
               <input
                 type="file"
@@ -559,12 +558,12 @@ export default function SubjectsPage() {
                 style={{ background: "var(--color-obsidian)", borderColor: "var(--color-hairline)", color: "var(--color-paper)" }}
               />
               {files.length > 1 ? (
-                <span className="mono text-[11px]" style={{ color: "var(--color-ash)" }}>
+                <span className="mono text-xs" style={{ color: "var(--color-ash)" }}>
                   <span className="tnum">{files.length}</span> files · one subject built from all of them
                 </span>
               ) : null}
               <span className="text-xs leading-relaxed" style={{ color: "var(--color-ash)" }}>
-                A scanned PDF has no text in it. If that is what you have, paste the words instead — VIVA will not guess
+                A scanned PDF has no text in it. If that is what you have, paste the words instead, VIVA will not guess
                 at pages it cannot read.
               </span>
             </label>
@@ -615,7 +614,7 @@ export default function SubjectsPage() {
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>
               {builtByLine(built.builtBy) ?? ""}
               {built.builtBy === "reading"
-                ? " That means plainer questions and no worked analogies — everything you see comes straight out of your own words. It also means that when you say something wrong here, VIVA will more often tell you it could not check than catch it. It still quotes your own lines back when it can, and it will not agree with you to be nice."
+                ? " That means plainer questions and no worked analogies, everything you see comes straight out of your own words. It also means that when you say something wrong here, VIVA will more often tell you it could not check than catch it. It still quotes your own lines back when it can, and it will not agree with you to be nice."
                 : ""}
             </p>
             {/* The route says whether this landed somewhere durable and supplies
@@ -628,7 +627,7 @@ export default function SubjectsPage() {
             ) : null}
             <button type="button" onClick={() => open(built.id)} className="btn-primary mt-3">
 
-              Start talking <ArrowRight size={15} aria-hidden />
+              Start the exam
             </button>
           </div>
         ) : null}

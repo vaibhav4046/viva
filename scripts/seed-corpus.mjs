@@ -9,13 +9,13 @@
  * What it does, per entry in MANIFEST:
  *   1. resolves the book in OpenStax's own archive and reads the licence OFF
  *      the source rather than off a note in this file;
- *   2. refuses anything that is not CC BY 4.0 — the NonCommercial and
+ *   2. refuses anything that is not CC BY 4.0, the NonCommercial and
  *      ShareAlike books are real books with real terms, and honouring those
  *      terms properly is a decision for a person, not for this script;
  *   3. pulls one chapter's sections, turns the HTML into prose, and cuts it
  *      with the SAME chunker the student's own uploads go through;
  *   4. asks the configured model to write the concept map and the questions;
- *   5. writes src/lib/corpus/library.json — passages, map, and the attribution
+ *   5. writes src/lib/corpus/library.json, passages, map, and the attribution
  *      the licence requires, which the app then shows.
  *
  * Nothing here invents subject matter. The passages are the textbook's own
@@ -41,13 +41,13 @@ const OUT = path.join(ROOT, "src", "lib", "corpus", "library.json");
  *
  * The list is ordered by SUBJECT rather than by book, because that is what a
  * student picking VIVA up is looking for. Where a second chapter of a book
- * appears it is because the chapter is its own module on most timetables —
+ * appears it is because the chapter is its own module on most timetables, 
  * genetics and ecology are not "more biology", they are the two other papers.
  *
  * Every id here is a book OpenStax publishes under CC BY 4.0, checked again at
- * run time off the CMS rather than trusted from this list. The obvious gaps —
+ * run time off the CMS rather than trusted from this list. The obvious gaps, 
  * Biology 2e, Chemistry 2e, University Physics, Psychology 2e, Microbiology,
- * U.S. History, Principles of Marketing — are CC BY-NC-SA 4.0 and are not
+ * U.S. History, Principles of Marketing, are CC BY-NC-SA 4.0 and are not
  * here; `buildOne` would refuse them anyway. There is no CC BY U.S. history
  * book: "Life, Liberty, and the Pursuit of Happiness" is CC BY but has no
  * published version in the archive, so it has nothing to read.
@@ -138,7 +138,7 @@ loadEnvLocal();
 /**
  * The seed can be pointed at a different model than the app serves.
  *
- * Not a preference — a rate limit. The provider's tokens-per-minute budget is
+ * Not a preference, a rate limit. The provider's tokens-per-minute budget is
  * per model and shared across everything using that key, and the app's own
  * model is busy answering study turns. Seeding eleven subjects against it
  * returned 429 thirty-three times in a row. A sibling model has its own
@@ -155,8 +155,8 @@ process.env.LLM_MODEL = model;
  * model that schema, so the model infers the shape from the prose rules. The
  * app's own model usually infers it; the smaller sibling this script has to
  * use omits `related` on most concepts and the whole map is thrown away for
- * a missing empty array. This says what the keys are — formatting, not
- * subject matter — through the provider seam the app already exposes, so the
+ * a missing empty array. This says what the keys are, formatting, not
+ * subject matter, through the provider seam the app already exposes, so the
  * prompt, the schema, the repair retry and the normalisation are all still
  * the app's own. The app's intake would benefit from the same hint; that is a
  * change to shared code, and it is noted rather than made here.
@@ -165,8 +165,8 @@ const SHAPE_HINT = [
   "",
   "The JSON object has exactly these keys:",
   'title (string), subject (string),',
-  'concepts: array of 6-10 objects, EVERY one with id, name, aliases (array of 1-8 strings), description, related (array of other concept ids — use [] when there are none; never omit it),',
-  'examQuestions: array of 5-8 objects with conceptId, question, hint, and requiredKeywords — AT LEAST THREE strings in every single one, up to six,',
+  'concepts: array of 6-10 objects, EVERY one with id, name, aliases (array of 1-8 strings), description, related (array of other concept ids, use [] when there are none; never omit it),',
+  'examQuestions: array of 5-8 objects with conceptId, question, hint, and requiredKeywords, AT LEAST THREE strings in every single one, up to six,',
   'explainers: an object keyed by EVERY concept id, each { formal, jargonFree, missing: [] },',
   'traps: array of 2-4 objects with conceptId, statement, whyWrong, correct,',
   'teachback: { keywords: object keyed by concept id to 3-8 strings, hints: object keyed by concept id to one sentence },',
@@ -181,7 +181,7 @@ const SHAPE_HINT = [
  * app serves, and it slips on the countable rules: five entries in a field
  * capped at four, two required keywords where the schema asks for three. Zod
  * then throws the whole map away over an array length. So before validation,
- * anything over a limit is trimmed and anything under one is dropped — an
+ * anything over a limit is trimmed and anything under one is dropped, an
  * exam question with two keywords is removed, not topped up with a third that
  * nobody wrote. If enough is dropped to fall below the schema's minimums the
  * map fails, which is the correct outcome.
@@ -250,7 +250,7 @@ if (!dry) {
   setReasoningProvider({
     name: `seed:${model}`,
     generateText: (input) => provider.generateText(input),
-    // Same endpoint, same prompt, same schema as the app — plus the shape hint
+    // Same endpoint, same prompt, same schema as the app, plus the shape hint
     // and the subtractive repair above, both of which exist only because this
     // script cannot have the app's model.
     generateObject: async (input) => {
@@ -361,7 +361,7 @@ async function buildOne(entry, index) {
   const meta = index.byId.get(entry.cnxId);
   if (!meta) return { skipped: `${entry.key}: not in the OpenStax book list` };
   if (!ACCEPTED_LICENCE.match.test(meta.license_name ?? "")) {
-    return { skipped: `${entry.key}: licence is "${meta.license_name}", not CC BY 4.0 — not seeded` };
+    return { skipped: `${entry.key}: licence is "${meta.license_name}", not CC BY 4.0, not seeded` };
   }
   const version = index.release.books[entry.cnxId]?.defaultVersion;
   if (!version) return { skipped: `${entry.key}: no published version in the archive` };
@@ -410,7 +410,7 @@ async function buildOne(entry, index) {
    * writes one explainer instead of six often enough that half the manifest
    * was being abandoned on a first attempt that a second attempt then got
    * right. The check therefore lives INSIDE the retry, where "the model came
-   * back with nothing usable" already lives — same outcome, same loop. What is
+   * back with nothing usable" already lives, same outcome, same loop. What is
    * still refused is a subject that stays thin across every attempt: shipping
    * two concepts and calling it a subject is worse than not shipping it.
    */
@@ -430,8 +430,8 @@ async function buildOne(entry, index) {
       // explained two of them, and that reads identically in the log to a
       // model that only named two.
       console.log(
-        `    attempt ${attempt}: only ${thin} — the model wrote ${normalized.concepts.length} concepts,` +
-        ` ${Object.keys(normalized.explainers).length} explained and ${normalized.examQuestions.length} questions — asking again`
+        `    attempt ${attempt}: only ${thin}, the model wrote ${normalized.concepts.length} concepts,` +
+        ` ${Object.keys(normalized.explainers).length} explained and ${normalized.examQuestions.length} questions, asking again`
       );
       return null;
     }
@@ -455,7 +455,7 @@ async function buildOne(entry, index) {
     sources: [
       {
         id: sourceId,
-        title: `${meta.title} — ${chapterTitle}`,
+        title: `${meta.title}, ${chapterTitle}`,
         type: "textbook",
         licence: {
           name: ACCEPTED_LICENCE.name,
@@ -488,7 +488,7 @@ async function buildOne(entry, index) {
  * a trap is only worth shipping if that check calls the misconception wrong and
  * leaves the correct version alone. The hand-written labs were authored to
  * satisfy that; a trap a model wrote may read fine and still be invisible to
- * the checker — which would mean warning a student about a mistake the product
+ * the checker, which would mean warning a student about a mistake the product
  * cannot then recognise when they make it. Those are dropped here.
  */
 function usableTraps(course) {
@@ -505,7 +505,7 @@ function usableTraps(course) {
  *
  * The tokens-per-minute ceiling on the configured provider is small enough
  * that a whole chapter in one prompt is refused outright. A map written from
- * the first two thirds of the chapter still describes the chapter — and a
+ * the first two thirds of the chapter still describes the chapter, and a
  * refused call describes nothing.
  */
 function modelPassages(chunks, attempt = 1) {
@@ -531,8 +531,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * The wait was a full 65 s, sized when each call sent most of a chapter. It
  * now sends about 2,500 tokens against a per-minute window of roughly 8,000,
  * and the loop already sleeps 20 s between subjects, so a further 25 s clears
- * the window with room to spare. Most retries are not rate limits at all —
- * they are a small model that wrote one explainer instead of six — and making
+ * the window with room to spare. Most retries are not rate limits at all, 
+ * they are a small model that wrote one explainer instead of six, and making
  * those wait a minute each turned a thirty-subject run into an afternoon.
  */
 const RETRY_WAIT_MS = 35_000;
@@ -557,7 +557,7 @@ async function withRetries(key, work, attempts = 3) {
  * Make the model's map fit what the app guarantees, without inventing anything.
  *
  * Two rules. A concept the model did not explain twice is DROPPED, along with
- * its questions and traps — writing the missing explanation here would be this
+ * its questions and traps, writing the missing explanation here would be this
  * script making up subject matter, which is the one thing it may not do. And
  * every concept id is prefixed with the subject key, because concept ids are
  * unique across the whole library and "energy" belongs to more than one book.
@@ -630,12 +630,12 @@ async function main() {
     //
     // 20 s was not enough and the symptom looked like a bad model. Measured on
     // this provider: the per-minute ceiling is 8,000 tokens and one seeding
-    // call costs about 4,300, so two calls inside a minute is a refusal —
+    // call costs about 4,300, so two calls inside a minute is a refusal, 
     // which arrives as "the model did not return a usable map", gets retried,
     // and refuses again. Fetching the chapter takes some of the gap, so the
     // wait only has to cover the rest of the window.
     if (i > 0 && !dry) await sleep(SUBJECT_GAP_MS);
-    console.log(`\n${entry.key} — ${entry.subject}`);
+    console.log(`\n${entry.key}, ${entry.subject}`);
     try {
       const result = await buildOne(entry, index);
       if (result.course) {
@@ -645,17 +645,17 @@ async function main() {
         );
       } else if (result.skipped) {
         skipped.push(result.skipped);
-        console.log(`    SKIPPED — ${result.skipped}`);
+        console.log(`    SKIPPED, ${result.skipped}`);
       }
     } catch (error) {
       const line = `${entry.key}: ${error instanceof Error ? error.message : String(error)}`;
       skipped.push(line);
-      console.log(`    FAILED — ${line}`);
+      console.log(`    FAILED, ${line}`);
     }
     if (exhausted) {
       // Everything built so far is still written below; the rest of the
       // manifest is a `--fill` run away on another credential or another day.
-      console.log(`\nSTOPPING — ${exhausted}`);
+      console.log(`\nSTOPPING, ${exhausted}`);
       skipped.push(exhausted);
       break;
     }
@@ -665,7 +665,7 @@ async function main() {
 
   // Always a merge, never a replace. The provider this runs against has a
   // small per-minute budget shared with everything else on the key, so a run
-  // that only lands four subjects is normal — run it again for the rest. A
+  // that only lands four subjects is normal, run it again for the rest. A
   // subject that was skipped keeps whatever was built for it last time.
   let existing = [];
   try {
@@ -684,7 +684,7 @@ async function main() {
  * build.
  *
  * The library is filled in over several runs against whatever credential still
- * has budget, and every run rewrote that field with its own model name — so a
+ * has budget, and every run rewrote that field with its own model name, so a
  * run that added two subjects relabelled the other twenty-two. Each subject now
  * carries `builtByModel`; a subject written before that field existed inherits
  * the name the file recorded at the time, which is the evidence there is, and

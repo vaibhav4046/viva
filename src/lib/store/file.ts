@@ -11,7 +11,7 @@ import type { ConceptDef, EventStore, RecordInput, RecordOutcome } from "./repo"
  * File-backed EventStore for local dev (DATA_DIR, default .data).
  * - One JSON doc per user, per-user async mutex (§68), atomic tmp+rename writes.
  * - Same interface + same reducer as Postgres; lexical retrieval.
- * - Durable on disk. EPHEMERAL on serverless (per-instance filesystem) —
+ * - Durable on disk. EPHEMERAL on serverless (per-instance filesystem), 
  *   readiness reports this honestly; production needs DATABASE_URL.
  */
 
@@ -39,8 +39,8 @@ let saveSeq = 0;
 
 /**
  * POSIX rename over an existing file is atomic and cannot fail because someone
- * is reading the destination. Windows disagrees: a concurrent open handle — a
- * reader, an indexer, an antivirus scan — makes the same call fail EPERM, and
+ * is reading the destination. Windows disagrees: a concurrent open handle, a
+ * reader, an indexer, an antivirus scan, makes the same call fail EPERM, and
  * the burst probe turned that into HTTP 500s on a developer's own machine.
  * Vercel is Linux, so this is not a production fault, but a store that 500s
  * where it is developed is a store nobody trusts. Three tries over ~60 ms; a
@@ -77,7 +77,7 @@ async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 function dataDir(): string {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
   // Vercel/serverless filesystems are read-only except /tmp (per-instance,
-  // ephemeral — readiness discloses this; production needs DATABASE_URL).
+  // ephemeral, readiness discloses this; production needs DATABASE_URL).
   if (process.env.VERCEL) return "/tmp/.viva-data";
   return path.join(process.cwd(), ".data");
 }
@@ -91,8 +91,8 @@ function userPath(userId: string): string {
  * The opening state of a brand-new browser: the starter's material is
  * available, and the learner's own record is empty.
  *
- * It used to arrive pre-filled — four concepts at invented mastery levels and
- * one utterance nobody had said — so a first-time visitor was told they had
+ * It used to arrive pre-filled, four concepts at invented mastery levels and
+ * one utterance nobody had said, so a first-time visitor was told they had
  * recalled something correctly twice. A product whose whole claim is that it
  * remembers you cannot open by inventing a you. Subjects are seeded; people
  * are not.
@@ -113,7 +113,7 @@ function seedDoc(userId: string): UserDoc {
 
 /**
  * Why this concept is due, in the student's words. Counts are only mentioned
- * when there is something to count, and they are pluralised — "1 confusions"
+ * when there is something to count, and they are pluralised, "1 confusions"
  * on the first screen of the morning is not a rounding error, it is the app
  * talking to itself out loud.
  */
@@ -150,7 +150,7 @@ export class FileEventStore implements EventStore {
    * and it used to answer a torn doc by overwriting it with a blank seed.
    *
    * A missing file still yields the seeded doc, so a new learner is unchanged
-   * — the difference is that the seed is only persisted when a real write
+   *, the difference is that the seed is only persisted when a real write
    * persists it, under the lock.
    */
   private async load(userId: string): Promise<UserDoc> {
@@ -187,8 +187,8 @@ export class FileEventStore implements EventStore {
    * A torn doc is moved aside, never overwritten: the bytes stay on disk for
    * recovery and the learner carries on with a fresh doc. Refusing forever
    * instead would mean every request for that learner fails until someone
-   * edits the filesystem by hand, which in the fallback store — the one that
-   * only runs when Postgres is already down — is the worse of the two.
+   * edits the filesystem by hand, which in the fallback store, the one that
+   * only runs when Postgres is already down, is the worse of the two.
    */
   private async loadForUpdate(userId: string): Promise<UserDoc> {
     try {
@@ -197,7 +197,7 @@ export class FileEventStore implements EventStore {
       if (!(e instanceof CorruptUserDocError)) throw e;
       const file = userPath(userId);
       await renameWithRetry(file, `${file}.corrupt-${Date.now()}`);
-      console.error(`[store] ${file} did not parse — moved aside, starting a fresh doc for ${userId}`);
+      console.error(`[store] ${file} did not parse, moved aside, starting a fresh doc for ${userId}`);
       return seedDoc(userId);
     }
   }
@@ -209,7 +209,7 @@ export class FileEventStore implements EventStore {
     // `.tmp.${process.pid}` is one path for every write the process makes, so
     // two concurrent saves for the same learner both wrote it and both renamed
     // it: the first won, the second got ENOENT, and an unhandled ENOENT is an
-    // HTTP 500. Measured on a 70-request burst — the Postgres pool timed out,
+    // HTTP 500. Measured on a 70-request burst, the Postgres pool timed out,
     // the degradation latch sent everything here, and 13 of 70 came back 500
     // from the fallback that exists to keep the app answering.
     //
@@ -282,7 +282,7 @@ export class FileEventStore implements EventStore {
       };
       doc.events.push(event);
       // A replay can carry an event older than one already stored, and
-      // `listEvents` hands out the tail — so the tail has to be the newest
+      // `listEvents` hands out the tail, so the tail has to be the newest
       // events, not the most recently written ones.
       doc.events.sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
       await this.save(doc);

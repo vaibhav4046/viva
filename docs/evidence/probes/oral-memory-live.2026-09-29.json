@@ -1,0 +1,210 @@
+{
+  "probe": "oral-memory-live",
+  "date": "2026-09-29",
+  "n": 3,
+  "service": "AssemblyAI Voice Agent API (real), local Next server, file store",
+  "learner": "synthetic voice (Windows System.Speech WAV), no browser, no human microphone",
+  "transport": "Node WebSocket client running src/lib/oral/socket.ts",
+  "passed": 3,
+  "spokeNextConcept": 2,
+  "runs": [
+    {
+      "run": 1,
+      "ok": true,
+      "failures": [],
+      "notes": {
+        "before": {
+          "memory": {
+            "status": "empty",
+            "durable": true,
+            "note": "No earlier answers are stored for this subject, so the exam starts from the first concept.",
+            "opening": null
+          },
+          "greeting": "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+          "promptMentionsNoHistory": true
+        },
+        "seed": {
+          "wrong": {
+            "verdict": "contradicted",
+            "page": 15,
+            "next_focus": {
+              "concept": "Multi-head attention",
+              "concept_id": "c_multihead",
+              "kind": "recall",
+              "reason": "The last answer on Multi-head attention was not right, so stay on it and step back to a recall question."
+            }
+          },
+          "right": {
+            "verdict": "supported",
+            "page": 11,
+            "next_focus": {
+              "concept": "Multi-head attention",
+              "concept_id": "c_multihead",
+              "kind": "why",
+              "reason": "Move to Multi-head attention, the weakest concept now, with a why question."
+            }
+          }
+        },
+        "after": {
+          "memory": {
+            "status": "stored",
+            "durable": true,
+            "note": "Read from your stored map before the exam started.",
+            "opening": "Multi-head attention"
+          },
+          "greeting": "You're being examined. I will start with Multi-head attention, which your recorded answers show as your weakest. In your own words, what is it?",
+          "promptVersion": "2026-09-29.3",
+          "promptOpens": "Multi-head attention"
+        },
+        "spokenGreeting": "You're being examined. I will start with Multi-head attention, which your recorded answers show as your weakest. In your own words, what is it?",
+        "userHeard": "Positional encoding adds information about token order before the first self attention layer.",
+        "tools": [
+          {
+            "name": "grade_my_answer",
+            "verdict": "partial",
+            "next_focus": {
+              "concept": "Positional information",
+              "concept_id": "c_position",
+              "kind": "why",
+              "reason": "The last answer on Positional information was only partly right, so stay on it and ask a why question."
+            }
+          }
+        ],
+        "examinerAfterCheck": "You noted that it provides order, but you missed how the attention mechanism itself works. Why do we need to add positional information to the embeddings?",
+        "spokeNextConcept": true
+      }
+    },
+    {
+      "run": 2,
+      "ok": true,
+      "failures": [],
+      "notes": {
+        "before": {
+          "memory": {
+            "status": "empty",
+            "durable": true,
+            "note": "No earlier answers are stored for this subject, so the exam starts from the first concept.",
+            "opening": null
+          },
+          "greeting": "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+          "promptMentionsNoHistory": true
+        },
+        "seed": {
+          "wrong": {
+            "verdict": "contradicted",
+            "page": 15,
+            "next_focus": {
+              "concept": "Multi-head attention",
+              "concept_id": "c_multihead",
+              "kind": "recall",
+              "reason": "The last answer on Multi-head attention was not right, so stay on it and step back to a recall question."
+            }
+          },
+          "right": {
+            "verdict": "supported",
+            "page": 11,
+            "next_focus": {
+              "concept": "Multi-head attention",
+              "concept_id": "c_multihead",
+              "kind": "why",
+              "reason": "Move to Multi-head attention, the weakest concept now, with a why question."
+            }
+          }
+        },
+        "after": {
+          "memory": {
+            "status": "stored",
+            "durable": true,
+            "note": "Read from your stored map before the exam started.",
+            "opening": "Multi-head attention"
+          },
+          "greeting": "You're being examined. I will start with Multi-head attention, which your recorded answers show as your weakest. In your own words, what is it?",
+          "promptVersion": "2026-09-29.3",
+          "promptOpens": "Multi-head attention"
+        },
+        "spokenGreeting": "You're being examined. I will start with Multi-head attention, which your recorded answers show as your weakest. In your own words, what is it?",
+        "userHeard": "Positional encoding adds information about token order before the first self attention layer.",
+        "tools": [
+          {
+            "name": "grade_my_answer",
+            "verdict": "partial",
+            "next_focus": {
+              "concept": "Positional information",
+              "concept_id": "c_position",
+              "kind": "why",
+              "reason": "The last answer on Positional information was only partly right, so stay on it and ask a why question."
+            }
+          }
+        ],
+        "examinerAfterCheck": "That is partially correct. You noted the order and the timing, but you missed that self-attention alone is permutation-equivariant. Why would omitting positional encodings change how a Transformer behaves?",
+        "spokeNextConcept": false
+      }
+    },
+    {
+      "run": 3,
+      "ok": true,
+      "failures": [],
+      "notes": {
+        "before": {
+          "memory": {
+            "status": "empty",
+            "durable": true,
+            "note": "No earlier answers are stored for this subject, so the exam starts from the first concept.",
+            "opening": null
+          },
+          "greeting": "You're being examined. Tell me what you want to be asked on, and I'll start there.",
+          "promptMentionsNoHistory": true
+        },
+        "seed": {
+          "wrong": {
+            "verdict": "contradicted",
+            "page": 15,
+            "next_focus": {
+              "concept": "Multi-head attention",
+              "concept_id": "c_multihead",
+              "kind": "recall",
+              "reason": "The last answer on Multi-head attention was not right, so stay on it and step back to a recall question."
+            }
+          },
+          "right": {
+            "verdict": "supported",
+            "page": 11,
+            "next_focus": {
+              "concept": "Multi-head attention",
+              "concept_id": "c_multihead",
+              "kind": "why",
+              "reason": "Move to Multi-head attention, the weakest concept now, with a why question."
+            }
+          }
+        },
+        "after": {
+          "memory": {
+            "status": "stored",
+            "durable": true,
+            "note": "Read from your stored map before the exam started.",
+            "opening": "Multi-head attention"
+          },
+          "greeting": "You're being examined. I will start with Multi-head attention, which your recorded answers show as your weakest. In your own words, what is it?",
+          "promptVersion": "2026-09-29.3",
+          "promptOpens": "Multi-head attention"
+        },
+        "spokenGreeting": "You're being examined. I will start with Multi-head attention, which your recorded answers show as your weakest. In your own words, what is it?",
+        "userHeard": "Positional encoding adds information about token order before the first self attention layer.",
+        "tools": [
+          {
+            "name": "grade_my_answer",
+            "verdict": "partial",
+            "next_focus": {
+              "concept": "Positional information",
+              "concept_id": "c_position",
+              "kind": "why",
+              "reason": "The last answer on Positional information was only partly right, so stay on it and ask a why question."
+            }
+          }
+        ],
+        "examinerAfterCheck": "That is a partial answer. You noted the order, but you did not mention how attention computes relationships or its permutation equivariance. Why is positional information necessary for self attention?",
+        "spokeNextConcept": true
+      }
+    }
+  ]
+}

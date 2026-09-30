@@ -3,14 +3,14 @@ import { useState } from "react";
 import type { WeekDay } from "@/lib/planner";
 
 /**
- * "Your week" — seven days projected from the learner's current review state.
+ * "Your week", seven days projected from the learner's current review state.
  * Today's count mirrors the path above because it is the same object: both come
  * out of one projectWeek() call over one snapshot. Clicking a day with
  * something in it scrolls back to the plan.
  *
  * A day with nothing due is a one-line row, not a card. The strip used to give
  * every day the same 107 px card, and on a cold account five of the seven read
- * "0 / Nothing projected" — 546 px of null data that pushed the ten-minute
+ * "0 / Nothing projected", 546 px of null data that pushed the ten-minute
  * path, the reason the page exists, below the fold on a phone. Weight now goes
  * to the days that have something in them.
  *
@@ -40,7 +40,7 @@ export function WeekStrip({ days }: { days: WeekDay[] }) {
         {days.map((day) =>
           day.count === 0 ? (
             <li key={day.date} className="flex min-h-7 items-center gap-3 px-1">
-              <span className="mono w-20 shrink-0 text-[11px] uppercase tracking-widest" style={{ color: "var(--color-ash)" }}>
+              <span className="mono w-20 shrink-0 text-xs uppercase tracking-widest" style={{ color: "var(--color-ash)" }}>
                 {day.label}
               </span>
               <span
@@ -61,7 +61,7 @@ export function WeekStrip({ days }: { days: WeekDay[] }) {
                 onClick={() => jumpToPath(day)}
                 className="surface-card flex min-h-11 w-full items-center gap-3 p-3 text-left transition-colors hover:border-[var(--color-cognition)]"
               >
-                <span className="mono w-20 shrink-0 text-[11px] uppercase tracking-widest" style={{ color: "var(--color-ash)" }}>
+                <span className="mono w-20 shrink-0 text-xs uppercase tracking-widest" style={{ color: "var(--color-ash)" }}>
                   {day.label}
                 </span>
                 {/* A count, not a band. Periwinkle means "Getting there". */}

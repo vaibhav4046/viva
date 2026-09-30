@@ -5,8 +5,8 @@
  * lived in the pre-send review panel, which auto-sends 1.5 s after the
  * transcript lands and took every one of them with it. After that the page
  * contained no ms figure, no path name and no verbatim text at all, so the two
- * things this integration is actually judged on — exactly what was said beside
- * the tidied version, and an honest upstream time — were unrecoverable one and
+ * things this integration is actually judged on, exactly what was said beside
+ * the tidied version, and an honest upstream time, were unrecoverable one and
  * a half seconds later and gone entirely on reload.
  *
  * This is that same data rendered once more, in the conversation, where it
@@ -14,7 +14,7 @@
  * is a native <details> so it works before hydration and with the keyboard.
  *
  * The number is AssemblyAI's OWN `request_time_ms`, not our round trip, and it
- * says so — the two differ by about 600 ms (median 1166 ms wall against 554 ms
+ * says so, the two differ by about 600 ms (median 1166 ms wall against 554 ms
  * upstream, measured on live), and quoting the round trip as the provider's
  * figure would be the kind of number this project does not print.
  */
@@ -25,7 +25,7 @@ import { LIVE_ASR_MODE } from "@/lib/audio/stream";
 /** Everything the footer needs. `VoiceTurn` satisfies this structurally. */
 export type TurnFacts = {
   origin: "voice" | "typed" | "external-dictation";
-  /** "dictation" | "sync" — which AssemblyAI path answered. */
+  /** "dictation" | "sync", which AssemblyAI path answered. */
   asrMode: string | null;
   /** AssemblyAI's own request_time_ms. NEVER the browser round trip. */
   requestTimeMs: number | null;
@@ -59,13 +59,13 @@ export function turnFactsLine(facts: TurnFacts): string | null {
   // "Pasted or dictated", not "Dictated elsewhere". src/lib/audio/burst.ts can
   // only tell that more than a line arrived inside 300 ms; a paste and a
   // dictation drop are identical at that layer, and its own comment says so.
-  // Naming it dictation asserts the half we did not measure — which is exactly
+  // Naming it dictation asserts the half we did not measure, which is exactly
   // the move this product refuses to make about a learner's claim, so it does
   // not get to make it about their input either.
   if (facts.origin === "external-dictation") return "Pasted or dictated";
   // The buffered clip failed and the learner sent the words the live socket
   // had painted instead. Different transcript, different path, no cleanup and
-  // no upstream time — so it does not get to borrow the Dictation label, and
+  // no upstream time, so it does not get to borrow the Dictation label, and
   // there is no ms figure to print because none was ever measured for it.
   if (facts.asrMode === LIVE_ASR_MODE) return "Live words · not the cleaned transcript";
   const parts = [facts.fellBackFrom || facts.asrMode === "sync" ? "Backup path" : "Dictation"];
@@ -83,7 +83,7 @@ export function pathTitle(facts: TurnFacts): string {
   if (facts.fellBackFrom) {
     return "Dictation did not answer, so AssemblyAI's backup path transcribed this clip. The time is AssemblyAI's own, not the browser round trip.";
   }
-  return "The time AssemblyAI spent on this clip — its own figure, not the browser round trip.";
+  return "The time AssemblyAI spent on this clip, its own figure, not the browser round trip.";
 }
 
 /**
@@ -93,7 +93,7 @@ export function pathTitle(facts: TurnFacts): string {
  * missing most of the clip, and live words were never offered one at all.
  */
 export function tidyNote(facts: TurnFacts): string {
-  if (facts.asrMode === LIVE_ASR_MODE) return "Nothing tidied these — the clip they belong to never came back.";
+  if (facts.asrMode === LIVE_ASR_MODE) return "Nothing tidied these, the clip they belong to never came back.";
   if (facts.llmError === CLEANUP_DROPPED) return "The tidy-up came back missing most of these words, so it was not used.";
   return "Nothing needed tidying.";
 }

@@ -1,5 +1,5 @@
 /**
- * TranscriptionProvider — AssemblyAI behind a stable interface.
+ * TranscriptionProvider, AssemblyAI behind a stable interface.
  * Key never reaches the browser; all calls are server-side.
  *
  * Modes (ASSEMBLYAI_TRANSCRIPTION_MODE, default "dictation"):
@@ -7,12 +7,12 @@
  *                2026-09-12: multipart/form-data, `config` part
  *                (application/json) FIRST, then `audio` as raw 16 kHz mono
  *                S16LE PCM (anything else is downmixed and resampled to that
- *                before send — the declaration is read as truth upstream).
+ *                before send, the declaration is read as truth upstream).
  *                Config keys are `sample_rate`, `channels`,
  *                `language_codes`, `keyterms_prompt` (array), `stt_prompt`,
  *                `llm_instruction`. Response carries both `text` (verbatim)
  *                and `llm_response` (cleaned); `llm_error` is not a request
- *                failure — fall back to `text`.
+ *                failure, fall back to `text`.
  * - "sync":      POST {syncBase}/transcribe, multipart audio+config,
  *                X-AAI-Model: universal-3-5-pro. The fallback path.
  * - "async":     /v2/upload + /v2/transcript poll. NOT the hold-to-talk path
@@ -38,7 +38,7 @@ export type TranscriptionRequest = {
   /** Conversation context, plain prose. Callers must strip speaker labels.
    *  Seen once on 12 Sep putting "Student:" into a transcript; the re-probe on
    *  13 Sep (`.viva/probe-stt-prompt-leak.mjs`, two clips x three prompts) did
-   *  NOT reproduce it — six byte-identical transcripts, no leak. So this is an
+   *  NOT reproduce it, six byte-identical transcripts, no leak. So this is an
    *  unreproduced observation, not a documented behaviour. The strip stays
    *  either way: a prompt is a bad place to put words the learner never said.
    *  Capped at 6000. */
@@ -55,7 +55,7 @@ export type TranscriptionResult = {
   text: string;
   /** The rewrite pass output, or null when it was not asked for or failed. */
   clean: string | null;
-  /** "timeout" | "error" | null — never a request failure on its own. */
+  /** "timeout" | "error" | null, never a request failure on its own. */
   llmError: string | null;
   confidence: number | null;
   words?: { text: string; confidence: number }[];
@@ -115,7 +115,7 @@ function apiKey(): string {
  * is 3.84 MB of 16 kHz mono PCM posted from a datacentre, and measured
  * `request_time_ms` on the 9.55 s reference clip is 538-1700 ms, median 552
  * over twelve runs straight at the endpoint (`.viva/probe-dictation-contract.mjs`)
- * — eleven of those inside 538-583 and one at 1700. Through the deployment it
+ *, eleven of those inside 538-583 and one at 1700. Through the deployment it
  * is 567-673, median 605 over twelve (`.viva/lat.mjs`). The outlier is why the
  * headroom is not tuned down: it is fast, but it is not a stable property of
  * the audio.
@@ -131,7 +131,7 @@ async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Our budget AND the caller's cancellation — never one in place of the other. */
+/** Our budget AND the caller's cancellation, never one in place of the other. */
 function budgetedSignal(budget: AbortSignal, caller: AbortSignal | undefined): AbortSignal {
   return caller ? AbortSignal.any([caller, budget]) : budget;
 }
@@ -145,7 +145,7 @@ function mapSyncError(status: number, body: unknown, retryAfterHeader: string | 
     case 400: return new TranscriptionError("BAD_AUDIO", msg, 400, false);
     case 401: return new TranscriptionError("AUTH_FAILED", "AssemblyAI rejected the API key.", 502, false);
     // 404 on these endpoints means the key is not enabled for them, not a
-    // missing route — same remedy as 401, and the same trigger to fall back.
+    // missing route, same remedy as 401, and the same trigger to fall back.
     case 404: return new TranscriptionError("AUTH_FAILED", "AssemblyAI rejected the API key.", 502, false);
     case 413: return new TranscriptionError("AUDIO_TOO_LONG", "Clip exceeds 120 s / 40 MB.", 413, false);
     case 415: return new TranscriptionError("UNSUPPORTED_FORMAT", msg, 415, false);
@@ -201,12 +201,12 @@ const BATCH_LANGUAGE_SET: ReadonlySet<string> = new Set(BATCH_LANGUAGES);
  * key out.
  *
  * Leaving it out IS this endpoint's automatic detection, and that is measured
- * rather than assumed — the same probe posted a 4.69 s Hindi clip and a 4.60 s
+ * rather than assumed, the same probe posted a 4.69 s Hindi clip and a 4.60 s
  * Spanish one with the key omitted and got correct Devanagari and correct
  * Spanish back. So everything the endpoint refuses becomes detection here:
  * `multi`, a language it does not serve, a subject carrying a junk code. That
  * is exactly what `toStreamLanguage` does with the same values on the socket,
- * which is the point — one picker, one meaning, two transcribers.
+ * which is the point, one picker, one meaning, two transcribers.
  *
  * A code it DOES serve is still a hint worth sending, and a wrong one is worth
  * avoiding: `["hi"]` over the Spanish clip came back as Spanish romanised into
@@ -307,7 +307,7 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     // path already produces 16 kHz mono, but every other entry point (a direct
     // API caller, a browser with no worklet) hands us whatever the machine
     // recorded, and a 48 kHz stereo clip posted as 16 kHz mono is consumed at
-    // one sixth speed — the 9.55 s reference clip would arrive as roughly 57 s
+    // one sixth speed, the 9.55 s reference clip would arrive as roughly 57 s
     // of nothing: 200, empty transcript, six times the bill. (Recalled from
     // 12 Sep; the 6x is arithmetic. docs/API-FEEDBACK.md §8 labels it the same.)
     const norm = toPcm16kMono(req.audio, req.contentType);
@@ -315,7 +315,7 @@ export class AssemblyAIProvider implements TranscriptionProvider {
     const pcm = norm.pcm;
 
     // Verified contract: multipart `config` FIRST (application/json), then
-    // `audio` as raw PCM. Not a style preference — reversing the two parts is
+    // `audio` as raw PCM. Not a style preference, reversing the two parts is
     // a 400, reproduced by `.viva/probe-dictation-contract.mjs`:
     //   config first -> 200; audio first -> 400 "the `config` part must be sent
     //   before the `audio` part on the streaming endpoint, because the upstream
@@ -456,7 +456,7 @@ export class AssemblyAIProvider implements TranscriptionProvider {
   }
 }
 
-/** Test-only double. Refuses to run in production — loudly. */
+/** Test-only double. Refuses to run in production, loudly. */
 export function assertFixtureAllowed(nodeEnv: string | undefined, allowFlag: string | undefined): void {
   if (nodeEnv === "production" && allowFlag !== "1") {
     throw new Error("Fixture transcription forbidden in production");
@@ -490,6 +490,6 @@ export function resolveTranscriptionMode(): TranscriptionMode {
 
 /** Production entry point. No key → coded NO_API_KEY (never a silent fixture). */
 export function resolveTranscriptionProvider(): TranscriptionProvider {
-  apiKey(); // throws NO_API_KEY when absent — the honest failure, not a fixture
+  apiKey(); // throws NO_API_KEY when absent, the honest failure, not a fixture
   return new AssemblyAIProvider(resolveTranscriptionMode());
 }

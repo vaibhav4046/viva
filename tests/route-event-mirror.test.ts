@@ -17,7 +17,7 @@ import { POST as learnerSync } from "@/app/api/learner/sync/route";
  *
  * Every write goes to one lambda's own /tmp, so the browser keeps its own copy
  * of each turn beside the id it posted and hands the log back to
- * `POST /api/learner/sync` on load — that replay is what makes a forgotten
+ * `POST /api/learner/sync` on load, that replay is what makes a forgotten
  * recall come back. /study did it. /exam (both the quiz and teach-it-back) and
  * Today's inline recall each minted a `clientEventId`, posted it, and then
  * dropped the answer on the floor: nothing in the browser's record, nothing to
@@ -56,7 +56,7 @@ function post(url: string, body: unknown): NextRequest {
   });
 }
 
-/** What the store keeps for this user — deleting it is one forgetful lambda. */
+/** What the store keeps for this user, deleting it is one forgetful lambda. */
 async function forgetServerRecord(): Promise<void> {
   await fs.rm(path.join(tmp, `${currentUser.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`), { force: true });
 }
@@ -153,7 +153,7 @@ describe("a quiz answer survives the server forgetting it", () => {
 
 /**
  * The ratchet, so the next screen that posts a turn cannot forget this again.
- * Source-level because there is no DOM in this suite — the same trick
+ * Source-level because there is no DOM in this suite, the same trick
  * design-tokens.test.ts and typed-input.test.ts use.
  */
 describe("every client path that posts a turn also writes it down", () => {
@@ -166,7 +166,7 @@ describe("every client path that posts a turn also writes it down", () => {
   for (const rel of CLIENT_PATHS) {
     it(`${rel.replace("../src/", "")} mirrors what it posts`, () => {
       const src = readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
-      expect(src, "posts a clientEventId — this list is only for files that do").toContain("clientEventId");
+      expect(src, "posts a clientEventId, this list is only for files that do").toContain("clientEventId");
       expect(src, "posted a turn without keeping the browser's copy").toContain("rememberEvent(");
       expect(src, "posted a turn without folding the map it came back with").toContain("rememberMastery(");
       // The id has to be the one that was posted, not a fresh one, or the

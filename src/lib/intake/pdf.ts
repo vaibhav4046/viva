@@ -10,8 +10,8 @@ import type { IntakePage } from "./chunk";
 /**
  * The real ceiling, not the one we wish we had.
  *
- * This was 15 MB in three places — the UI copy, this constant and a carefully
- * written FILE_TOO_LARGE message — and all three were unreachable: the
+ * This was 15 MB in three places, the UI copy, this constant and a carefully
+ * written FILE_TOO_LARGE message, and all three were unreachable: the
  * platform rejects a request body of roughly 4.5 MB with its own plain-text
  * page before any of this code runs, so every upload between 4.5 and 15 MB (a
  * lecture-slide deck, i.e. the single most likely file a student picks) failed

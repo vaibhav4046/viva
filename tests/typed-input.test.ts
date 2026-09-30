@@ -11,8 +11,8 @@ import { describe, expect, it } from "vitest";
  * had been typed; Send then posted an empty string. Reproduced 4/4 on a
  * production build.
  *
- * The field is now uncontrolled — the DOM owns the value and submit reads it
- * off the ref — so hydration has nothing to overwrite. Browser-level proof
+ * The field is now uncontrolled, the DOM owns the value and submit reads it
+ * off the ref, so hydration has nothing to overwrite. Browser-level proof
  * lives in scripts/e2e-golden.py ("pre-hydration typing survives"); this test
  * is the cheap guard that stops the controlled version coming back.
  */

@@ -14,7 +14,7 @@ import { learnerSnapshot } from "@/lib/sync";
  * Identity here is a signed key, not a cookie, so the isolation question is
  * different from tests/idor.test.ts: not "can a user id reach another user's
  * rows" but "can anything a caller says change which user id is used". The
- * answer has to be no for every input a caller controls — the header, the
+ * answer has to be no for every input a caller controls, the header, the
  * token argument, an argument naming a user, and the id of a subject they
  * happen to know.
  *
@@ -171,7 +171,7 @@ describe("cross-key isolation (IDOR)", () => {
     expect(listed.text).not.toContain("Histology methods");
 
     // B names A's subject outright. The app's own resolution refuses it rather
-    // than quietly serving a default — the failure mode this repo already had.
+    // than quietly serving a default, the failure mode this repo already had.
     const probe = await callTool("what_am_i_mixed_up_about", { subject_id: subjectId }, envFor(keyB));
     // A refusal is marked as one, so an assistant cannot read it out as material.
     expect(probe.isError).toBe(true);
@@ -211,7 +211,7 @@ describe("cross-key isolation (IDOR)", () => {
     expect(seen.map((s) => s.userId)).toEqual([userA]);
   });
 
-  it("no key, no data — and no request either", async () => {
+  it("no key, no data, and no request either", async () => {
     seen.length = 0;
     const out = await callTool("what_should_i_study_today", {}, envFor(null));
     expect(out.isError).toBe(true);

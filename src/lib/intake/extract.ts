@@ -6,7 +6,7 @@ import type { SourceChunk } from "@/lib/types";
  *
  * When no language model is reachable, VIVA still has to produce a subject a
  * student can actually study: the concepts, the questions and the passages
- * they came from. Everything below is pulled out of the learner's own text —
+ * they came from. Everything below is pulled out of the learner's own text, 
  * the headings they wrote, the sentences that define something, the phrases
  * they keep coming back to. Nothing is invented: every description and every
  * hint is a sentence that appears in their material, and a question is a
@@ -28,7 +28,7 @@ export const MAX_QUESTIONS = 8;
  * "Plain", "Correct" and "Practical difference" to revise, then asked three
  * times "Where does Plain come up, and what does it change?". Every one of
  * those was a one-off: an adjective that happened to open a sentence. The
- * floor is the price of admission — a sentence that defines the phrase, a
+ * floor is the price of admission, a sentence that defines the phrase, a
  * heading the student wrote, a phrase the notes come back to, or a term they
  * wrote as a symbol. What clears it is the map; there is no quota to fill.
  */
@@ -64,9 +64,9 @@ const CONNECTIVE = new Set([
 /**
  * A word English has already marked as a thing rather than as a description.
  *
- * Notes written as a procedure name every step exactly once — "Fixation
+ * Notes written as a procedure name every step exactly once, "Fixation
  * preserves the structure", "Sectioning uses a microtome", "Counterstaining
- * adds a second colour" — so no amount of counting will find them. The shape
+ * adds a second colour", so no amount of counting will find them. The shape
  * of the word will. "Correct", "Plain", "Single" and "Search" have no such
  * shape, which is precisely why they were being handed to a student as things
  * to revise.
@@ -81,7 +81,7 @@ export type Sentence = { text: string; chunkId: string; ordinal: number };
  * Sentences with the passage each came from, so a hint can cite its source.
  *
  * Once, and only once. Consecutive passages share a seam on purpose, so a
- * sentence sitting in the overlap is in the text twice — and everything below
+ * sentence sitting in the overlap is in the text twice, and everything below
  * counts: "does the phrase come back?" was answering yes for phrases said a
  * single time in a single paragraph, which is how "Node deep" became
  * something a student was asked to explain.
@@ -140,14 +140,14 @@ const WORDISH = /[A-Za-z0-9][A-Za-z0-9'’]*(?:-[A-Za-z0-9'’]+)*/g;
  * There is no dictionary here and there is not going to be one. What there is
  * instead is the way the student wrote it down: KM, Vmax, AVL, SN2,
  * red-black, Lineweaver-Burk and Michaelis are marked as terms by their own
- * shape — a symbol, an acronym, a hyphenated compound, or a name capitalised
+ * shape, a symbol, an acronym, a hyphenated compound, or a name capitalised
  * in the middle of a sentence. "correct", "plain" and "single" are not,
  * however many sentences they open. Capitals inside a heading line are
  * ignored, because every word in a title is capitalised and none of that says
  * anything about which of them is a term.
  *
  * This matters twice over. A term is allowed to be a concept even when it is
- * all over the notes — Vmax is what enzyme-kinetics notes are about, and
+ * all over the notes, Vmax is what enzyme-kinetics notes are about, and
  * suppressing it as "too common" is how the map came out naming everything
  * except the thing on the page. And it is the only single word VIVA will
  * attach as an alias, because a bare ordinary word as an alias is what tells
@@ -197,7 +197,7 @@ function displayName(phrase: string, lex: Lexicon): string {
  *
  * On raw characters "non-competitive inhibitor" contains "competitive
  * inhibitor", so the notes' own contrast between the two collapses into one
- * concept with the other as its alias — and a student's claim about the one
+ * concept with the other as its alias, and a student's claim about the one
  * gets checked against the passage about its opposite. Whole words only.
  */
 function covers(outer: string, inner: string): boolean {
@@ -233,7 +233,7 @@ type Candidate = {
   /** The sentence that best explains it, and where that sentence lives. */
   home: Sentence | null;
   defined: boolean;
-  /** Weaker phrases this one swallowed — the honest source of its aliases. */
+  /** Weaker phrases this one swallowed, the honest source of its aliases. */
   absorbed: string[];
 };
 
@@ -255,15 +255,15 @@ function headingPhrases(rawText: string): string[] {
 /**
  * What each sentence is about, taken as a phrase rather than as a word.
  *
- * Notes are written topic-first — "A binary search tree stores keys…",
- * "Red-black trees make a looser promise…" — so the opening of a sentence is
+ * Notes are written topic-first, "A binary search tree stores keys…",
+ * "Red-black trees make a looser promise…", so the opening of a sentence is
  * the cheapest honest signal there is. Reading only the *first* word of it is
  * what produced "Plain", "Correct" and "Single": in English the word in front
  * of the topic is usually an adjective describing it. So take the run of
  * content words the sentence opens with, and keep it only if it is something
  * the notes come back to. "binary search tree" and "competitive inhibitor"
  * survive; "the practical difference" and "the correct validity check", each
- * said once and never again, do not — a sentence is not a topic.
+ * said once and never again, do not, a sentence is not a topic.
  */
 function sentenceSubjects(
   sentences: Sentence[],
@@ -378,7 +378,7 @@ export function candidateConcepts(chunks: SourceChunk[], rawText: string): Candi
   // An ordinary word that turns up in most sentences is the subject of the
   // notes, not a concept within them: "cycle" in a lecture about the citric
   // acid cycle tells a learner nothing about which part they are shaky on.
-  // A term of art is exempt — Vmax is in half the sentences of enzyme notes
+  // A term of art is exempt, Vmax is in half the sentences of enzyme notes
   // *because* it is one of the things they are about.
   const docFreq = new Map<string, number>();
   for (const s of sentences) {
@@ -391,8 +391,8 @@ export function candidateConcepts(chunks: SourceChunk[], rawText: string): Candi
   /**
    * Is this phrase a thing the notes keep coming back to?
    *
-   * The two signals that read a *sentence* — the phrase it opens with, and
-   * the phrase it defines — are the ones that produced "Practical
+   * The two signals that read a *sentence*, the phrase it opens with, and
+   * the phrase it defines, are the ones that produced "Practical
    * difference", "Correct" and "Plain": each is a perfectly good English noun
    * phrase that the notes use exactly once, in passing. A topic recurs. So
    * both signals are held to it: either the whole phrase comes back, or its
@@ -405,7 +405,7 @@ export function candidateConcepts(chunks: SourceChunk[], rawText: string): Candi
    * "The rate depends on the concentration" opens on a noun phrase and then a
    * verb, and both are content words, so "Rate depends" was being offered as
    * something to revise. English marks the third person with the same -s it
-   * marks a plural with — but a plural noun almost always has its singular in
+   * marks a plural with, but a plural noun almost always has its singular in
    * the notes too ("trees" beside "tree", "mechanisms" beside "mechanism"),
    * and "depends", "uses" and "applies" do not.
    */
@@ -473,8 +473,8 @@ export function candidateConcepts(chunks: SourceChunk[], rawText: string): Candi
     .filter((c) => c.home !== null)
     .sort((a, b) => b.score - a.score || a.phrase.localeCompare(b.phrase));
 
-  // Drop a phrase that is contained in a stronger one already kept — the
-  // longer phrase becomes the concept and the shorter one becomes its alias —
+  // Drop a phrase that is contained in a stronger one already kept, the
+  // longer phrase becomes the concept and the shorter one becomes its alias, 
   // and stop at the floor rather than padding the map out to ten.
   const kept: Candidate[] = [];
   for (const c of ranked) {
@@ -483,7 +483,7 @@ export function candidateConcepts(chunks: SourceChunk[], rawText: string): Candi
     if (host) {
       // A bare word holding the slot gives it up to the phrase that spells it
       // out: "height" scores highest in tree notes because it is in every
-      // other sentence, and it was swallowing "AVL height bound" — two
+      // other sentence, and it was swallowing "AVL height bound", two
       // different things a student is examined on, filed as one.
       const single = words(host.phrase).length === 1 && !lex.distinctive.has(host.phrase);
       if (single && covers(c.phrase, host.phrase)) {
@@ -508,11 +508,11 @@ export function candidateConcepts(chunks: SourceChunk[], rawText: string): Candi
  * The claim checker matches what a student says against concept names and
  * aliases, so an alias is the difference between VIVA reading their sentence
  * and skipping it. It is also the fastest way to tell somebody they are wrong
- * when they are right: a bare ordinary word — "cost", "order", "difference",
- * "tree" — matches almost any sentence and drags the wrong passage in behind
- * it. So an alias is only ever a phrase this concept already swallowed — a
+ * when they are right: a bare ordinary word, "cost", "order", "difference",
+ * "tree", matches almost any sentence and drags the wrong passage in behind
+ * it. So an alias is only ever a phrase this concept already swallowed, a
  * longer or shorter wording of the same thing, which the notes themselves
- * use — and a single word may only be one of those when the student wrote it
+ * use, and a single word may only be one of those when the student wrote it
  * as a term ("KM" under "Michaelis constant KM", "AVL" under "AVL trees").
  * Never a bare ordinary word. Nothing from merely nearby, either: "KM" is in
  * every sentence of those notes, and hanging it on all five concepts would
@@ -567,7 +567,7 @@ export type Extraction = {
 
 /**
  * Build the whole subject body from the text alone. Returns null when the
- * material is too thin to make something worth studying — a short subject is
+ * material is too thin to make something worth studying, a short subject is
  * fine, a hollow one is not.
  */
 export function extractSubjectBody(chunks: SourceChunk[], rawText: string): Extraction | null {

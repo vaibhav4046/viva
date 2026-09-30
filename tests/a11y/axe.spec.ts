@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
  * Automated accessibility audit: 0 serious+ violations on every route.
  * Run: npm run dev -- -p 3110  →  npm run test:accessibility
  */
-const ROUTES = ["/", "/study", "/subjects", "/exam", "/today", "/map", "/demo"];
+const ROUTES = ["/", "/oral", "/recorded", "/privacy", "/terms", "/accessibility", "/about", "/study", "/subjects", "/exam", "/today", "/map", "/demo"];
 
 for (const route of ROUTES) {
   test(`${route} has no serious accessibility violations`, async ({ page }) => {
@@ -19,7 +19,7 @@ for (const route of ROUTES) {
       ["serious", "critical"].includes(v.impact ?? "")
     );
     expect(
-      serious.map((v) => `${v.id}: ${v.nodes.length} nodes — ${v.help}`),
+      serious.map((v) => `${v.id}: ${v.nodes.length} nodes, ${v.help}`),
       `route ${route}`
     ).toEqual([]);
   });

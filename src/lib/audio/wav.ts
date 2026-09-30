@@ -1,7 +1,7 @@
 /**
  * WAV packaging (client) + WAV validation (server).
  *
- * The server accepts 16-bit PCM WAV and nothing else — never WebM/Opus, and no
+ * The server accepts 16-bit PCM WAV and nothing else, never WebM/Opus, and no
  * longer raw `audio/pcm`. Raw PCM carries no format metadata, so accepting it
  * meant believing the caller's content type about rate and channel count, and
  * that belief is exactly the mislabelling bug: 48 kHz stereo bytes posted as
@@ -35,7 +35,7 @@ export async function blobToWav16kMono(blob: Blob): Promise<{ wav: ArrayBuffer; 
     const rendered = await offline.startRendering();
     const ch = rendered.getChannelData(0);
     const durationMs = Math.round((ch.length / TARGET_RATE) * 1000);
-    if (durationMs < MIN_MS) throw wavError("AUDIO_TOO_SHORT", "Clip is under 80 ms — hold a little longer and speak.");
+    if (durationMs < MIN_MS) throw wavError("AUDIO_TOO_SHORT", "Clip is under 80 ms, hold a little longer and speak.");
     if (durationMs > MAX_MS) throw wavError("AUDIO_TOO_LONG", "Keep dictation clips under 2 minutes.");
     return { wav: pcm16ToWav(ch, TARGET_RATE), durationMs };
   } finally {
@@ -98,7 +98,7 @@ export type WavInfo = { ok: true; sampleRate: number; channels: number; duration
 
 type WavParse = {
   fmt: { audioFormat: number; channels: number; sampleRate: number; bits: number };
-  /** Byte offset of the sample data — NOT always 44: a `fmt ` chunk carrying
+  /** Byte offset of the sample data, NOT always 44: a `fmt ` chunk carrying
    *  the cbSize extension is 18 bytes, and LIST/fact chunks push it further. */
   dataOff: number;
   dataLen: number;
@@ -135,7 +135,7 @@ export function isWavType(contentType: string): boolean {
 }
 
 /**
- * True when every sample in the clip is the same value — digital silence, or a
+ * True when every sample in the clip is the same value, digital silence, or a
  * dead input parked at a DC offset. Speech varies by definition, so this cannot
  * catch a real utterance however quiet it is: the reference clip attenuated a
  * thousandfold has a peak of 17/32768 and still transcribes correctly at 0.98,
@@ -176,9 +176,9 @@ export function validateWavInput(buf: Buffer, contentType: string): WavInfo {
   // A clip with no signal in it never goes upstream. Panel-D S-D-02: three
   // holds with no speech came back as three invented Hindi sentences, each
   // filed as a note with a page number under "Exactly what you said". What a
-  // recogniser returns for silence is its business and it is not stable — the
+  // recogniser returns for silence is its business and it is not stable, the
   // same endpoint answered empty on all fifteen silent clips posted at it on
-  // 2026-09-13 — so the honest place to end a dead microphone is here, where
+  // 2026-09-13, so the honest place to end a dead microphone is here, where
   // the answer is the same every time and costs nothing.
   if (isFlat(buf, parsed.dataOff, dataLen)) {
     return { ok: false, code: "NO_AUDIO", message: "The clip carries no signal at all." };
@@ -239,10 +239,10 @@ export type PcmResult = { ok: true; pcm: Buffer; sourceRate: number; sourceChann
  *
  * The declaration is not a hint: AssemblyAI reads the byte stream at the rate
  * it is told, so 48 kHz stereo posted as 16 kHz mono is consumed at one sixth
- * speed (three times the rate, twice the channels) — the 9.55 s reference clip
+ * speed (three times the rate, twice the channels), the 9.55 s reference clip
  * arrives as roughly 57 s of nothing, billed six times over, with a 200 and an
  * empty transcript. The 6x is arithmetic; the incident itself is recalled from
- * 12 Sep, not a kept response — see docs/API-FEEDBACK.md §8, which says the
+ * 12 Sep, not a kept response, see docs/API-FEEDBACK.md §8, which says the
  * same and labels it the same way. Every entry point that is not the
  * AudioWorklet (a direct API caller, a browser with no worklet) can hand us
  * exactly that, so the conversion belongs here rather than in a caller.
@@ -263,10 +263,10 @@ export function toPcm16kMono(buf: Buffer, contentType: string): PcmResult {
   if (fmt.channels < 1 || fmt.channels > 2) return { ok: false, code: "UNSUPPORTED_FORMAT", message: "WAV must be mono or stereo." };
   // A rate of zero states nothing to resample from: srcRate/dstRate is 0, the
   // output length divides by it, and resample dies on an infinite typed array.
-  // Refuse here — this is the last place before the bytes go on the wire.
+  // Refuse here, this is the last place before the bytes go on the wire.
   if (fmt.sampleRate < 1) return { ok: false, code: "UNSUPPORTED_FORMAT", message: "WAV declares no sample rate." };
   // Already the target format: hand back the data chunk with no copy and no
-  // arithmetic. Note this is a parsed offset, not a hardcoded 44 — the repo's
+  // arithmetic. Note this is a parsed offset, not a hardcoded 44, the repo's
   // own fixtures carry an 18-byte `fmt ` chunk and start at byte 46.
   if (fmt.sampleRate === TARGET_RATE && fmt.channels === 1) {
     return { ok: true, pcm: buf.subarray(dataOff, dataOff + dataLen), sourceRate: fmt.sampleRate, sourceChannels: 1 };

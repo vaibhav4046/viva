@@ -202,7 +202,7 @@ const TOOLS: Tool[] = [
           malformed: "That does not look like a VIVA connection code. Copy the whole thing from the Connect page.",
           forged: "That code did not check out. Generate a fresh one on the Connect page in VIVA.",
           expired: "That code has run out. Generate a fresh one on the Connect page in VIVA.",
-          wrong_purpose: "That is a VIVA key, not a connection code. You are already connected — use the key.",
+          wrong_purpose: "That is a VIVA key, not a connection code. You are already connected, use the key.",
         };
         throw new ToolFailure(why[check.reason], check.reason);
       }
@@ -243,7 +243,7 @@ const TOOLS: Tool[] = [
         ]
           .filter(Boolean)
           .join(", ");
-        return `- ${s.title} — id ${s.id} — ${built}${counts ? ` — ${counts}` : ""}`;
+        return `- ${s.title}, id ${s.id}, ${built}${counts ? `, ${counts}` : ""}`;
       });
       return [`${list.subjects.length} subjects in this account:`, ...lines].join("\n");
     },
@@ -281,7 +281,7 @@ const TOOLS: Tool[] = [
       const s = built.subject;
       const who = s.builtBy ? ` Read by ${s.builtBy}.` : "";
       return [
-        `${s.title} is ready — id ${s.id}.`,
+        `${s.title} is ready, id ${s.id}.`,
         `${s.concepts} concepts, ${s.questions} practice questions, ${s.passages} passages from the notes.${who}`,
         s.storageNote ?? "",
       ]
@@ -321,7 +321,7 @@ const TOOLS: Tool[] = [
       if (turn.band) lines.push(`That moved their map: the concept it touched now reads ${turn.band.label}.`);
       if (turn.quiz?.open && turn.quiz.question) {
         lines.push(
-          `A question is open: ${turn.quiz.question} — answer it with answer_quiz_question, question_id ${turn.quiz.questionId}.`
+          `A question is open: ${turn.quiz.question}, answer it with answer_quiz_question, question_id ${turn.quiz.questionId}.`
         );
       }
       return lines.join("\n");
@@ -332,7 +332,7 @@ const TOOLS: Tool[] = [
     name: "quiz_me",
     title: "Quiz me",
     description:
-      "Ask the student one question from their own material. Name a concept to drill it, or leave it out and VIVA picks whatever they are weakest on. The marking key never leaves VIVA — send their answer to answer_quiz_question and VIVA marks it.",
+      "Ask the student one question from their own material. Name a concept to drill it, or leave it out and VIVA picks whatever they are weakest on. The marking key never leaves VIVA, send their answer to answer_quiz_question and VIVA marks it.",
     auth: "account",
     schema: {
       type: "object",
@@ -396,7 +396,7 @@ const TOOLS: Tool[] = [
       if (!marked) throw new ToolFailure(ODD_SHAPE, "ODD_SHAPE");
       const lines = [marked.feedback];
       if (marked.band) lines.push(`Their map now reads ${marked.band.label} on that concept.`);
-      if (marked.canRetry) lines.push(`They can go again — ${marked.attemptsLeft} tries left on this one.`);
+      if (marked.canRetry) lines.push(`They can go again, ${marked.attemptsLeft} tries left on this one.`);
       if (marked.closed && marked.fullAnswerCovers.length > 0) {
         lines.push(`A full answer covers: ${marked.fullAnswerCovers.join(", ")}.`);
       }
@@ -421,11 +421,11 @@ const TOOLS: Tool[] = [
       const plan = parsed(DailyPath, res.data);
       if (!plan) throw new ToolFailure(ODD_SHAPE, "ODD_SHAPE");
       if (plan.path.length === 0) {
-        return "Nothing is queued yet — there is no history to plan from. Say something with tell_viva, or take a question with quiz_me, and today's ten minutes will have something in it.";
+        return "Nothing is queued yet, there is no history to plan from. Say something with tell_viva, or take a question with quiz_me, and today's ten minutes will have something in it.";
       }
       const total = plan.path.reduce((n, step) => n + step.minutes, 0);
       const lines = plan.path.map(
-        (step, i) => `${i + 1}. ${step.conceptName ?? "Write it down"} — ${step.minutes} min — ${step.why}`
+        (step, i) => `${i + 1}. ${step.conceptName ?? "Write it down"}, ${step.minutes} min, ${step.why}`
       );
       return [`Today, ${total} minutes:`, ...lines].join("\n");
     },
@@ -455,14 +455,14 @@ const TOOLS: Tool[] = [
         })
         .sort((a, b) => a.score - b.score || a.id.localeCompare(b.id));
       if (ranked.every((c) => c.label === "Not yet")) {
-        return `Nothing is tracked on this map yet — all ${ranked.length} concepts read Not yet. Take a question with quiz_me and it starts filling in.`;
+        return `Nothing is tracked on this map yet, all ${ranked.length} concepts read Not yet. Take a question with quiz_me and it starts filling in.`;
       }
       const worst = ranked.filter((c) => c.label === "Mixed up" || c.label === "Shaky");
       const head =
         worst.length > 0
           ? `Mixed up or shaky on ${worst.length} of ${ranked.length}: ${worst.map((c) => c.name).join(", ")}.`
           : "Nothing reads Mixed up or Shaky right now.";
-      return [head, ...ranked.map((c) => `- ${c.name} — ${c.label} — id ${c.id}`)].join("\n");
+      return [head, ...ranked.map((c) => `- ${c.name}: ${c.label}, id ${c.id}`)].join("\n");
     },
   },
 ];
@@ -517,7 +517,7 @@ export type ToolOutcome = { text: string; isError: boolean };
  * The identity comes from `identityForCall` and nowhere else: not from a
  * cookie on this request, not from an argument naming a user, not from the id
  * of a subject the caller happens to know. A caller holding another student's
- * subject id gets the refusal the app already gives — the route resolves that
+ * subject id gets the refusal the app already gives, the route resolves that
  * id against the key's own rows and finds nothing there.
  */
 export async function callTool(name: string, rawArgs: unknown, env: ToolEnvironment): Promise<ToolOutcome> {
@@ -556,7 +556,7 @@ async function run(tool: Tool, args: ToolArgs, ctx: ApiContext): Promise<ToolOut
     return { text: await tool.run(args, ctx), isError: false };
   } catch (error) {
     if (error instanceof ToolFailure) return { text: error.message, isError: true };
-    return { text: "Something broke on VIVA's side running that. Nothing was lost — try it again.", isError: true };
+    return { text: "Something broke on VIVA's side running that. Nothing was lost, try it again.", isError: true };
   }
 }
 

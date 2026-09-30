@@ -13,7 +13,7 @@ import { buildSubject, type IntakeDoc } from "@/lib/intake/build";
  * not actually read. Both get a test.
  */
 
-const PAGE = `<!doctype html><html><head><title>Photosynthesis — Study notes</title></head>
+const PAGE = `<!doctype html><html><head><title>Photosynthesis ${String.fromCharCode(0x2014)} Study notes</title></head>
 <body>
   <nav><a href="/">Home</a><a href="/about">About</a></nav>
   <script>window.tracker = 1;</script>
@@ -49,7 +49,7 @@ describe("readable extraction", () => {
 
   it("decodes entities rather than showing them to the student", () => {
     const readable = extractReadable(
-      "<p>Boyle&#x2019;s law says pressure &times; volume is constant &mdash; at a fixed temperature and amount of gas, which is what makes it useful.</p>"
+      "<p>Boyle&#x2019;s law says pressure &times; volume is constant, at a fixed temperature and amount of gas, which is what makes it useful.</p>"
     );
     expect(readable.sections[0].text).toContain("Boyle’s law");
     expect(readable.sections[0].text).toContain("×");
@@ -188,7 +188,7 @@ describe("plain files", () => {
 
 describe("several sources, one subject", () => {
   const lecture: IntakeDoc = {
-    title: "Lecture 4 — cells",
+    title: "Lecture 4, cells",
     type: "text",
     pages: [
       {
@@ -198,7 +198,7 @@ describe("several sources, one subject", () => {
     ],
   };
   const web: IntakeDoc = {
-    title: "Prokaryotic cells — module site",
+    title: "Prokaryotic cells, module site",
     type: "web",
     url: "https://example.edu/bio/prokaryotes",
     pages: [

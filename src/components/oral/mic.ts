@@ -4,6 +4,7 @@ import { openOralSocket, ORAL_SAMPLE_RATE, type OralSocket } from "@/lib/oral/so
 import type { OralMachine } from "@/lib/oral/machine";
 import { voiceMessage } from "@/lib/audio/messages";
 import { failureFor, oralMessage } from "@/lib/oral/failures";
+import { meterLevel, rmsOf } from "./levels";
 
 /** The exam's own sentence for a code when it has one, the dictation sentence otherwise. */
 const failureText = (code: string | undefined): string => (code && failureFor(code) ? oralMessage(code) : voiceMessage(code));
@@ -20,7 +21,7 @@ const failureText = (code: string | undefined): string => (code && failureFor(co
  * The 24 kHz is not a detail. `/worklets/pcm16.js` normally resamples to 16 kHz
  * for Dictation, and the Voice Agent socket is a different product with its own
  * input contract at 24 kHz. Sending 16 kHz to it would still connect and still
- * produce audio — just worse, with no error anywhere, which is the worst kind
+ * produce audio, just worse, with no error anywhere, which is the worst kind
  * of wrong.
  */
 
@@ -41,6 +42,8 @@ export type MicHandle = {
   cancel: () => void;
   /** True while the mic is actually pushing frames. */
   readonly live: boolean;
+  /** Current 0..1 levels, read from analysers on the real microphone and the real playback. */
+  levels: () => { learner: number; examiner: number };
 };
 
 export type OralSessionDeps = {
@@ -57,6 +60,8 @@ export type StartOralArgs = {
   subjectId: string;
   onState: (m: OralMachine) => void;
   onTurn: (turn: OralTurn) => void;
+  /** One word of the examiner's line, for live captions. */
+  onAgentDelta?: (word: string, replyId: string) => void;
   onError: (message: string) => void;
   /** The exam goes on: a continued session, a hidden tab, a long silence. Show it, do not stop. */
   onNotice?: (message: string, code: string) => void;
@@ -67,13 +72,13 @@ export type StartOralArgs = {
  * Decode base64 PCM16 straight into an AudioContext, and make barge-in cheap.
  *
  * The queue is the whole point. When the student interrupts, the docs say to
- * flush the playback buffer — and on a naive implementation that means the
+ * flush the playback buffer, and on a naive implementation that means the
  * already-decoded audio keeps playing, so a student who barges in still has to
  * listen to another two seconds of the answer they just cut off. Every chunk is
  * therefore scheduled with an explicit start time and tracked, so `flush()` can
  * cancel it all.
  */
-export function createPlayback(ctx: AudioContext): { play: (b64: string) => void; flush: () => void; close: () => void } {
+export function createPlayback(ctx: AudioContext, out?: AudioNode): { play: (b64: string) => void; flush: () => void; close: () => void } {
   let nextAt = 0;
   let scheduled: AudioBufferSourceNode[] = [];
   let closed = false;
@@ -94,7 +99,7 @@ export function createPlayback(ctx: AudioContext): { play: (b64: string) => void
 
         const node = ctx.createBufferSource();
         node.buffer = buffer;
-        node.connect(ctx.destination);
+        node.connect(out ?? ctx.destination);
         // Schedule against the clock so a flush can cancel precisely, rather
         // than racing a queue of already-started nodes.
         const at = Math.max(ctx.currentTime, nextAt);
@@ -159,11 +164,37 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
   let node: AudioWorkletNode | null = null;
   let torn = false;
 
-  const playback = (deps.createPlayback ?? (() => createPlayback(ctx)))();
+  // A context can start suspended (autoplay policy) or be suspended or
+  // interrupted later (a call, another tab taking the audio device). A
+  // suspended context produces no frames and no error, so the exam would sit
+  // in LISTENING hearing nothing: ask for it to run now, inside the user
+  // gesture, and again on every state change.
+  const resumeIfStopped = () => {
+    if (torn) return;
+    if (ctx.state === "suspended" || (ctx.state as string) === "interrupted") void ctx.resume().catch(() => {});
+  };
+  ctx.onstatechange = resumeIfStopped;
+  resumeIfStopped();
+
+  // The examiner's meter reads the same signal the speakers get.
+  const outAnalyser = ctx.createAnalyser();
+  outAnalyser.fftSize = 1024;
+  outAnalyser.connect(ctx.destination);
+  const inAnalyser = ctx.createAnalyser();
+  inAnalyser.fftSize = 1024;
+  const inBuf = new Float32Array(inAnalyser.fftSize);
+  const outBuf = new Float32Array(outAnalyser.fftSize);
+  const level = (a: AnalyserNode, buf: Float32Array<ArrayBuffer>) => {
+    a.getFloatTimeDomainData(buf);
+    return meterLevel(rmsOf(buf));
+  };
+
+  const playback = (deps.createPlayback ?? (() => createPlayback(ctx, outAnalyser)))();
 
   const teardown = () => {
     if (torn) return;
     torn = true;
+    ctx.onstatechange = null;
     node?.disconnect();
     stream.getTracks().forEach((t) => t.stop());
     playback.close();
@@ -172,6 +203,31 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
 
   try {
     await ctx.audioWorklet.addModule("/worklets/pcm16.js");
+  } catch {
+    teardown();
+    throw new Error(oralMessage("NO_WORKLET"));
+  }
+
+  // Build the graph BEFORE the socket exists. A browser that refuses the source
+  // or the worklet node would otherwise leave a live session (and a billed
+  // one) behind an exam that never started, with the microphone still open.
+  let socketRef: OralSocket | null = null;
+  try {
+    const source = ctx.createMediaStreamSource(stream);
+    node = new AudioWorkletNode(ctx, "pcm16-24k", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+    node.port.onmessage = (e: MessageEvent<{ type: string; frame?: Int16Array }>) => {
+      if (e.data.type === "pcm" && e.data.frame) socketRef?.sendAudio(e.data.frame);
+    };
+
+    // The worklet only runs while its output reaches the destination, so the
+    // chain has to terminate there, through a muted gain, or the student's own
+    // voice is played back into the room and picked up again as an interruption.
+    const mute = ctx.createGain();
+    mute.gain.value = 0;
+    source.connect(node);
+    source.connect(inAnalyser);
+    node.connect(mute);
+    mute.connect(ctx.destination);
   } catch {
     teardown();
     throw new Error(oralMessage("NO_WORKLET"));
@@ -187,29 +243,20 @@ export async function startOralExam(args: StartOralArgs, deps: OralSessionDeps):
     flushAudio: () => playback.flush(),
     onState: args.onState,
     onTranscript: (text, speaker, interrupted) => args.onTurn({ speaker, text, interrupted }),
+    ...(args.onAgentDelta ? { onAgentDelta: args.onAgentDelta } : {}),
     onError: args.onError,
     ...(args.onNotice ? { onNotice: args.onNotice } : {}),
     onEnded: args.onEnded,
   });
-
-  const source = ctx.createMediaStreamSource(stream);
-  node = new AudioWorkletNode(ctx, "pcm16-24k", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
-  node.port.onmessage = (e: MessageEvent<{ type: string; frame?: Int16Array }>) => {
-    if (e.data.type === "pcm" && e.data.frame) socket.sendAudio(e.data.frame);
-  };
-
-  // The worklet only runs while its output reaches the destination, so the
-  // chain has to terminate there — through a muted gain, or the student's own
-  // voice is played back into the room and picked up again as an interruption.
-  const mute = ctx.createGain();
-  mute.gain.value = 0;
-  source.connect(node);
-  node.connect(mute);
-  mute.connect(ctx.destination);
+  socketRef = socket;
 
   return {
     get live() {
       return !torn;
+    },
+    levels() {
+      if (torn) return { learner: 0, examiner: 0 };
+      return { learner: level(inAnalyser, inBuf as Float32Array<ArrayBuffer>), examiner: level(outAnalyser, outBuf as Float32Array<ArrayBuffer>) };
     },
     async stop() {
       // Flush the worklet's partial frame first: the last word of a sentence

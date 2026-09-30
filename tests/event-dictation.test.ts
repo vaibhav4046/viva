@@ -17,7 +17,7 @@ import {
  * (which is what lets the audio part stream while it is recorded), then raw
  * 16 kHz mono S16LE PCM as `audio`; raw `Authorization` header with no Bearer;
  * config keys `sample_rate`, `channels`, `language_codes`, `keyterms_prompt`
- * (an array — a string is a 400), `stt_prompt`, `llm_instruction`.
+ * (an array, a string is a 400), `stt_prompt`, `llm_instruction`.
  *
  * Response carries `text` (verbatim) and `llm_response` (cleaned) and both are
  * surfaced; `llm_error` is not a request failure. Unknown shapes are honest
@@ -158,7 +158,7 @@ describe("dictation contract", () => {
 
   it("omits language_codes when none were asked for, and llm_instruction too", async () => {
     // It used to default to ["en"]. Leaving the key out is the endpoint's own
-    // automatic detection — see batchLanguageCodes and tests/voice-language —
+    // automatic detection, see batchLanguageCodes and tests/voice-language, 
     // so a caller that names no language gets the language that was spoken.
     let captured: Captured = { url: "" };
     mockFetch((url, init) => {
@@ -231,7 +231,7 @@ describe("dictation contract", () => {
     expect(r.demoFixture).toBe(false);
   });
 
-  it("llm_error is not a request failure — clean goes null, verbatim survives", async () => {
+  it("llm_error is not a request failure, clean goes null, verbatim survives", async () => {
     mockFetch(() =>
       new Response(JSON.stringify({ text: "verbatim words", llm_response: null, llm_error: "timeout" }), { status: 200 })
     );
@@ -346,7 +346,7 @@ describe("sync fallback contract", () => {
  * 32 s for the Sync retry is up to 122 s inside one request, and `vercel.json`
  * declares `maxDuration: 60` for the route that hosts both. The platform kills
  * the invocation first and answers with an HTML gateway page, so the learner
- * got a parse error where a coded PROVIDER_TIMEOUT belonged — and an
+ * got a parse error where a coded PROVIDER_TIMEOUT belonged, and an
  * engineering judge reading both files saw a contradiction.
  *
  * This reads the real vercel.json rather than restating the number, so raising
@@ -362,7 +362,7 @@ describe("abort budgets vs the declared function ceiling", () => {
     expect(declared).toBe(ROUTE_BUDGET_MS / 1000);
   });
 
-  it("the worst path — Dictation aborts, Sync retries — fits inside it", () => {
+  it("the worst path, Dictation aborts, Sync retries, fits inside it", () => {
     // Sequential, not parallel: the fallback re-sends the same clip after the
     // first leg gives up, so the SUM is the wall clock the platform sees.
     expect(DICTATION_TIMEOUT_MS + SYNC_TIMEOUT_MS).toBeLessThan(ROUTE_BUDGET_MS);

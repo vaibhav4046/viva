@@ -12,7 +12,7 @@ import type { SourceChunk } from "@/lib/types";
  * wrong sentences about the shipped Transformers subject, of which two were
  * contradicted and seven came back "I could not check that". The wrong half is
  * the recall target; the right half is the precision floor, and it matters
- * more — telling a student they are wrong when they are right is the failure
+ * more, telling a student they are wrong when they are right is the failure
  * this file exists to prevent.
  *
  * `blocker` holds the sentence that was being marked wrong 5/5 before the
@@ -42,7 +42,7 @@ export function runClaim(course: Course, text: string): ClaimCheck {
  *
  * Every sentence is true, or at minimum not wrong, about the shipped
  * Transformers subject. Six of them were contradicted when this set was first
- * run — "All the heads read the same input embeddings" and "All the heads use
+ * run, "All the heads read the same input embeddings" and "All the heads use
  * the same scaling factor in the softmax" received the *same* quote about
  * heads specialising, which is what a checker does when it is matching shapes
  * rather than reading meaning.

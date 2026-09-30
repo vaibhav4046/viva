@@ -6,7 +6,7 @@ import { InlineRecall } from "./InlineRecall";
 import type { PathSegment } from "./types";
 
 /*
- * Every step is labelled by what to do with it — WEAK CONCEPT, SUMMARY — and
+ * Every step is labelled by what to do with it, WEAK CONCEPT, SUMMARY, and
  * step 1 was labelled with a diagnosis instead. "MISCONCEPTION" in red capitals
  * is also the one word /exam and /study stopped using: the same event reads
  * "Mixed up" two taps away.
@@ -23,8 +23,8 @@ const KIND: Record<PathSegment["kind"], { label: string; color: string }> = {
 
 /**
  * One Daily Path segment: minutes chip, kind label, concept, why line, action.
- * recall/misconception open an inline recall on this page — mic first, typed
- * underneath — and the other kinds hand off to /study or /exam with the
+ * recall/misconception open an inline recall on this page, mic first, typed
+ * underneath, and the other kinds hand off to /study or /exam with the
  * selected course threaded through so the right subject opens.
  *
  * `open` is owned by the page rather than by the card: only one recall may be
@@ -60,12 +60,12 @@ export function SegmentCard({
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden
-            className="mono inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border hairline text-[11px]"
+            className="mono inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border hairline text-xs"
             style={{ color: kind.color }}
           >
             {index}
           </span>
-          <span className="mono text-[11px] font-semibold tracking-widest" style={{ color: kind.color }}>
+          <span className="mono text-xs font-semibold tracking-widest" style={{ color: kind.color }}>
             {kind.label}
           </span>
         </div>

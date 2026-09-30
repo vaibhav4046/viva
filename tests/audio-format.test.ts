@@ -10,7 +10,7 @@ import { assemblyAIBreaker } from "@/lib/circuit";
  * Dictation's `config` says `sample_rate: 16000, channels: 1`, and AssemblyAI
  * reads the raw PCM stream at exactly that rate. The build used to hardcode the
  * declaration while forwarding whatever the caller sent, so a 48 kHz stereo
- * clip — what a desktop mic actually records — was consumed at one sixth speed:
+ * clip, what a desktop mic actually records, was consumed at one sixth speed:
  * a 3 s clip billed and reported as 18 s, transcript empty, HTTP 200, no
  * warning anywhere. These tests fail if that ever comes back.
  */
@@ -73,13 +73,13 @@ describe("toPcm16kMono", () => {
     expect(out.sourceRate).toBe(48000);
     expect(out.sourceChannels).toBe(2);
     // 3 s of 48 kHz stereo is 576,000 bytes. Sent raw and declared as 16 kHz
-    // mono it reads as 18,000 ms — the exact 6x inflation the judge measured.
+    // mono it reads as 18,000 ms, the exact 6x inflation the judge measured.
     expect(asDeclaredMs(out.pcm.length)).toBe(3000);
   });
 
   it("reads the data chunk at its parsed offset, not a hardcoded byte 44", () => {
     // An 18-byte `fmt ` chunk puts sample data at 46. Stripping 44 blindly
-    // prepends two header bytes as a phantom sample — and any chunk layout
+    // prepends two header bytes as a phantom sample, and any chunk layout
     // with an odd byte count would misalign every sample after it.
     const ms = 500;
     const bytes = wav({ sampleRate: TARGET_RATE, channels: 1, ms, fmtLen: 18 });
@@ -90,7 +90,7 @@ describe("toPcm16kMono", () => {
     expect(out.pcm[0]).toBe(bytes[46]);
   });
 
-  it("passes 16 kHz mono through untouched — the worklet path pays nothing", () => {
+  it("passes 16 kHz mono through untouched, the worklet path pays nothing", () => {
     const bytes = wav({ sampleRate: TARGET_RATE, channels: 1, ms: 1000 });
     const out = toPcm16kMono(bytes, "audio/wav");
     expect(out.ok).toBe(true);
@@ -144,7 +144,7 @@ describe("toPcm16kMono", () => {
   });
 
   it("a header declaring a zero sample rate is refused, not resampled to death", () => {
-    // Rate 0 makes the resample ratio 0 and the output length infinite — an
+    // Rate 0 makes the resample ratio 0 and the output length infinite, an
     // uncaught RangeError in the last function before the bytes go upstream.
     const base = wav({ sampleRate: TARGET_RATE, channels: 1, ms: 100 });
     base.writeUInt32LE(0, 24);
@@ -213,7 +213,7 @@ describe("POST /api/voice/transcribe with a 48 kHz stereo clip", () => {
  * through at six times its real length: raw PCM carries no format metadata, so
  * accepting it meant believing the caller's content type about rate and channel
  * count, and then declaring `sample_rate: 16000, channels: 1` upstream anyway.
- * The judge's repro — ffmpeg -ar 48000 -ac 2 -f s16le, posted as audio/pcm —
+ * The judge's repro, ffmpeg -ar 48000 -ac 2 -f s16le, posted as audio/pcm, 
  * came back HTTP 200, audioMs 57330, transcript "". There is no way to verify a
  * declaration that is not in the bytes, so the door is closed: WAV only.
  */
@@ -223,7 +223,7 @@ describe("the audio/pcm door", () => {
   const raw = wav({ sampleRate: 48000, channels: 2, ms: REAL_MS }).subarray(44);
 
   it("is what the bug looked like: those bytes read as 57 s under the declaration", () => {
-    // Not an assertion about our code — it is the arithmetic that made the
+    // Not an assertion about our code, it is the arithmetic that made the
     // failure silent and the bill six times too big. 9,555 ms of 48 kHz stereo
     // is 1,834,560 bytes, which is 57,330 ms of 16 kHz mono.
     expect(asDeclaredMs(raw.length)).toBe(57_330);
@@ -333,7 +333,7 @@ describe("the audio/pcm door", () => {
  *
  * Mutation testing walked these three and every mutant lived: the rate gate
  * could be deleted, `channels > 2` widened to `> 3`, and the channel average
- * replaced by a bare sum — and the whole suite still went green. The reason was
+ * replaced by a bare sum, and the whole suite still went green. The reason was
  * symmetry: every existing case fed identical samples to both channels (so
  * dropping one is indistinguishable from averaging) or used L/R at +8000/-8000
  * (so the SUM is also zero). These assert the arithmetic and the refusals.
@@ -350,7 +350,7 @@ describe("the validator gates", () => {
     }
   });
 
-  it("accepts exactly mono and stereo — three channels is a coded refusal", () => {
+  it("accepts exactly mono and stereo, three channels is a coded refusal", () => {
     // `> 2` widened to `> 3` leaves 3-channel audio going upstream, where
     // downmix reads it as interleaved anything and the transcript is noise.
     for (const channels of [3, 4, 6]) {
@@ -369,7 +369,7 @@ describe("the validator gates", () => {
 
   it("a zero-channel header is refused by the channel gate, not by a divide by zero", () => {
     // `channels < 1` relaxed to `< 0` lets this through, and the duration
-    // becomes Infinity — which then trips AUDIO_TOO_LONG and blames the
+    // becomes Infinity, which then trips AUDIO_TOO_LONG and blames the
     // learner for a header the file wrote. The code is what pins this.
     const bytes = wav({ sampleRate: TARGET_RATE, channels: 1, ms: 500 });
     bytes.writeUInt16LE(0, 22); // fmt.channels
@@ -452,7 +452,7 @@ describe("downmix arithmetic", () => {
 
   it("does not overflow when both channels are at full scale", () => {
     // A sum-instead-of-mean mutant writes 65534 into an Int16, which wraps to
-    // -2 — silence where the loudest possible clip was.
+    // -2, silence where the loudest possible clip was.
     const out = toPcm16kMono(stereo(32767, 32767, 400), "audio/wav");
     expect(out.ok).toBe(true);
     if (!out.ok) return;

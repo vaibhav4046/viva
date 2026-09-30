@@ -6,7 +6,7 @@
  * Space is also the native activation key for a button and the native scroll
  * key for the page, so on /study and /exam that meant every focusable control
  * started the microphone instead of doing its job: focusing "Skip to content"
- * — the first stop for a keyboard-only student — switched the mic on, and the
+ *, the first stop for a keyboard-only student, switched the mic on, and the
  * page could not be scrolled with the keyboard at all. Automated accessibility
  * checks cannot see a hijacked key, so nothing caught it.
  *
@@ -14,7 +14,7 @@
  * anything focusable keeps its own Space.
  */
 
-/** The slice of an element this needs — keeps the check unit-testable. */
+/** The slice of an element this needs, keeps the check unit-testable. */
 export type SpaceTarget = {
   tagName?: string;
   isContentEditable?: boolean;

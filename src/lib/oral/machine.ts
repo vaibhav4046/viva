@@ -83,6 +83,12 @@ export type OralMachine = {
   pending: PendingTool[];
   /** Results computed and ready to send at the next `reply.done`. */
   ready: QueuedResult[];
+  /**
+   * Call ids that left `pending` without a live result: discarded by an
+   * interruption, answered with an error, or dropped on a session change. A
+   * late HTTP result for one of these is expected and is not counted again.
+   */
+  gone: string[];
   /** Counters for the diagnostics panel. Real numbers only. */
   turns: number;
   interruptions: number;
@@ -93,6 +99,13 @@ export type OralMachine = {
   userPartial: string;
   /** Whether the microphone is currently streaming to the socket. */
   streaming: boolean;
+  /**
+   * The current reply's interruption is already counted and its calls already
+   * discarded. transcript.agent(interrupted) and reply.done(interrupted) can
+   * both announce one barge-in; this keeps it to a single count. Cleared when
+   * the next reply starts.
+   */
+  interruptHandled: boolean;
 };
 
 export function initialMachine(): OralMachine {
@@ -104,6 +117,7 @@ export function initialMachine(): OralMachine {
     resumeToken: null,
     pending: [],
     ready: [],
+    gone: [],
     turns: 0,
     interruptions: 0,
     toolCalls: 0,
@@ -111,6 +125,7 @@ export function initialMachine(): OralMachine {
     userItemId: null,
     userPartial: "",
     streaming: false,
+    interruptHandled: false,
   };
 }
 
@@ -129,20 +144,26 @@ const TRANSITIONS: Record<OralState, readonly OralState[]> = {
   // "Listening. Go ahead." while the examiner is already talking. Found by
   // driving the real service, where the greeting is the first thing that ever
   // comes back.
-  LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
-  USER_SPEAKING: ["LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  LISTENING: ["USER_SPEAKING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  // USER_SPEAKING -> SPEAKING: reply audio still arriving while the student is
+  // audibly speaking (a cough, a false start) is the examiner still talking.
+  USER_SPEAKING: ["LISTENING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   THINKING: ["CHECKING_SOURCE", "SPEAKING", "LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   CHECKING_SOURCE: ["SPEAKING", "THINKING", "LISTENING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   // A tool call arrives while a reply is still nominally in flight: the
   // documented flow is reply.started -> tool.call -> reply.done, so SPEAKING
   // has to be allowed to hand off to CHECKING_SOURCE. Without this the screen
   // would claim the agent is speaking while a retrieval was actually running.
-  SPEAKING: ["INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
-  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  // SPEAKING -> USER_SPEAKING: input.speech.started lands about 2 s before
+  // reply.done(interrupted), and the screen must show the student talking then.
+  SPEAKING: ["USER_SPEAKING", "INTERRUPTED", "CHECKING_SOURCE", "LISTENING", "THINKING", "ERROR", "RECOVERING", "IDLE", "ENDED"],
+  // After a barge-in the reply that follows must be able to leave INTERRUPTED,
+  // or the screen keeps saying the student cut in through the whole answer.
+  INTERRUPTED: ["LISTENING", "USER_SPEAKING", "THINKING", "SPEAKING", "CHECKING_SOURCE", "ERROR", "RECOVERING", "IDLE", "ENDED"],
   RECOVERING: ["READY", "LISTENING", "ERROR", "IDLE", "ENDED"],
   // A non-fatal ERROR (a retryable session.error) recovers through a resume, a
   // fresh connect, or the session.ready of a socket that stayed up.
-  ERROR: ["CONNECTING", "RECOVERING", "READY", "LISTENING", "IDLE", "ENDED"],
+  ERROR: ["CONNECTING", "RECOVERING", "READY", "LISTENING", "SPEAKING", "USER_SPEAKING", "IDLE", "ENDED"],
   ENDED: ["CONNECTING", "IDLE"],
 };
 
@@ -220,13 +241,13 @@ export function onUserFinal(m: OralMachine, ev: { item_id?: string; text?: strin
     turns: m.turns + 1,
     userItemId: ev.item_id ?? m.userItemId,
     userPartial: ev.text ?? m.userPartial,
-    state: m.state === "USER_SPEAKING" ? "THINKING" : m.state,
+    state: m.state === "USER_SPEAKING" || m.state === "INTERRUPTED" ? "THINKING" : m.state,
   };
 }
 
 /** `reply.started`, the agent is composing. */
 export function onReplyStarted(m: OralMachine): OralMachine {
-  return transition(m, "SPEAKING");
+  return { ...transition(m, "SPEAKING"), interruptHandled: false };
 }
 
 /** `reply.audio`, speech is arriving. Also means we are speaking. */
@@ -275,11 +296,25 @@ export function withToolResult(
   // result is dropped rather than resurrected into the next turn. This is the
   // single most important line in the file.
   if (!m.pending.some((p) => p.callId === callId)) {
-    return { ...m, discards: m.discards + 1 };
+    // Counted once per call id: an id already in `gone` was counted (or
+    // answered) when it left the queue, so its late result costs nothing more.
+    return m.gone.includes(callId) ? m : { ...m, discards: m.discards + 1 };
   }
   return {
     ...m,
     ready: [...m.ready, { callId, result: JSON.stringify(result ?? null), isError }],
+  };
+}
+
+const GONE_LIMIT = 200;
+const markGone = (gone: string[], ids: string[]): string[] => [...gone, ...ids].slice(-GONE_LIMIT);
+
+/** What the examiner is told when the student cut in before a slow check finished. */
+function interruptedResult(callId: string): QueuedResult {
+  return {
+    callId,
+    result: JSON.stringify({ error: "The learner interrupted before this check finished. Do not confirm or correct them on this point." }),
+    isError: true,
   };
 }
 
@@ -292,8 +327,12 @@ export function drainReleasedResults(m: OralMachine): { machine: OralMachine; se
     (a, b) => m.pending.findIndex((p) => p.callId === a.callId) - m.pending.findIndex((p) => p.callId === b.callId)
   );
   const sent = new Set(send.map((r) => r.callId));
+  const pending = m.pending.filter((p) => !sent.has(p.callId));
+  // The screen says CHECKING_SOURCE for exactly as long as a call is pending.
+  // Once the last one is delivered the agent has its answer and is composing.
+  const state = m.state === "CHECKING_SOURCE" && pending.length === 0 ? "THINKING" : m.state;
   return {
-    machine: { ...m, pending: m.pending.filter((p) => !sent.has(p.callId)), ready: m.ready.filter((r) => !sent.has(r.callId)) },
+    machine: { ...m, state, pending, ready: m.ready.filter((r) => !sent.has(r.callId)) },
     send,
   };
 }
@@ -313,7 +352,14 @@ export function onReplyDone(
   const interrupted = ev.status === "interrupted";
 
   if (interrupted) {
-    const discarded = m.pending.map((p) => p.callId);
+    // Only calls from the reply that just died are discarded. A call whose own
+    // reply already completed (released) is one the service is still waiting
+    // on, so it gets its real result if it is ready and an error result if not.
+    // Silently dropping it would leave the examiner waiting on a call forever.
+    const unreleased = m.pending.filter((p) => !p.released);
+    const released = m.pending.filter((p) => p.released);
+    const send = released.map((p) => m.ready.find((r) => r.callId === p.callId) ?? interruptedResult(p.callId));
+    const discarded = unreleased.map((p) => p.callId).filter((id) => !m.gone.includes(id));
     return {
       // The server is authoritative about what happened to the reply, so the
       // state is forced rather than transitioned. A frame dropped between
@@ -325,26 +371,73 @@ export function onReplyDone(
         state: "INTERRUPTED",
         pending: [],
         ready: [],
-        interruptions: m.interruptions + 1,
+        gone: markGone(m.gone, m.pending.map((p) => p.callId)),
+        interruptions: m.interruptHandled ? m.interruptions : m.interruptions + 1,
+        interruptHandled: true,
         discards: m.discards + discarded.length,
         streaming: true,
       },
-      send: [],
-      discardCallIds: discarded,
+      send,
+      discardCallIds: unreleased.map((p) => p.callId),
     };
   }
 
   // A tool POST may still be running when reply.done arrives. Keep those calls
   // and release their results as each request resolves.
   const released = drainReleasedResults({ ...m, pending: m.pending.map((p) => ({ ...p, released: true })) });
+  // reply.done does not end a source check that is still running: the screen
+  // keeps saying so until the call is delivered (live: about 1.3 s of "Listening"
+  // over a running verify_claim before this).
+  const next = released.machine.pending.length > 0 ? "CHECKING_SOURCE" : "LISTENING";
   return {
     machine: {
-      ...transition(released.machine, "LISTENING"),
+      ...transition(released.machine, next),
       streaming: true,
     },
     send: released.send,
     discardCallIds: [],
   };
+}
+
+/**
+ * `transcript.agent` with `interrupted: true`. Measured live (2026-09-29, the
+ * interrupt-during-pending-tool probe): the service sent this, then
+ * reply.done(status "completed"), and never reply.done(interrupted). The flag
+ * is therefore the interruption signal in that shape. Same effect as the
+ * interrupted reply.done minus the tool results, because reply.done is not the
+ * latest event here: unreleased calls are discarded, released ones wait for
+ * the next reply.done.
+ */
+export function onAgentInterrupted(m: OralMachine): { machine: OralMachine; discardCallIds: string[] } {
+  if (TERMINAL.has(m.state)) return { machine: m, discardCallIds: [] };
+  const unreleased = m.pending.filter((p) => !p.released).map((p) => p.callId);
+  const fresh = unreleased.filter((id) => !m.gone.includes(id));
+  return {
+    machine: {
+      ...m,
+      state: "INTERRUPTED",
+      pending: m.pending.filter((p) => p.released),
+      ready: m.ready.filter((r) => !unreleased.includes(r.callId)),
+      gone: markGone(m.gone, unreleased),
+      interruptions: m.interruptHandled ? m.interruptions : m.interruptions + 1,
+      interruptHandled: true,
+      discards: m.discards + fresh.length,
+      streaming: true,
+    },
+    discardCallIds: unreleased,
+  };
+}
+
+/**
+ * The session changed (a fresh session replaced a dead one). Every call still
+ * queued belongs to a session that no longer exists, and a tool.result for its
+ * call_id would be sent to the new session. Each is counted as one discard.
+ */
+export function onSessionChanged(m: OralMachine): OralMachine {
+  if (m.pending.length === 0 && m.ready.length === 0) return m;
+  const ids = m.pending.map((p) => p.callId);
+  const fresh = ids.filter((id) => !m.gone.includes(id));
+  return { ...m, pending: [], ready: [], gone: markGone(m.gone, ids), discards: m.discards + fresh.length, interruptHandled: false };
 }
 
 /** A socket drop that we intend to resume from. */

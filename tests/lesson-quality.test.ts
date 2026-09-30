@@ -7,7 +7,7 @@ import { COURSES } from "@/lib/courses";
  * A model wrote the concept map, the questions and the traps for 24 of the 26
  * shipped subjects, and a student is told these are their source. An audit of
  * that material found 26 of 153 questions demanded a keyword absent from their
- * own passages — a student reading BIO4 answers "magnification makes it
+ * own passages, a student reading BIO4 answers "magnification makes it
  * bigger" and loses a point because the key wants "enlarges". Nothing was
  * watching the content, only the code.
  */
@@ -31,8 +31,8 @@ describe("the material VIVA ships", () => {
       const body = bodyOf(course);
       for (const q of course.examQuestions ?? []) {
         const required = q.requiredKeywords ?? [];
-        // Below the floor the key is kept deliberately — see groundedKeywords
-        // in src/lib/corpus/index.ts — so only longer keys are held to this.
+        // Below the floor the key is kept deliberately, see groundedKeywords
+        // in src/lib/corpus/index.ts, so only longer keys are held to this.
         if (required.length < 3) continue;
         const missing = required.filter((k) => !words(k).some((w) => body.includes(w)));
         if (missing.length) unfair.push(`${course.code}: "${q.question.slice(0, 44)}" wants ${missing.join(", ")}`);

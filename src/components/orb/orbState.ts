@@ -14,7 +14,7 @@
  *     three-band split with no other change.
  *
  * Both paths end in the same attack/release followers, so the orb looks the
- * same either way — the FFT path just separates a plosive from a vowel more
+ * same either way, the FFT path just separates a plosive from a vowel more
  * honestly than a derivative of one number can.
  */
 
@@ -117,7 +117,7 @@ export function createBandEngine(): BandEngine {
 
 /* ------------------------------------------------------------------ module
  * One engine for the app. `orbBands` is mutated in place and read from inside
- * the render loop — deliberately not React state, because a 60 Hz setState
+ * the render loop, deliberately not React state, because a 60 Hz setState
  * would re-render the tree sixty times a second to move one uniform.
  */
 

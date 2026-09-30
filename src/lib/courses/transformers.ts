@@ -2,7 +2,7 @@ import type { SourceChunk } from "@/lib/types";
 import type { Course } from "./types";
 
 /**
- * Lab 1 — Introduction to Transformers.
+ * Lab 1, Introduction to Transformers.
  * Original educational text written for this project so every citation resolves
  * to a real chunk. Six topics, each with 2 chunks (12 total).
  */
@@ -42,7 +42,7 @@ const SOURCE_CHUNKS: SourceChunk[] = [
   ),
   chunk(
     "ch_pos_2", 6,
-    "Because attention is permutation-equivariant, removing positional information makes the model treat a shuffled sentence nearly the same as the original: it can still compare tokens and find which ones are related, but it cannot distinguish their order. Exam questions on this point ask what property of the sequence is lost — the answer is order, not importance or relevance.",
+    "Because attention is permutation-equivariant, removing positional information makes the model treat a shuffled sentence nearly the same as the original: it can still compare tokens and find which ones are related, but it cannot distinguish their order. Exam questions on this point ask what property of the sequence is lost, the answer is order, not importance or relevance.",
     "3 · Positional information", 12
   ),
   chunk(
@@ -80,7 +80,7 @@ const SOURCE_CHUNKS: SourceChunk[] = [
 export const TRANSFORMERS: Course = {
   id: COURSE_ID,
   code: "COMP532",
-  title: "Transformers — Week 4",
+  title: "Transformers, Week 4",
   subject: "Machine Learning",
   demo: true,
   sources: [
@@ -141,14 +141,14 @@ export const TRANSFORMERS: Course = {
       conceptId: "c_position",
       question: "Explain why positional information is necessary in a standard Transformer architecture.",
       requiredKeywords: ["order", "attention", "permutation"],
-      hint: "Think about what self-attention alone is invariant to: if you shuffle the tokens, what changes — and what does not?",
+      hint: "Think about what self-attention alone is invariant to: if you shuffle the tokens, what changes, and what does not?",
     },
     {
       id: "ex_pos_2",
       conceptId: "c_position",
       question: "If a Transformer had no positional information, what important property of the sequence would it struggle to distinguish?",
       requiredKeywords: ["order"],
-      hint: "It can still tell which tokens are related. What does it lose — importance, or something about arrangement?",
+      hint: "It can still tell which tokens are related. What does it lose, importance, or something about arrangement?",
     },
     {
       id: "ex_sa_1",
@@ -199,7 +199,7 @@ export const TRANSFORMERS: Course = {
       c_policy_value: ["policy", "value", "bellman", "iteration"],
     },
     hints: {
-      c_position: "What does attention lose when token order is removed — importance, or arrangement?",
+      c_position: "What does attention lose when token order is removed, importance, or arrangement?",
       c_self_attention: "Say how much one token listens to another before values are averaged.",
       c_qkv: "One asks, one advertises, one delivers content. Which is which, and how are scores computed?",
       c_multihead: "One head computes one average. What do several heads in parallel let a layer track at once?",
@@ -217,35 +217,35 @@ export const TRANSFORMERS: Course = {
     },
     c_qkv: {
       formal:
-        "Each token is projected into a query, a key, and a value. The score between tokens i and j is the scaled dot product of query i and key j; after softmax, those weights multiply the values. Queries ask, keys advertise, values carry content (Week 4 §2, p.7–8).",
+        "Each token is projected into a query, a key, and a value. The score between tokens i and j is the scaled dot product of query i and key j; after softmax, those weights multiply the values. Queries ask, keys advertise, values carry content (Week 4 §2, p.7-8).",
       jargonFree:
         "Every word plays three roles: a question it is asking (query), a label it shows to attract relevant questions (key), and the content it hands over once chosen (value). Matching questions to labels decides whose content gets mixed in.",
       missing: ["query-key dot product", "weighted sum over the values"],
     },
     c_position: {
       formal:
-        "Self-attention is permutation-equivariant: shuffle the tokens and the computation shuffles identically, so order information is absent. Positional encodings are added to the embeddings so that order becomes visible to the model (Week 4 §3, p.11–12).",
+        "Self-attention is permutation-equivariant: shuffle the tokens and the computation shuffles identically, so order information is absent. Positional encodings are added to the embeddings so that order becomes visible to the model (Week 4 §3, p.11-12).",
       jargonFree:
-        "Think of attention as a meeting where everyone talks at once. Everyone hears everyone — but nobody knows who spoke first. Positional information is the seating order written on each name tag. Without it, the model hears the words but loses their order. Week 4 §3, p.11 has the exact passage.",
+        "Think of attention as a meeting where everyone talks at once. Everyone hears everyone, but nobody knows who spoke first. Positional information is the seating order written on each name tag. Without it, the model hears the words but loses their order. Week 4 §3, p.11 has the exact passage.",
       missing: ["queries → keys → values"],
     },
     c_multihead: {
       formal:
-        "Multi-head attention runs several attention computations in parallel, each in a lower-dimensional subspace, then concatenates and projects their outputs. Different heads can specialise in different relation types within the same layer (Week 4 §4, p.15–16).",
+        "Multi-head attention runs several attention computations in parallel, each in a lower-dimensional subspace, then concatenates and projects their outputs. Different heads can specialise in different relation types within the same layer (Week 4 §4, p.15-16).",
       jargonFree:
-        "One attention head produces one blend of the sentence. Several heads are like several readers skimming the same page for different things at once — one tracks who did what to whom, another tracks order — and their notes get combined at the end.",
+        "One attention head produces one blend of the sentence. Several heads are like several readers skimming the same page for different things at once, one tracks who did what to whom, another tracks order, and their notes get combined at the end.",
       missing: ["why one head bottlenecks", "what different heads specialise in"],
     },
     c_backprop: {
       formal:
-        "Backpropagation applies the chain rule to compute the gradient of the loss with respect to every weight. Gradient descent then steps each weight against its gradient, scaled by the learning rate. Backprop answers 'which direction'; the optimiser answers 'how far' (Week 4 §5, p.19–20).",
+        "Backpropagation applies the chain rule to compute the gradient of the loss with respect to every weight. Gradient descent then steps each weight against its gradient, scaled by the learning rate. Backprop answers 'which direction'; the optimiser answers 'how far' (Week 4 §5, p.19-20).",
       jargonFree:
         "Training is like finding your way downhill in fog. Backprop tells you which way is downhill for every knob in the network; the learning rate decides how big a step to take. A big step is fast but can overshoot; a small step is safe but slow.",
       missing: ["chain rule computes the gradients", "the learning rate is not part of the gradient calculation"],
     },
     c_policy_value: {
       formal:
-        "Policy iteration alternates policy evaluation with policy improvement. Value iteration applies the Bellman optimality update directly at every sweep, folding improvement into the update. Evaluation estimates how good the current behaviour is; improvement changes it (Week 4 §6, p.23–24).",
+        "Policy iteration alternates policy evaluation with policy improvement. Value iteration applies the Bellman optimality update directly at every sweep, folding improvement into the update. Evaluation estimates how good the current behaviour is; improvement changes it (Week 4 §6, p.23-24).",
       jargonFree:
         "Imagine navigating a maze. Policy iteration first scores your current route, then changes it, then scores again. Value iteration skips the full scoring pass and directly nudges every position toward its best next move. Both aim at the same optimal route.",
       missing: ["evaluation versus improvement", "the Bellman optimality update"],
@@ -257,7 +257,7 @@ export const TRANSFORMERS: Course = {
       conceptId: "c_position",
       statement: "Attention weights already encode which words are important, so positional information only adds cosmetic order detail.",
       whyWrong:
-        "Attention weights encode relevance to a query, not position. If you permute the input, the whole attention computation permutes identically, so without positional information the model cannot tell first from last — what is lost is order, not importance.",
+        "Attention weights encode relevance to a query, not position. If you permute the input, the whole attention computation permutes identically, so without positional information the model cannot tell first from last, what is lost is order, not importance.",
       correct: "Positional information supplies sequence order; attention without it is permutation-equivariant.",
     },
     {

@@ -9,7 +9,7 @@ import { ResultBlock } from "@/components/ui/ResultBlock";
  * and a map that moved, while /study's "quiz me" gave a single attempt, no
  * retry, and a card frozen on MISCONCEPTION forever. Learning the good one and
  * then meeting the worse one reads as a broken app, not as two screens. So the
- * question card and the verdict panel live here and both pages render them —
+ * question card and the verdict panel live here and both pages render them, 
  * one state machine on the server, one set of words on the screen.
  *
  * The verdict says "Mixed up", not "MISCONCEPTION": a student is told which
@@ -63,7 +63,7 @@ export function QuizQuestion({
 }
 
 /**
- * The marked answer. `actions` is the row of buttons the page owns — the retry
+ * The marked answer. `actions` is the row of buttons the page owns, the retry
  * is always one of them, because one attempt is not a quiz.
  */
 export function QuizVerdictPanel({
@@ -92,7 +92,7 @@ export function QuizVerdictPanel({
       {/*
         * The band word is the only status word on this card. A partial answer
         * used to print the band chip "Partly there" and, directly under it, a
-        * CORRECT block reading "You have part of it: order" — three labels, two
+        * CORRECT block reading "You have part of it: order", three labels, two
         * of them agreeing and the largest one disagreeing, for a one-word
         * answer. The block that carries CORRECT is also the block that echoes
         * the keyword the marker matched, so while the question is still open

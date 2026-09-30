@@ -7,7 +7,7 @@ import { CORPUS } from "@/lib/corpus";
  * Which concept a turn is filed against.
  *
  * A student judge pasted two passages off the /study screen word for word.
- * The tutor refused to credit either of them — correctly — and both were
+ * The tutor refused to credit either of them, correctly, and both were
  * still filed against Self-attention, a concept they never mentioned, because
  * the router ranked concepts by the longest single alias that appeared
  * anywhere in the text and "attention" is longer than "query". Their map then
@@ -29,7 +29,7 @@ function primary(text: string, course = TRANSFORMERS): string | null {
 }
 
 describe("a turn is filed against the concept it is mostly about", () => {
-  it("routes the queries/keys/values passage to Queries, Keys, Values — not Self-attention", () => {
+  it("routes the queries/keys/values passage to Queries, Keys, Values, not Self-attention", () => {
     // "query", "key" and "value" between them cover six mentions; "attention"
     // covers one, and used to win on being nine characters long.
     expect(primary(QKV_PASTE)).toBe("c_qkv");

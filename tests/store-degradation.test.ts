@@ -6,7 +6,7 @@ import { resetStoreDegradation, storeDegradation, withFallback } from "@/lib/sto
 import type { EventStore } from "@/lib/store/repo";
 
 /**
- * The durable-to-ephemeral latch, which had zero tests — so the bug it shipped
+ * The durable-to-ephemeral latch, which had zero tests, so the bug it shipped
  * with survived two rounds: after the latch flipped, every call went to the
  * file store while `store.backend` kept answering "postgres", and /api/learner
  * put that value in front of the student.

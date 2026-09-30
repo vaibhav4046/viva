@@ -111,7 +111,7 @@ const read = (res: Response) => res.json() as Promise<TurnBody>;
  * ------------------------------------------------------------------ */
 
 describe("a trap fires on the claim, not on its topic", () => {
-  // Typed cold, five times, five identical "Not quite —" replies, and the
+  // Typed cold, five times, five identical "Not quite, " replies, and the
   // correction handed the student their own sentence back.
   const backprop = [
     "Backpropagation and gradient descent are two different steps.",
@@ -184,7 +184,7 @@ describe("an open question does not stop VIVA reading what you said", () => {
 
     // The same correction the identical sentence gets cold, and p.7 with it.
     expect(body.claim?.status).toBe("contradicted");
-    expect(body.turn.tutor.text).toMatch(/Before that —/);
+    expect(body.turn.tutor.text).toMatch(/Before that, /);
     expect(body.turn.tutor.text).toMatch(/key dimension/);
     expect(body.turn.tutor.text).toMatch(/The question still stands/);
     // Never graded as an attempt at a question it was not answering.
@@ -256,7 +256,7 @@ describe("keyword soup is never correct", () => {
         missingPoints: [],
         possibleMisconception: null,
         nextQuestion: null,
-        feedback: "Correct — you identified that without positional information a Transformer cannot distinguish order.",
+        feedback: "Correct, you identified that without positional information a Transformer cannot distinguish order.",
       }))
     );
     const q = TRANSFORMERS.examQuestions[0];

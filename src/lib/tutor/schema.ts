@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * What a learner can be doing when they speak (Master prompt 5.1), plus
- * `hint` — asking for a nudge while a question is open. "I'm stuck" used to
+ * `hint`, asking for a nudge while a question is open. "I'm stuck" used to
  * fall through to `note` and come back "Noted.", which is the most dismissive
  * thing a tutor can say to a stuck student.
  */
@@ -14,7 +14,7 @@ export type TurnIntent = z.infer<typeof TurnIntentSchema>;
  * whole reply away.
  *
  * These were `.max(n)`, and measured against the live provider that cost the
- * learner real answers — three of four probes came back correct, grounded and
+ * learner real answers, three of four probes came back correct, grounded and
  * properly keyed, and were rejected because one quote ran 166 characters
  * against a 160 cap. A six-character overrun triggered a repair round trip and
  * then a silent drop to the heuristic path. The rule that actually protects
@@ -43,7 +43,7 @@ export type IntentConfirm = z.infer<typeof IntentConfirmSchema>;
 
 /**
  * The tutor's reply (Master prompt 5.3). At most three parts, ≤ 90 words when
- * composed. `masterySignal` is a direction only — the number is written by
+ * composed. `masterySignal` is a direction only, the number is written by
  * `src/lib/mastery.ts` and nowhere else.
  */
 export const TutorReplySchema = z.object({

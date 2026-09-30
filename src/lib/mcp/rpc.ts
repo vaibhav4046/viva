@@ -7,7 +7,7 @@ import { TOOL_LIST, callTool, type ToolEnvironment } from "./tools";
  * resources, no prompts, no sampling and nothing it ever pushes at a client,
  * so the whole protocol surface is five methods and one response shape. The
  * official SDK would be a runtime dependency and a server abstraction for
- * about eighty lines of dispatch — the repo is deliberately at ten runtime
+ * about eighty lines of dispatch, the repo is deliberately at ten runtime
  * dependencies, and this is not the eleventh.
  *
  * A single JSON response is returned rather than an SSE stream: SSE exists so
@@ -22,7 +22,7 @@ const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const LATEST = PROTOCOL_VERSIONS[0];
 
 const INSTRUCTIONS =
-  "VIVA is the study app the student talks to. Their subjects, their map and their notes live in their VIVA account, so connect once with connect_my_viva_account before anything else. Let VIVA ask and mark the questions — it marks against the student's own material and it is the only thing that moves their map. Quote what VIVA quotes; do not add material their source does not have.";
+  "VIVA is the study app the student talks to. Their subjects, their map and their notes live in their VIVA account, so connect once with connect_my_viva_account before anything else. Let VIVA ask and mark the questions, it marks against the student's own material and it is the only thing that moves their map. Quote what VIVA quotes; do not add material their source does not have.";
 
 export type JsonRpcId = string | number | null;
 
@@ -53,7 +53,7 @@ function versionFor(params: unknown): string {
 
 /**
  * Handle one JSON-RPC message. `null` means the message was a notification or
- * a response — nothing goes back on the wire for those.
+ * a response, nothing goes back on the wire for those.
  */
 export async function handleMessage(message: unknown, env: ToolEnvironment): Promise<JsonRpcResponse | null> {
   if (typeof message !== "object" || message === null || Array.isArray(message)) {
@@ -110,13 +110,13 @@ export async function handleMessage(message: unknown, env: ToolEnvironment): Pro
  * How many messages one POST may carry.
  *
  * Every element of a batch may be a tools/call, and a tools/call reaches back
- * into this same deployment over HTTP — so an array of N costs N inner
+ * into this same deployment over HTTP, so an array of N costs N inner
  * requests, fired at once, off one request the caller paid for. Unbounded,
  * that is an amplifier pointed at ourselves.
  *
  * Sixteen is twice the eight tools this server has: a client that called every
  * tool it knows about, twice, in one message would still fit, and no client
- * batches like that. The number is a ceiling on fan-out, not a quota — the
+ * batches like that. The number is a ceiling on fan-out, not a quota, the
  * per-call rate limits downstream are what ration the work.
  */
 export const MAX_BATCH = 16;

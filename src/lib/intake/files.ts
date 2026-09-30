@@ -31,7 +31,7 @@ export function readTextDoc(raw: string, title: string): FileReadResult {
 
 /**
  * Markdown headings become passage sections, so a citation can say which part
- * of the file it came from. Everything else stays as the student typed it —
+ * of the file it came from. Everything else stays as the student typed it, 
  * stripping emphasis or link syntax would change their words.
  */
 function splitMarkdown(raw: string): { heading?: string; text: string }[] {
@@ -61,7 +61,7 @@ function splitMarkdown(raw: string): { heading?: string; text: string }[] {
  * One entry out of a .docx, which is a zip with an XML document inside it.
  *
  * ponytail: reads the central directory for `word/document.xml` and inflates
- * that one entry — stored and deflated only. Zip64 archives and encrypted docs
+ * that one entry, stored and deflated only. Zip64 archives and encrypted docs
  * are refused rather than half-read; upgrade path is a real zip library, which
  * is not worth a dependency for one file per student.
  */

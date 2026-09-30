@@ -1,5 +1,5 @@
 /**
- * LIVE proof for the pg first-touch fix — not part of any gate.
+ * LIVE proof for the pg first-touch fix, not part of any gate.
  * Fires two genuinely concurrent first events at one concept, three rounds,
  * against the DATABASE_URL in .env.local, then deletes every probe row.
  * Needs network + a database; that is why it lives here next to

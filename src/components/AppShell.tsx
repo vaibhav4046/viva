@@ -2,37 +2,33 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookOpen, CalendarCheck, CircleHelp, Layers, Network, Plug } from "lucide-react";
+import { MarkIcon } from "@/components/ui/icons";
 
 /**
  * The one shell. Every page inside the app group renders through this: a
  * single header on desktop, a single bottom tab bar on mobile, and the same
- * five destinations in the same order in both.
+ * destinations in the same order in both. Text labels only: a destination is a
+ * word, and a word needs no icon library.
  *
- * It replaces two competing header systems (a cream pill nav on the landing
- * and a dark bar in the app) and three different names for the study screen
- * ("Enter VIVA", "Try demo", "Study"). One name each, everywhere.
- *
- * Connect is the one link that is not a daily destination — you pair an
- * assistant once and never come back. It sits in the header, and is left out
- * of the thumb bar so the five places a student actually goes keep their
- * width on a 320 px phone.
+ * Connect is the one link that is not a daily destination, since you pair an
+ * assistant once and never come back. It sits in the header and is left out of
+ * the thumb bar so the five places a student actually goes keep their width on
+ * a 320 px phone.
  */
 
-const LINKS = [
-  { href: "/study", label: "Study", Icon: BookOpen },
-  { href: "/subjects", label: "Subjects", Icon: Layers },
-  { href: "/today", label: "Today", Icon: CalendarCheck },
-  { href: "/map", label: "Map", Icon: Network },
-  { href: "/exam", label: "Quiz", Icon: CircleHelp },
+const LINKS: readonly { href: string; label: string; short?: string; headerOnly?: boolean }[] = [
+  { href: "/oral", label: "Oral exam", short: "Oral" },
+  { href: "/study", label: "Study" },
+  { href: "/subjects", label: "Subjects" },
+  { href: "/today", label: "Today" },
+  { href: "/map", label: "Map", headerOnly: true },
+  { href: "/exam", label: "Quiz" },
   // headerOnly keeps the thumb bar at five destinations on a 320 px phone.
-  // Connect is still reachable there: the footer link below is not md:-gated,
-  // because a link with no entry point on the device most study happens on is
-  // a feature nobody can find.
-  { href: "/connect", label: "Connect", Icon: Plug, headerOnly: true },
-] as const;
+  // Map and Connect are still reachable there: the footer links below are not md:-gated.
+  { href: "/connect", label: "Connect", headerOnly: true },
+];
 
-const TAB_LINKS = LINKS.filter((l) => !("headerOnly" in l && l.headerOnly));
+const TAB_LINKS = LINKS.filter((l) => !l.headerOnly);
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
@@ -40,10 +36,9 @@ function isActive(pathname: string, href: string): boolean {
 
 /**
  * "Saved" state. Any page can announce a write with
- * `window.dispatchEvent(new Event("viva:saved"))`; the word fades in for a
- * few seconds and then leaves. This is what replaces the yellow storage
- * banner: a student is told their work is kept, never told which backend
- * kept it.
+ * `window.dispatchEvent(new Event("viva:saved"))`; the word shows for a few
+ * seconds and then leaves. A student is told their work is kept, never which
+ * backend kept it.
  */
 function SavedState() {
   const [shown, setShown] = useState(false);
@@ -63,8 +58,8 @@ function SavedState() {
   return (
     <span
       aria-live="polite"
-      className="mono text-xs transition-opacity"
-      style={{ color: "var(--color-ash)", opacity: shown ? 1 : 0, transitionDuration: "var(--dur-base)" }}
+      className="mono transition-opacity"
+      style={{ color: "var(--text-muted)", opacity: shown ? 1 : 0, transitionDuration: "var(--dur-base)" }}
     >
       {shown ? "Saved" : ""}
     </span>
@@ -76,17 +71,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header
-        className="sticky top-0 z-40 border-b hairline"
-        style={{ background: "color-mix(in srgb, var(--color-obsidian) 88%, transparent)", backdropFilter: "blur(12px)" }}
-      >
+      <header className="sticky top-0 border-b hairline" style={{ background: "var(--canvas)", zIndex: "var(--z-nav)" }}>
         <nav aria-label="Primary" className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
           <Link href="/" className="flex min-h-11 shrink-0 items-center gap-2" aria-label="VIVA home">
-            <img src="/brand/viva-mark.svg" alt="" width={24} height={24} aria-hidden />
-            <span className="heading text-lg tracking-tight">VIVA</span>
+            <MarkIcon size={22} />
+            <span className="heading text-xl tracking-tight">VIVA</span>
           </Link>
 
-          {/* Desktop: the five destinations inline. Mobile gets the tab bar. */}
+          {/* Desktop: the destinations inline. Mobile gets the tab bar. */}
           <div className="ml-2 hidden items-center gap-0.5 md:flex">
             {LINKS.map(({ href, label }) => (
               <Link
@@ -106,62 +98,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </header>
 
-      {/* pb-28, not pb-20. The thumb bar is 57 px plus the home indicator, and
-          80 px of padding left the Send button clearing it by five pixels at
-          rest — so any turn that added a line pushed it under the bar, where a
-          tap navigates instead of sending. Measured on a 390 px phone. */}
+      {/* The thumb bar is 57 px plus the home indicator; pb-28 keeps the last
+          control on a page clear of it. */}
       <div className="flex-1 pb-28 md:pb-0">
         {children}
 
-        {/* Connect is not a daily destination, so it does not earn a thumb-bar
-            slot on a 320 px phone. It still has to be reachable there: the
-            header nav that holds it is md:-only, and a page nobody on a phone
-            can find is a page that does not exist. */}
         {/* A <footer>, not a <div>: <main> lives inside {children}, so this
             sits outside every landmark and axe rightly calls that a region
-            violation on all five app routes at 390. There is no other
-            contentinfo in the shell, so this creates no duplicate. */}
+            violation. */}
         <footer className="mx-auto w-full max-w-6xl px-4 pb-6 pt-2 sm:px-6 md:hidden">
-          <Link
-            href="/connect"
-            className="mono inline-flex min-h-11 items-center gap-2 text-xs"
-            style={{ color: "var(--color-ash)" }}
-          >
-            <Plug size={14} aria-hidden strokeWidth={1.8} />
+          <Link href="/map" className="link mono inline-flex min-h-11 items-center pr-4">
+            Concept map
+          </Link>
+          <Link href="/connect" className="link mono inline-flex min-h-11 items-center">
             Use VIVA from another assistant
           </Link>
         </footer>
       </div>
 
       {/* Mobile bottom tabs. Fixed so the destinations are always one thumb
-          away, and padded for the home indicator.
-
-          Its own name, not the header's. Only one of the two navs is visible at
-          a time, but both are in the accessibility tree at every width, and two
-          landmarks called "Primary" leave a screen-reader user choosing between
-          two identical entries in the landmark list. */}
+          away, padded for the home indicator. Its own name, not the header's:
+          both navs are in the accessibility tree at every width. */}
       <nav
         aria-label="Primary tabs"
-        className="fixed inset-x-0 bottom-0 z-40 border-t hairline md:hidden"
+        data-tabbar
+        className="fixed inset-x-0 bottom-0 border-t hairline md:hidden"
         style={{
-          background: "color-mix(in srgb, var(--color-obsidian) 94%, transparent)",
-          backdropFilter: "blur(12px)",
+          background: "var(--canvas)",
           paddingBottom: "env(safe-area-inset-bottom)",
+          zIndex: "var(--z-nav)",
         }}
       >
         <ul className="flex items-stretch justify-around">
-          {TAB_LINKS.map(({ href, label, Icon }) => {
+          {TAB_LINKS.map((link) => {
+            const { href, label } = link;
+            const text = link.short ?? label;
             const active = isActive(pathname, href);
             return (
               <li key={href} className="flex-1">
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className="flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-1.5 text-[11px]"
-                  style={{ color: active ? "var(--color-paper)" : "var(--color-ash)", fontWeight: active ? 600 : 400 }}
+                  className="flex min-h-[56px] items-center justify-center px-1 py-1.5 text-[0.8125rem]"
+                  style={{
+                    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                    fontWeight: active ? 600 : 400,
+                    textDecoration: active ? "underline" : "none",
+                    textDecorationThickness: "2px",
+                    textUnderlineOffset: "6px",
+                  }}
                 >
-                  <Icon size={20} aria-hidden strokeWidth={active ? 2.2 : 1.8} />
-                  {label}
+                  {text}
                 </Link>
               </li>
             );

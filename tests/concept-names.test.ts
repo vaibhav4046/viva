@@ -4,7 +4,7 @@
  * Postgres files every row under `base::user::course`, and `toMastery` handed
  * that scoped id back on the `conceptId` field while filing the record under
  * the stripped one. Nothing noticed, because the id only reaches the screen for
- * concepts the learner has actually worked on — the exact cards a returning
+ * concepts the learner has actually worked on, the exact cards a returning
  * student reads first. A judge got card titles and a sentence reading
  * "c_position::demo_1e1d05052db01852e9d2082b0ecc5a57::course_transformers_w4
  * has 2 incorrect answers", and at 390 px the unbreakable string pushed the

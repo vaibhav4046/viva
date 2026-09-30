@@ -1,0 +1,106 @@
+{
+  "files": 181,
+  "failing": 0,
+  "unreviewedWarnings": 0,
+  "findings": [
+    {
+      "rule": "R16",
+      "sev": "warn",
+      "file": "src/app/(app)/connect/page.tsx",
+      "line": 36,
+      "snippet": "{copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}",
+      "why": "checkmark bullets",
+      "status": "reviewed"
+    },
+    {
+      "rule": "R16",
+      "sev": "warn",
+      "file": "src/app/(app)/exam/page.tsx",
+      "line": 447,
+      "snippet": "<span aria-hidden>✓</span> {p}",
+      "why": "checkmark bullets",
+      "status": "reviewed"
+    },
+    {
+      "rule": "X03",
+      "sev": "error",
+      "file": "src/app/layout.tsx",
+      "line": 66,
+      "snippet": "themeColor: \"#F1EDE4\",",
+      "why": "raw colour in a component (use a token)",
+      "status": "allowlisted"
+    },
+    {
+      "rule": "R21",
+      "sev": "warn",
+      "file": "src/components/course/CoursePicker.tsx",
+      "line": 30,
+      "snippet": "const res = await fetch(\"/api/courses\");",
+      "why": "async data without a loading state",
+      "status": "reviewed"
+    },
+    {
+      "rule": "R25",
+      "sev": "error",
+      "file": "src/components/voice/LiveTranscript.tsx",
+      "line": 141,
+      "snippet": "animation: viva-live-blink 1.05s steps(2, start) infinite;",
+      "why": "decorative motion",
+      "status": "allowlisted"
+    },
+    {
+      "rule": "R21",
+      "sev": "warn",
+      "file": "src/components/voice/MicButton.tsx",
+      "line": 312,
+      "snippet": "res = await fetch(\"/api/voice/transcribe\", { method: \"POST\", body });",
+      "why": "async data without a loading state",
+      "status": "reviewed"
+    },
+    {
+      "rule": "R21",
+      "sev": "warn",
+      "file": "src/components/voice/MicButton.tsx",
+      "line": 340,
+      "snippet": "void fetch(\"/api/voice/telemetry\", {",
+      "why": "async data without a loading state",
+      "status": "reviewed"
+    },
+    {
+      "rule": "R09",
+      "sev": "error",
+      "file": "src/lib/intake/html.ts",
+      "line": 132,
+      "snippet": "const clean = plain(t[1]).replace(/\\s*[|·—–-]\\s*[^|·—–-]{2,40}$/, \"\").trim();",
+      "why": "em or en dash",
+      "status": "allowlisted"
+    },
+    {
+      "rule": "R30",
+      "sev": "warn",
+      "file": "src/styles/tokens.css",
+      "line": 23,
+      "snippet": "--surface-1: #F8F5EE;",
+      "why": "pastel surface token",
+      "status": "reviewed"
+    },
+    {
+      "rule": "R30",
+      "sev": "warn",
+      "file": "src/styles/tokens.css",
+      "line": 25,
+      "snippet": "--elevated: #FBF9F4;",
+      "why": "pastel surface token",
+      "status": "reviewed"
+    },
+    {
+      "rule": "R02",
+      "sev": "warn",
+      "file": "(repo)",
+      "line": 0,
+      "snippet": "10 distinct icon-library imports",
+      "why": "more than 8 icon-library imports",
+      "status": "reviewed"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  *    "store":{"mode":"ephemeral"}}
  *
  * `database.durable` false, `store.mode` ephemeral, and a top-level
- * `durable: true` / `degraded: false` — all in one response. The route called
+ * `durable: true` / `degraded: false`, all in one response. The route called
  * `dbStatus()` and then `storeDurability()`, which called `dbStatus()` again;
  * against a flapping pool the second sample disagreed with the first.
  *

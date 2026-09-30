@@ -1,0 +1,1258 @@
+{
+  "measuredOn": "2026-09-29T22:49:59.843Z",
+  "base": "http://localhost:3141",
+  "states": [
+    {
+      "t": 7623,
+      "text": "Ready"
+    },
+    {
+      "t": 7784,
+      "text": "Loading your material"
+    },
+    {
+      "t": 8151,
+      "text": "Ready"
+    },
+    {
+      "t": 8395,
+      "text": "Connecting"
+    },
+    {
+      "t": 8903,
+      "text": "Speaking"
+    },
+    {
+      "t": 13359,
+      "text": "Listening"
+    },
+    {
+      "t": 29009,
+      "text": "Hearing you"
+    },
+    {
+      "t": 30997,
+      "text": "Thinking"
+    },
+    {
+      "t": 31025,
+      "text": "Speaking"
+    },
+    {
+      "t": 37552,
+      "text": "Checking your pages"
+    },
+    {
+      "t": 37803,
+      "text": "Listening"
+    },
+    {
+      "t": 39050,
+      "text": "Speaking"
+    },
+    {
+      "t": 50285,
+      "text": "Listening"
+    }
+  ],
+  "meterSamples": [
+    {
+      "ms": 6,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 307,
+      "state": "Loading your material",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Your examiner opens the exam and asks what you want to be examined on."
+    },
+    {
+      "ms": 582,
+      "state": "Ready",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 847,
+      "state": "Connecting",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 1111,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 1449,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 1717,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 1983,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 60,
+      "card": "Waiting for the examiner to speak."
+    },
+    {
+      "ms": 2250,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 94,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 2518,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 91,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 2777,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 62,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 3046,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 37,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 3310,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 94,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 3588,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 94,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 3855,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 87,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 4111,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 74,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 4374,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 54,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 4634,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 74,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 4893,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 69,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 5156,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 59,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 5416,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 34,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 5684,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 23,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 5950,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 13,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 6222,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 7,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 6485,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 5,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 6748,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 3,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 7012,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 2,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 7274,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 1,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 7541,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 1,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 7803,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 8066,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 8331,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 8592,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 8859,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 9119,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 9384,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 9701,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 10036,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 10476,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 10748,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 11023,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 11287,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 11567,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 11837,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 12115,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 12392,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 12657,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 12915,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 13180,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 13462,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 13732,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 13993,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 14280,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 14547,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 14813,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15085,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15365,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15625,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 15916,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16186,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16451,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 16713,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17003,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17279,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17553,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 17830,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18087,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18356,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18620,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 18884,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 19162,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 19434,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 19724,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 19989,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 20258,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 20530,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 20794,
+      "state": "Listening",
+      "learner": 71,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 21057,
+      "state": "Listening",
+      "learner": 95,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 21320,
+      "state": "Hearing you",
+      "learner": 97,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 21584,
+      "state": "Hearing you",
+      "learner": 95,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 21849,
+      "state": "Hearing you",
+      "learner": 72,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 22124,
+      "state": "Hearing you",
+      "learner": 78,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 22385,
+      "state": "Hearing you",
+      "learner": 83,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 22649,
+      "state": "Hearing you",
+      "learner": 57,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 22922,
+      "state": "Hearing you",
+      "learner": 31,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 23199,
+      "state": "Thinking",
+      "learner": 21,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 23495,
+      "state": "Speaking",
+      "learner": 56,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 23764,
+      "state": "Speaking",
+      "learner": 75,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 24042,
+      "state": "Speaking",
+      "learner": 65,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 24307,
+      "state": "Speaking",
+      "learner": 69,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 24568,
+      "state": "Speaking",
+      "learner": 59,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 24832,
+      "state": "Speaking",
+      "learner": 61,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 25108,
+      "state": "Speaking",
+      "learner": 61,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 25381,
+      "state": "Speaking",
+      "learner": 53,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 25641,
+      "state": "Speaking",
+      "learner": 40,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 25903,
+      "state": "Speaking",
+      "learner": 33,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 26174,
+      "state": "Speaking",
+      "learner": 18,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 26446,
+      "state": "Speaking",
+      "learner": 12,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 26731,
+      "state": "Speaking",
+      "learner": 7,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 26999,
+      "state": "Speaking",
+      "learner": 5,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 27266,
+      "state": "Speaking",
+      "learner": 3,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 27546,
+      "state": "Speaking",
+      "learner": 2,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 27808,
+      "state": "Speaking",
+      "learner": 1,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 28065,
+      "state": "Speaking",
+      "learner": 1,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 28330,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 28587,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 28856,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 29147,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 29431,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 29697,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 30002,
+      "state": "Checking your pages",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 30371,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 30634,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 30892,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 31153,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 31411,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 31674,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 31937,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 0,
+      "card": "You're being examined. Tell me what you want to be asked on, and I'll start there."
+    },
+    {
+      "ms": 32236,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 41,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen."
+    },
+    {
+      "ms": 32503,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 40,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 32763,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 87,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 33021,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 90,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 33281,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 84,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 33535,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 55,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 33795,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 73,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 34055,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 88,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 34315,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 82,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 34578,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 75,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 34834,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 68,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 35093,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 77,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 35356,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 75,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 35631,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 91,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 35889,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 75,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 36159,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 78,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 36412,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 60,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 36676,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 58,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 36952,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 71,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 37217,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 61,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 37485,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 76,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 37742,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 61,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 38002,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 42,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 38270,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 23,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 38534,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 75,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 38791,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 66,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 39047,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 79,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 39306,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 59,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 39563,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 49,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 39818,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 29,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 40075,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 63,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 40334,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 54,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 40591,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 39,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 40849,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 69,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 41113,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 53,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 41376,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 96,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 41638,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 93,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 41896,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 65,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 42153,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 38,
+      "card": "Actually,  the  material  says,  multi-head attention runs the query-key-value computation h times in parallel, each in  a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 42419,
+      "state": "Speaking",
+      "learner": 0,
+      "examiner": 26,
+      "card": "Actually, the material says, multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace, on page fifteen. Can you restate that?"
+    },
+    {
+      "ms": 42696,
+      "state": "Listening",
+      "learner": 0,
+      "examiner": 14,
+      "card": "Actually, the material says, multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace, on page fifteen. Can you restate that?"
+    }
+  ],
+  "captions": [],
+  "diag": "Diagnostics, this session only\nClick to session.ready\n1128 ms\nClick to first examiner audio\n1634 ms\nTurns heard\n2\nTrace events\n3026\nStale tool results dropped\n0\nBarge-in: speech-started event to playback flushed\n0.1 ms\nSource check, request to result\nverify_claim 1466 ms\nPartial transcript timeline\n+21242 ms Exactly.\n+21320 ms Examining\n+22619 ms Examine me on multi-head attention.\n+23931 ms I\n+25221 ms I think it runs a single head.\nSocket events\n+621 ms ws.connect\n+774 ms ws.open\n+1128 ms session.ready\n+5583 ms reply.done (completed)\n+30020 ms reply.done (completed)",
+  "debrief": "Debrief\n\n2026-09-29, 2 answers, 0 interruptions\n\nConcepts covered\nEach concept is marked from what was checked against your pages in this exam.\nConcept\tStanding\tEvidence from your answers\nMulti-head attention\tWeak\t\nit runs a single head over the input the material says otherwise, p. 15\nMisconceptions caught\n\nYou said: it runs a single head over the input\n\np. 15 Multi-head attention runs the query-",
+  "errors": [],
+  "shotSpeaking": true,
+  "layoutShift": {
+    "total": 0.09638280143737793,
+    "unexpected": 0.03680406879848904,
+    "shifts": [
+      {
+        "t": 7350,
+        "v": 0.0001,
+        "input": false
+      },
+      {
+        "t": 7790,
+        "v": 0.0596,
+        "input": true
+      },
+      {
+        "t": 29247,
+        "v": 0.0014,
+        "input": false
+      },
+      {
+        "t": 30752,
+        "v": 0.0019,
+        "input": false
+      },
+      {
+        "t": 31003,
+        "v": 0,
+        "input": false
+      },
+      {
+        "t": 31768,
+        "v": 0.0019,
+        "input": false
+      },
+      {
+        "t": 33259,
+        "v": 0.0016,
+        "input": false
+      },
+      {
+        "t": 34395,
+        "v": 0,
+        "input": false
+      },
+      {
+        "t": 40022,
+        "v": 0.0176,
+        "input": false
+      },
+      {
+        "t": 40057,
+        "v": 0.0124,
+        "input": false
+      }
+    ]
+  },
+  "sourceCards": [
+    "You said: it runs a single head over the input\n\np. 15\nch_mh_1\nContradicted\nMulti-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace.\n\nContradicted. The quote is an exact match to your page, checked by code."
+  ],
+  "transcript": [
+    "",
+    "",
+    "",
+    ""
+  ],
+  "examinerCard": "ExaminerActually, the material says, multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace, on page fifteen. Can you restate that?",
+  "statesAfterEnd": [
+    {
+      "t": 39050,
+      "text": "Speaking"
+    },
+    {
+      "t": 50285,
+      "text": "Listening"
+    },
+    {
+      "t": 50856,
+      "text": "Ended"
+    }
+  ]
+}

@@ -57,7 +57,7 @@ async function post({ order = "config-first", audioType = "audio/pcm", auth = KE
 const show = (r, n = 400) => `${r.status} ${r.body.slice(0, n)}`;
 const log = (s) => console.log(s);
 
-log(`clip: .viva/audio/confusion-16k.wav — ${PCM.length} bytes = ${CLIP_SECONDS.toFixed(2)} s of 16 kHz mono s16le\n`);
+log(`clip: .viva/audio/confusion-16k.wav, ${PCM.length} bytes = ${CLIP_SECONDS.toFixed(2)} s of 16 kHz mono s16le\n`);
 
 // ── 1. Does the multipart part order actually matter? ──────────────────────
 log("=== 1. multipart part order ===");
@@ -149,13 +149,13 @@ const LANG_CASES = [
   ['["en","hi"]', ["en", "hi"]],
   ['["pl"] (a picker entry)', ["pl"]],
   ['["uk"] (a picker entry)', ["uk"]],
-  ['["zzz"] (bogus — does it enumerate?)', ["zzz"]],
+  ['["zzz"] (bogus, does it enumerate?)', ["zzz"]],
 ];
 for (const clip of LANG_CLIPS) {
   if (!fs.existsSync(clip)) { log(`  ${clip}: not present, skipped`); continue; }
   const clipPcm = pcmFrom(clip);
   const said = TRUTH[clip.split(/[\\/]/).pop()];
-  log(`\n  ${clip} — ${(clipPcm.length / 32000).toFixed(2)} s${said ? `\n    said: ${said}` : ""}`);
+  log(`\n  ${clip}, ${(clipPcm.length / 32000).toFixed(2)} s${said ? `\n    said: ${said}` : ""}`);
   for (const [label, codes] of LANG_CASES) {
     await new Promise((r) => setTimeout(r, 1200));
     const config = { sample_rate: 16000, channels: 1 };

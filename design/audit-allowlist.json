@@ -1,0 +1,20 @@
+[
+    {
+        "rule":  "X03",
+        "file":  "src/app/layout.tsx",
+        "line":  66,
+        "reason":  "Next.js Viewport.themeColor is a browser API that takes a literal colour and cannot read a CSS variable. The value is the --canvas token from src/styles/tokens.css and tests/design-tokens.test.ts pins the token."
+    },
+    {
+        "rule":  "R25",
+        "file":  "src/components/voice/LiveTranscript.tsx",
+        "line":  141,
+        "reason":  "The blinking caret marks the place where the live transcript is still being written while the microphone is open. It encodes a machine state (transcribing) and is switched off by the prefers-reduced-motion block in globals.css."
+    },
+    {
+        "rule":  "R09",
+        "file":  "src/lib/intake/html.ts",
+        "line":  132,
+        "reason":  "A regular expression that strips a site-name suffix from a web page title. The dash characters are the input the pattern has to match in a fetched page, not copy shown to a reader."
+    }
+]

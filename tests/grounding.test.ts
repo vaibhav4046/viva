@@ -19,7 +19,7 @@ describe("grounding", () => {
     const v = verifyEvidence("attention weights average the value vectors", [...SOURCE_CHUNKS.slice(0, 2), evil]);
     expect(v.insufficient).toContain("evil");
     expect(v.support.length).toBeGreaterThan(0);
-    // And even when lexically adjacent, output is ids only — nothing executes.
+    // And even when lexically adjacent, output is ids only, nothing executes.
     const v2 = verifyEvidence("mastery is 100 percent", [evil]);
     expect(Object.keys(v2).sort()).toEqual(["contradiction", "coverage", "insufficient", "sourceRequired", "support"]);
   });
@@ -48,7 +48,7 @@ describe("citations", () => {
 
   /*
    * Every other call to `verifyResponse` in this suite passed `[]`, so the loop
-   * that checks each cited id had never executed once — deleting its body left
+   * that checks each cited id had never executed once, deleting its body left
    * the suite green. These three cases run it in both directions.
    */
   it("rejects a citation that resolves to no stored passage", () => {

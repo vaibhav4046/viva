@@ -7,7 +7,7 @@ import { __resetLimits } from "@/lib/limits";
  * The endpoint spends the owner's AssemblyAI meter. Every other route in the
  * app resolves the `viva_did` cookie and mints one when it is absent; this one
  * did not, so the only thing standing between the meter and a stranger was a
- * per-IP bucket — and rotating the IP is the ordinary way around that.
+ * per-IP bucket, and rotating the IP is the ordinary way around that.
  *
  * These two cases are the requirement. Delete `resolveIdentity` from the route
  * and the first fails; drop the learner bucket and the second fails.
@@ -72,7 +72,7 @@ describe("GET /api/voice/stream-token binds the token to a learner", () => {
     expect(setCookie).toContain("SameSite=Lax");
   });
 
-  it("a learner who already has a cookie keeps it — no churn, no second identity", async () => {
+  it("a learner who already has a cookie keeps it, no churn, no second identity", async () => {
     jar.value = DID_A;
     const res = await get("203.0.113.2");
     expect(res.status).toBe(200);
@@ -101,7 +101,7 @@ describe("GET /api/voice/stream-token binds the token to a learner", () => {
     for (let i = 0; i < BUDGET; i++) {
       expect((await get("203.0.113.9")).status).toBe(200);
     }
-    // Same address, a different learner — the IP ceiling is what refuses this,
+    // Same address, a different learner, the IP ceiling is what refuses this,
     // and losing it would make cookie-swapping a way around the meter.
     jar.value = DID_B;
     expect((await get("203.0.113.9")).status).toBe(429);

@@ -5,7 +5,7 @@ import { masteryState } from "@/lib/mastery";
  *
  * `masteryState` in src/lib/mastery.ts is the source of truth for the
  * thresholds; this maps its internal names onto plain English and a token.
- * Colour never travels alone — every place that uses a band colour also
+ * Colour never travels alone, every place that uses a band colour also
  * prints the word.
  */
 export type BandKey = "solid" | "getting" | "shaky" | "mixed" | "notyet";

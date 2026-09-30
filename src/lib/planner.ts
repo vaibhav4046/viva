@@ -3,7 +3,7 @@ import { bandLabelFor, masteryState } from "@/lib/mastery";
 import type { ConceptMastery, LearningEvent } from "@/lib/types";
 
 /**
- * Deterministic learner planner — ONE scheduler for the Daily Path and the
+ * Deterministic learner planner, ONE scheduler for the Daily Path and the
  * 7-day "Your week" projection.
  *
  * NO LLM: every function is a pure fold over the caller's own mastery, last 50
@@ -11,23 +11,23 @@ import type { ConceptMastery, LearningEvent } from "@/lib/types";
  * is broken by conceptId so ordering never depends on object iteration.
  *
  * Daily Path composition rules (fixed, in priority order):
- *   1. misconception — highest reviewPriority concept carrying a wrong answer
+ *   1. misconception, highest reviewPriority concept carrying a wrong answer
  *      that has not been cleared since; queue membership preferred
  *      (3 min, inline recall).
- *   2. weak_concept  — the lowest-scoring concept seen in events, excluding
+ *   2. weak_concept, the lowest-scoring concept seen in events, excluding
  *      ones already recalled right and holding (3 min, opens Study/demo).
- *   3. recall        — a concept with ≥1 successful recall (1 min, quick).
- *   4. teachback     — a concept the learner can already answer on and that is
+ *   3. recall, a concept with ≥1 successful recall (1 min, quick).
+ *   4. teachback, a concept the learner can already answer on and that is
  *      holding: say the whole thing out loud (2 min, opens Exam teach tab).
- *   5. fill          — those four rules take ONE concept each, which is why a
+ *   5. fill, those four rules take ONE concept each, which is why a
  *      learner with one answer behind them used to get "4 of 10 min planned"
  *      and a single real step. The rest of the nine concept minutes go, in
  *      order, to the remaining ranked candidates (1 min each), concepts of
  *      this subject nobody has opened (2 min: meet it, answer, read the
  *      correction), and finally teachbacks (2 min) once there is nothing left
  *      to ask. Every step says which of those it is.
- *      A learner with NO history still gets nothing — see selectDailyPath.
- *   6. summary       — always last, and only above one real step: 1 minute to
+ *      A learner with NO history still gets nothing, see selectDailyPath.
+ *   6. summary, always last, and only above one real step: 1 minute to
  *      write down what changed, naming the concepts it changed about.
  *
  * Spacing rule (reused by the week projection, never re-derived):
@@ -37,7 +37,7 @@ import type { ConceptMastery, LearningEvent } from "@/lib/types";
  *   - Everything else rides the 1/2/4/7-day ladder in reviewIntervalDays(),
  *     measured from the learner's own last correct answer. A concept answered
  *     correctly today is anchored to today and comes back later in the SAME
- *     week — being on today's plan no longer erases it from the projection,
+ *     week, being on today's plan no longer erases it from the projection,
  *     which is what left "Nothing projected" under every future day.
  *
  * Per-event misconception signal: exam/teachback routes record a failed
@@ -101,9 +101,9 @@ export function ownerCourse(conceptId: string | null): string | null {
  * ships, and never the id itself.
  *
  * Postgres namespaces every row `base::user::course`, and one of those ids
- * reached a student's plan as a card title and inside a sentence — "c_position
+ * reached a student's plan as a card title and inside a sentence, "c_position
  * ::demo_1e1d05052db01852e9d2082b0ecc5a57::course_transformers_w4 has 2
- * incorrect answers" — for exactly the concepts they had worked on. Two things
+ * incorrect answers", for exactly the concepts they had worked on. Two things
  * are wrong there and both are fixed: the store no longer hands out scoped ids,
  * and a scoped id that arrives anyway is looked up by its base rather than
  * printed. If nothing knows the name, a neutral phrase is the honest answer;
@@ -161,7 +161,7 @@ export type RankedCandidate = {
 
 const RULE_ORDER: CandidateKind[] = ["misconception", "weak_concept", "recall", "teachback"];
 
-/** Sitting at "Getting there" or better — the same thresholds the map shows. */
+/** Sitting at "Getting there" or better, the same thresholds the map shows. */
 function holding(m: ConceptMastery): boolean {
   const state = masteryState(m.mastery);
   return state === "strong" || state === "developing";
@@ -191,7 +191,7 @@ function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<stri
         return {
           kind,
           concept: m,
-          why: `You got “${nameOf(m.conceptId)}” wrong ${wrong === 1 ? "once" : `${wrong} times`}${conf > 0 ? ` and flagged it as confusing ${conf === 1 ? "once" : `${conf} times`}` : ""} — clear it before it sticks.`,
+          why: `You got “${nameOf(m.conceptId)}” wrong ${wrong === 1 ? "once" : `${wrong} times`}${conf > 0 ? ` and flagged it as confusing ${conf === 1 ? "once" : `${conf} times`}` : ""}, clear it before it sticks.`,
         };
       });
   }
@@ -227,13 +227,13 @@ function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<stri
       .map((m) => ({
         kind,
         concept: m,
-        why: `You recalled “${nameOf(m.conceptId)}” correctly ${m.successfulRecallCount} time${m.successfulRecallCount === 1 ? "" : "s"} — one quick pass keeps it.`,
+        why: `You recalled “${nameOf(m.conceptId)}” correctly ${m.successfulRecallCount} time${m.successfulRecallCount === 1 ? "" : "s"}, one quick pass keeps it.`,
       }));
   }
 
   /*
    * Teach it back. This used to require a recorded confusion, so a learner who
-   * simply got things right never saw the step the product is named for — and
+   * simply got things right never saw the step the product is named for, and
    * once a small subject's questions run out, recall has nothing left to ask
    * while explaining it out loud still has everything.
    */
@@ -245,8 +245,8 @@ function tierCandidates(input: PlannerInput, kind: CandidateKind, used: Set<stri
       concept: m,
       why:
         m.confusionCount > 0
-          ? `You were confused by “${nameOf(m.conceptId)}” and corrected it — now ${bandLabelFor(m)}. Prove you can explain it.`
-          : `You can answer on “${nameOf(m.conceptId)}” — now ${bandLabelFor(m)}. Say the whole thing out loud and see if the explanation holds.`,
+          ? `You were confused by “${nameOf(m.conceptId)}” and corrected it, now ${bandLabelFor(m)}. Prove you can explain it.`
+          : `You can answer on “${nameOf(m.conceptId)}”, now ${bandLabelFor(m)}. Say the whole thing out loud and see if the explanation holds.`,
     }));
 }
 
@@ -275,7 +275,7 @@ const NEW_MINUTES = 2;
 const TEACHBACK_MINUTES = 2;
 
 /**
- * The 10-minute path — first candidate of each rule (each pick excludes the
+ * The 10-minute path, first candidate of each rule (each pick excludes the
  * previous picks, exactly as the original route did), then 1-minute recalls
  * until the nine concept minutes are spent, then the summary.
  */
@@ -347,13 +347,13 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
   /*
    * Fill the rest of the ten minutes with real retrieval.
    *
-   * Four rules, one concept each, is a three-to-nine minute plan — and a
+   * Four rules, one concept each, is a three-to-nine minute plan, and a
    * learner with one answer behind them got three minutes of it, over a meter
    * reading "4 of 10 min planned". The rest is one question per step, answered
    * in the panel on this page: a minute for a concept they have already met,
    * two for one they have not (meeting it is part of the work), taken first
    * from the ladder's own remaining candidates and then from the concepts the
-   * subject shipped with. Nothing here invents a history — an untouched
+   * subject shipped with. Nothing here invents a history, an untouched
    * concept is described as untouched, and a plan can still end short when the
    * subject has run out of things to ask.
    */
@@ -380,7 +380,7 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
     // true of one concept and nonsense printed three times down a page.
     const why =
       candidate.kind === "weak_concept"
-        ? `Last time, “${nameOf(conceptId)}” came out ${bandLabelFor(candidate.concept).toLowerCase()} — one question to move it.`
+        ? `Last time, “${nameOf(conceptId)}” came out ${bandLabelFor(candidate.concept).toLowerCase()}, one question to move it.`
         : candidate.why;
     addRecall(conceptId, KNOWN_MINUTES, why);
   }
@@ -392,7 +392,7 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
     addRecall(
       concept.id,
       NEW_MINUTES,
-      `You have not said anything about “${concept.name}” yet — one question before you read it. A cold attempt sticks better than another pass over the page.`
+      `You have not said anything about “${concept.name}” yet, one question before you read it. A cold attempt sticks better than another pass over the page.`
     );
   }
 
@@ -400,7 +400,7 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
    * Tail of the session: explain what you can already answer. A subject with
    * six concepts and four questions runs out of things to ask after one
    * session, and a five-minute plan of repeat questions is the thin screen
-   * again — saying the whole thing out loud is the work that is left.
+   * again, saying the whole thing out loud is the work that is left.
    */
   for (const candidate of tierCandidates(input, "teachback", used)) {
     if (spent + TEACHBACK_MINUTES > CONCEPT_MINUTES) break;
@@ -421,7 +421,7 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
   /*
    * "Write it down" is a closing step, not a plan. It was half of a two-step
    * ten-minute path, which is what made the whole screen read as filler, so it
-   * only appears above real work — and it names what to write about.
+   * only appears above real work, and it names what to write about.
    */
   if (path.length < 2) return path;
   const wrote = path
@@ -435,7 +435,7 @@ export function selectDailyPath(input: PlannerInput): PathSegmentOut[] {
     minutes: SUMMARY_MINUTES,
     why: wrote.length
       ? `1 minute, in your own words: what changed today about ${wrote.join(" and ")}? Writing it beats re-reading it.`
-      : "1 minute to write it down — writing it beats re-reading it.",
+      : "1 minute to write it down, writing it beats re-reading it.",
     action: "capture",
   });
 
@@ -474,20 +474,20 @@ export function reviewIntervalDays(m: ConceptMastery, events: EventWithAssessmen
 }
 
 function spacedReason(m: ConceptMastery, interval: number, wrong: boolean): string {
-  if (wrong) return "You got this wrong — it comes back tomorrow, while it is still fresh.";
-  if (m.successfulRecallCount === 0) return `Seen but not yet said back — one question in ${dayWord(interval)}.`;
+  if (wrong) return "You got this wrong, it comes back tomorrow, while it is still fresh.";
+  if (m.successfulRecallCount === 0) return `Seen but not yet said back, one question in ${dayWord(interval)}.`;
   const times = m.successfulRecallCount === 1 ? "once" : `${m.successfulRecallCount} times`;
-  return `Recalled right ${times} — back in ${dayWord(interval)} to keep it.`;
+  return `Recalled right ${times}, back in ${dayWord(interval)} to keep it.`;
 }
 
 const dayWord = (n: number) => (n === 1 ? "a day" : `${n} days`);
 
 /**
  * 7-day projection from the current review state:
- *   - today is exactly selectDailyPath() — the same plan /today renders;
+ *   - today is exactly selectDailyPath(), the same plan /today renders;
  *   - queue items land on their stored due day (overdue → today);
  *   - every concept with a record then takes its next ladder day, measured
- *     from its last correct answer — or from today when today's plan already
+ *     from its last correct answer, or from today when today's plan already
  *     covers it, which is how a concept answered correctly this morning shows
  *     up again later this week instead of vanishing from the projection.
  * A concept appears at most once in the future, and at most once more on today.
@@ -524,7 +524,7 @@ export function projectWeek(input: PlannerInput, now: Date): WeekProjection {
 
   /*
    * The ladder. Everything the learner has actually touched, plus everything
-   * today's plan puts in front of them — a concept on today's plan has no
+   * today's plan puts in front of them, a concept on today's plan has no
    * record yet, and leaving it out is how "TOMORROW / Nothing projected" sat
    * under a plan whose whole point is that it comes back.
    */
@@ -550,7 +550,7 @@ export function projectWeek(input: PlannerInput, now: Date): WeekProjection {
       title: titleOf(conceptId),
       reason: m
         ? spacedReason(m, interval, wrong)
-        : `First met on today's plan — the check-back is ${dayWord(interval)} from now.`,
+        : `First met on today's plan, the check-back is ${dayWord(interval)} from now.`,
     });
   }
 

@@ -7,7 +7,7 @@ import library from "./library.json";
  *
  * A student who opens VIVA for the first time should have something worth
  * studying in front of them before they upload anything. These subjects are
- * chapters of openly licensed textbooks — the passages are the book's own
+ * chapters of openly licensed textbooks, the passages are the book's own
  * words, the concept map and the questions were written by a model reading
  * those passages, and each one records `builtBy: "model"` so the app says so
  * rather than implying a person wrote it.
@@ -21,7 +21,7 @@ import library from "./library.json";
  * Concept names arrive as headings, whenever the subject was generated.
  *
  * The seeder applies `conceptHeading` on the way in, but this file is filled
- * over many runs — one subject a day when the provider's budget allows — so it
+ * over many runs, one subject a day when the provider's budget allows, so it
  * holds entries written before that rule existed, and it will hold entries
  * written by whatever model has budget next. Two of the shipped subjects came
  * back with "cell" and "resolution" as concept names, which the app renders as
@@ -42,7 +42,7 @@ import library from "./library.json";
  *
  * Unsupported keywords are dropped as long as one supported keyword survives.
  * The first cut of this kept the whole key whenever fewer than two survived,
- * on the theory that a one-word key is a keyword hunt — but that left PSY8
+ * on the theory that a one-word key is a keyword hunt, but that left PSY8
  * demanding "motor" and STAT201 demanding "third", neither of which the
  * student's passages contain. A short key is a weaker grader; an impossible
  * key is an unfair one, and unfair is worse. Only a key with nothing supported

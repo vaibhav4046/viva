@@ -1,5 +1,5 @@
 /**
- * Codified production smoke test — the golden path against a live URL.
+ * Codified production smoke test, the golden path against a live URL.
  * Usage: BASE=https://viva-vaibhav4046s-projects.vercel.app node scripts/smoke.mjs
  * Fails loudly on any deviation; this is the demo-reliability evidence.
  */
@@ -25,7 +25,7 @@ assert(s.chunks.length === 12, `12 citable chunks (got ${s.chunks.length})`);
 assert(s.concepts.length === 6, `6 concepts (got ${s.concepts.length})`);
 
 const l = await get("/api/learner");
-// A fresh learner opens with shipped subjects and an empty map — never with
+// A fresh learner opens with shipped subjects and an empty map, never with
 // invented mastery (the pre-fill was deliberately removed: a product whose
 // claim is that it remembers you cannot open by inventing a you).
 assert(Object.keys(l.mastery).length === 0, `no invented mastery (got ${Object.keys(l.mastery).join(",") || "none"})`);
@@ -44,7 +44,7 @@ assert(/positional|order/i.test(q.question), "exam question targets position");
 const a = await post("/api/exam/answer", { questionId: "ex_pos_2", answer: "It wouldn't know which words are important." });
 assert(a.verdict === "incorrect", `wrong answer flagged (got ${a.verdict})`);
 // The grader's exact wording varies run to run (model prose), so assert the
-// substance — the misconception must name the order-vs-importance confusion —
+// substance, the misconception must name the order-vs-importance confusion, 
 // not a literal substring. The verdict above is the stable contract.
 assert(typeof a.possibleMisconception === "string" && /order|importance|position/i.test(a.possibleMisconception), "misconception names order-vs-importance");
 

@@ -2,7 +2,7 @@
  * §9 of docs/API-FEEDBACK.md: on 12 September an `stt_prompt` beginning
  * "Student:" was seen putting the label into the transcript. The document says
  * that could not be reproduced on 13 September, but nothing in the repo
- * actually ran the re-probe — src/lib/assemblyai.ts, the route and
+ * actually ran the re-probe, src/lib/assemblyai.ts, the route and
  * tests/voice-route.test.ts all still assert the leak as probed fact.
  * This is that re-probe. Run: node .viva/probe-stt-prompt-leak.mjs
  *

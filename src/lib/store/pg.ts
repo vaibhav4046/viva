@@ -9,7 +9,7 @@ import type { ConceptDef, EventStore, RecordInput, RecordOutcome } from "./repo"
 /**
  * Postgres EventStore. Concurrency: recordLearning runs in ONE transaction
  * which materialises the mastery row and then takes SELECT ... FOR UPDATE on
- * it — two simultaneous events for the same concept serialize instead of
+ * it, two simultaneous events for the same concept serialize instead of
  * corrupting state, including the first two, which had nothing to lock (§68).
  * Retrieval: tsvector rank + active-source filter (§18); lexical lives on
  * in the file store and as a query fallback.
@@ -78,7 +78,7 @@ function toMastery(r: Record<string, unknown>): ConceptMastery {
  * default Transformers lab, which is right for a picker and catastrophic here.
  * A learner's own subject id is never in COURSES, so routing it through
  * getCourse answered a pasted subject on the heart with the reinforcement-
- * learning passages of a lab they had never opened — three runs out of three,
+ * learning passages of a lab they had never opened, three runs out of three,
  * and only with a database attached. That is precisely the guarantee the
  * product is built on: a citation resolves to a passage of *this* subject or
  * there is no citation. An unknown id has no compiled passages, full stop.
@@ -101,7 +101,7 @@ export class PgEventStore implements EventStore {
   /**
    * Seed a starter. An id we do not ship belongs to a subject the learner
    * built: `saveSubject` already wrote its rows, so there is nothing to seed
-   * here — and falling back to the default would seed the wrong subject.
+   * here, and falling back to the default would seed the wrong subject.
    */
   async seedCourse(userId: string, courseId: string): Promise<void> {
     const course = COURSES[courseId];
@@ -230,7 +230,7 @@ export class PgEventStore implements EventStore {
          * Materialise before locking. `SELECT ... FOR UPDATE` locks a row; on
          * the first ever event for a concept there is no row, so it locked
          * nothing and two simultaneous events both read empty, both started
-         * from the same blank state, and the second write replaced the first —
+         * from the same blank state, and the second write replaced the first, 
          * one student's graded event gone, counts and delta with it.
          *
          * This insert gives the lock something to hold. A second transaction
@@ -325,7 +325,7 @@ export class PgEventStore implements EventStore {
       }));
     }
     // The subjects VIVA ships live in code, not in this database, and nothing
-    // ever inserts them — so on Postgres every shipped subject had no passages
+    // ever inserts them, so on Postgres every shipped subject had no passages
     // at all and the tutor answered "that is not in this subject" to every
     // claim, including the ones that always worked. The file store has always
     // fallen back to the compiled registry here; this path simply never ran
@@ -372,7 +372,7 @@ export class PgEventStore implements EventStore {
      * One retrieval implementation for both stores, deliberately.
      *
      * This used to rank in SQL with `search @@ plainto_tsquery(...)`, and
-     * plainto_tsquery ANDs every term — so "Explain how the heart valves stop
+     * plainto_tsquery ANDs every term, so "Explain how the heart valves stop
      * backflow" demanded that "explain" and "stop" appear in the passage and
      * matched nothing. A learner's own subject was unreachable on Postgres
      * while the identical subject answered fine on the file store, because the

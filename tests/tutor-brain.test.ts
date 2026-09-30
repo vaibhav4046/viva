@@ -215,7 +215,7 @@ describe("keyword floor", () => {
       baseline: { ...assessAnswer(q.id, fullAnswer, { courseId: COURSE.id }) },
     });
     expect(graded.gradedBy).toBe("model");
-    // Off "incorrect" — and no further. Coverage has not read anything.
+    // Off "incorrect", and no further. Coverage has not read anything.
     expect(graded.verdict).toBe("partial");
   });
 

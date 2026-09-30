@@ -49,7 +49,7 @@ function req(body: unknown) {
   return parsed.data;
 }
 
-describe("learner sync — replay", () => {
+describe("learner sync, replay", () => {
   it("replays a record into an empty store and returns the merged state", async () => {
     const s = new FileEventStore();
     const lived = `u_sync_${Date.now()}_a`;
@@ -115,7 +115,7 @@ describe("learner sync — replay", () => {
     await s.deleteUserData(fresh);
   });
 
-  it("an unchecked claim replays flat — the stored signal is what makes that possible", async () => {
+  it("an unchecked claim replays flat, the stored signal is what makes that possible", async () => {
     const s = new FileEventStore();
     const u = `u_sync_${Date.now()}_e`;
     const lived = await s.recordLearning(u, live({
@@ -128,7 +128,7 @@ describe("learner sync — replay", () => {
     const fresh = `u_sync_${Date.now()}_f`;
     await applySync(s, fresh, req({ events: [mirrored(lived.event, "flat1")] }));
     const replayed = (await s.getMastery(fresh)).c_attention;
-    expect(replayed.mastery).toBe(0.5); // not 0.48 — nothing was checked, nothing moves
+    expect(replayed.mastery).toBe(0.5); // not 0.48, nothing was checked, nothing moves
     expect(replayed).toEqual((await s.getMastery(u)).c_attention);
 
     await s.deleteUserData(u);
@@ -183,7 +183,7 @@ describe("learner sync — replay", () => {
     expect(back.transcriptionLatencyMs).toBe(554);
     expect(back.transcriptionConfidence).toBe(0.99);
     expect(back.transcriptVerbatim).toBe("I don't understand positional in coding.");
-    // And the edited text is still the text — the two never share a field.
+    // And the edited text is still the text, the two never share a field.
     expect(back.transcript).toBe("I don't understand positional encoding.");
 
     await s.deleteUserData(u);
@@ -200,7 +200,7 @@ describe("learner sync — replay", () => {
     await s.deleteUserData(u);
   });
 
-  it("never takes mastery from the client — only events fold", async () => {
+  it("never takes mastery from the client, only events fold", async () => {
     const s = new FileEventStore();
     const u = `u_sync_${Date.now()}_i`;
     // A client posting itself a perfect map, with the numbers spelled out.
@@ -209,17 +209,17 @@ describe("learner sync — replay", () => {
       mastery: { c_position: { conceptId: "c_position", mastery: 1, exposureCount: 99 } },
     } as unknown));
     const m = (await s.getMastery(u)).c_position;
-    expect(m.mastery).toBeLessThan(0.5); // a confusion, folded — not the 1 it asked for
+    expect(m.mastery).toBeLessThan(0.5); // a confusion, folded, not the 1 it asked for
     expect(m.exposureCount).toBe(1);
     await s.deleteUserData(u);
   });
 });
 
-describe("learner sync — subjects", () => {
+describe("learner sync, subjects", () => {
   const subject = (id: string): Partial<Subject> => ({
     id,
     code: "COMP319",
-    title: "COMP319 Networks — TCP congestion control",
+    title: "COMP319 Networks, TCP congestion control",
     subject: "Networks",
     origin: "paste",
     builtBy: "reading",
@@ -243,7 +243,7 @@ describe("learner sync — subjects", () => {
     expect(report.subjects).toEqual({ applied: 1, duplicate: 0, rejected: 0 });
 
     const back = await s.getSubject(u, "subject_own_1");
-    expect(back?.title).toBe("COMP319 Networks — TCP congestion control");
+    expect(back?.title).toBe("COMP319 Networks, TCP congestion control");
     expect(back?.ownerId).toBe(u);          // never the id the client claimed
     expect(back?.demo).toBe(false);         // and never a starter
     const view = await learnerSnapshot(s, u, "subject_own_1");
@@ -258,7 +258,7 @@ describe("learner sync — subjects", () => {
     await applySync(s, u, req({ subjects: [subject("subject_own_2")] }));
     const again = await applySync(s, u, req({ subjects: [{ ...subject("subject_own_2"), title: "Renamed by a stale tab" }] }));
     expect(again.subjects).toEqual({ applied: 0, duplicate: 1, rejected: 0 });
-    expect((await s.getSubject(u, "subject_own_2"))?.title).toBe("COMP319 Networks — TCP congestion control");
+    expect((await s.getSubject(u, "subject_own_2"))?.title).toBe("COMP319 Networks, TCP congestion control");
     expect(await s.listSubjects(u)).toHaveLength(1);
     await s.deleteUserData(u);
   });
@@ -284,7 +284,7 @@ describe("learner sync — subjects", () => {
       subjects: [{ ...subject("subject_own_4"), concepts: undefined }],
       events: [{ clientEventId: "k1", intent: "confusion", transcript: "still worth keeping" }],
     };
-    // The bad subject fails the schema, so the client is told which field —
+    // The bad subject fails the schema, so the client is told which field, 
     // rather than the server quietly writing a subject with no map.
     expect(SyncRequestSchema.safeParse(body).success).toBe(false);
     const only = await applySync(s, u, req({ events: body.events }));
@@ -295,10 +295,10 @@ describe("learner sync — subjects", () => {
 
 /**
  * Route-level: the three ways a browser's mirror can be wrong without it being
- * the server's problem. Each one used to be, or could have been, a 500 — and a
+ * the server's problem. Each one used to be, or could have been, a 500, and a
  * 500 here tells the browser its whole record failed.
  */
-describe("POST /api/learner/sync — the edges", () => {
+describe("POST /api/learner/sync, the edges", () => {
   const post = async (body: unknown, query = "") => {
     const { POST } = await import("@/app/api/learner/sync/route");
     const req = new Request(`http://localhost/api/learner/sync${query}`, {
@@ -337,7 +337,7 @@ describe("POST /api/learner/sync — the edges", () => {
     expect(r.status).toBe(200);
     const j = r.json as { durable: boolean; storageNote: string | null };
     // Locally there IS a durable file store, so the note is only owed when
-    // there is not — the two must never disagree.
+    // there is not, the two must never disagree.
     expect(j.storageNote === null).toBe(j.durable);
     if (!j.durable) expect(j.storageNote).toMatch(/in this browser/i);
   });

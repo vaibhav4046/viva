@@ -666,3 +666,426 @@ describe("failures raised mid-exam", () => {
     }
   });
 });
+
+describe("interruption keeps an earlier reply's slow call answered (Q9, Q10)", () => {
+  it("sends an error result for the slow call instead of dropping it, and counts each id once", async () => {
+    let finishSlow!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finishSlow = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "slow", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    // A second reply starts and the student cuts it off while `slow` is still running.
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "input.speech.started" });
+    ws[0].emit({ type: "reply.done", status: "interrupted" });
+
+    const sent = ws[0].of("tool.result");
+    expect(sent).toHaveLength(1);
+    expect(sent[0].call_id).toBe("slow");
+    expect(sent[0].is_error).toBe(true);
+
+    finishSlow({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    expect(socket.machine().discards).toBe(0);
+    expect(socket.machine().interruptions).toBe(1);
+  });
+});
+
+describe("agent transcript flagged interrupted (Q3, live trace)", () => {
+  it("flushes audio, discards the pending result and counts one interruption, though reply.done says completed", async () => {
+    // Order taken from docs/evidence/probes/oral-live-interrupt-during-pending-tool-negative.*.json:
+    // tool.call, transcript.agent{interrupted:true}, reply.done{completed}, reply.started.
+    const { ws, flushAudio, socket, states } = await ready();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "c1", name: "verify_claim", arguments: {} });
+    await new Promise((r) => setTimeout(r, 0));
+    flushAudio.mockClear();
+    ws[0].emit({ type: "transcript.agent", text: "The notes on page 15 say", interrupted: true });
+    expect(flushAudio).toHaveBeenCalled();
+    expect(states[states.length - 1]).toBe("INTERRUPTED");
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    ws[0].emit({ type: "reply.started" });
+    expect(ws[0].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().interruptions).toBe(1);
+    expect(socket.machine().discards).toBe(1);
+  });
+
+  it("drops late audio of the interrupted reply until the next reply starts", async () => {
+    const { ws, playAudio } = await ready();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "transcript.agent", text: "well", interrupted: true });
+    playAudio.mockClear();
+    ws[0].emit({ type: "reply.audio", data: "AAAA" });
+    expect(playAudio).not.toHaveBeenCalled();
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "reply.audio", data: "AAAA" });
+    expect(playAudio).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CHECKING_SOURCE while a call is pending (Q8)", () => {
+  it("holds CHECKING_SOURCE past reply.done until the slow call is delivered, then THINKING", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, states } = await ready({ runTool });
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "slow", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    expect(states[states.length - 1]).toBe("CHECKING_SOURCE");
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    expect(states[states.length - 1]).toBe("THINKING");
+  });
+});
+
+describe("a tool result never crosses a session change (Q5)", () => {
+  /** Drop the session, get the resume refused, and reach a fresh session on FakeWS 2. */
+  async function toFreshSession(ws: FakeWS[], socket: OralSocket) {
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    FakeWS.instances[1].open();
+    FakeWS.instances[1].emit({ type: "session.error", code: "session_not_found", message: "gone" });
+    FakeWS.instances[1].fire("close", { code: 1008, reason: "" });
+    await new Promise((r) => setTimeout(r, 20));
+    FakeWS.instances[2].open();
+    return socket;
+  }
+
+  it("does not send a dead session's tool.result on the new session", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "tool.call", call_id: "old", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    await toFreshSession(ws, socket);
+    // Result lands after the new socket opened but before its session.ready.
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    FakeWS.instances[2].emit({ type: "session.ready", session_id: "sess_2", resume_token: "rt2" });
+    expect(FakeWS.instances[2].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().pending).toHaveLength(0);
+    expect(socket.machine().ready).toHaveLength(0);
+    expect(socket.machine().discards).toBe(1);
+    socket.cancel();
+  });
+
+  it("drops a result that lands after the new session is ready", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "old", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    await toFreshSession(ws, socket);
+    FakeWS.instances[2].emit({ type: "session.ready", session_id: "sess_2", resume_token: "rt2" });
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances[2].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().discards).toBe(1);
+    socket.cancel();
+  });
+
+  it("keeps a call across a resume that the service accepts (same session id)", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "keep", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    FakeWS.instances[1].open();
+    FakeWS.instances[1].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+    FakeWS.instances[1].emit({ type: "reply.done", status: "completed" });
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances[1].of("tool.result")).toHaveLength(1);
+    socket.cancel();
+  });
+
+  it("delivers a finished call only when reply.done is the latest event", async () => {
+    let finish!: (r: unknown) => void;
+    const runTool = vi.fn(() => new Promise<unknown>((resolve) => { finish = resolve; }));
+    const { ws, socket } = await ready({ runTool });
+    ws[0].emit({ type: "tool.call", call_id: "c1", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    ws[0].emit({ type: "input.speech.started" });
+    finish({ status: "supported" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ws[0].of("tool.result")).toHaveLength(0);
+    expect(socket.machine().ready).toHaveLength(1);
+    ws[0].emit({ type: "reply.started" });
+    ws[0].emit({ type: "reply.done", status: "completed" });
+    expect(ws[0].of("tool.result")).toHaveLength(1);
+    socket.cancel();
+  });
+});
+
+describe("end() before the session exists leaves no ghost session (Q11)", () => {
+  it("opens no socket when end() is called while the token is still being minted", async () => {
+    let giveToken!: (t: string) => void;
+    const getToken = vi.fn(() => new Promise<string>((resolve) => { giveToken = resolve; }));
+    const onEnded = vi.fn();
+    const { socket } = setup({ getToken, onEnded });
+    await socket.end();
+    giveToken("tok_late");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances).toHaveLength(0);
+    expect(onEnded).toHaveBeenCalledTimes(1);
+    expect(socket.machine().state).toBe("IDLE");
+  });
+
+  it("closes a socket that is still CONNECTING and never sends session.update on it", async () => {
+    const { socket } = setup();
+    await new Promise((r) => setTimeout(r, 0));
+    const ws0 = FakeWS.instances[0];
+    ws0.readyState = 0;
+    await socket.end();
+    expect(ws0.closeCalls).toBeGreaterThan(0);
+    ws0.readyState = 1;
+    ws0.open();
+    expect(ws0.sent).toHaveLength(0);
+    expect(socket.machine().state).toBe("ENDED");
+  });
+
+  it("does not reconnect after end() when the old socket's close arrives late", async () => {
+    const { socket } = await ready();
+    await socket.end();
+    FakeWS.instances[0].fire("close", { code: 1006, reason: "late" });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(FakeWS.instances).toHaveLength(1);
+  });
+});
+
+describe("stale sockets and the backoff timer (Q14)", () => {
+  it("ignores messages and a second close from a socket that is no longer current", async () => {
+    const { ws, socket } = await ready();
+    ws[0].fire("close", { code: 1006, reason: "network" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(FakeWS.instances).toHaveLength(2);
+    FakeWS.instances[1].open();
+    ws[0].emit({ type: "tool.call", call_id: "zombie", name: "verify_claim", arguments: {} });
+    ws[0].emit({ type: "reply.done", status: "interrupted" });
+    expect(socket.machine().toolCalls).toBe(0);
+    expect(socket.machine().interruptions).toBe(0);
+    ws[0].fire("close", { code: 1006, reason: "again" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(FakeWS.instances).toHaveLength(2);
+    socket.cancel();
+  });
+
+  it("clears the reconnect backoff timer on cancel", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[1].open();
+      FakeWS.instances[1].fire("close", { code: 1006, reason: "network" });
+      // The second attempt waits out a 500 ms backoff.
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      socket.cancel();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the backoff timer when a resume succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[1].open();
+      FakeWS.instances[1].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(600);
+      FakeWS.instances[2].open();
+      FakeWS.instances[2].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(FakeWS.instances).toHaveLength(3);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("token failure during recovery is retryable (Q15)", () => {
+  /** getToken that succeeds for the first `okCalls` calls, then follows `after`. */
+  const flaky = (okCalls: number, after: () => Promise<string>) => {
+    let n = 0;
+    return vi.fn(() => (++n <= okCalls ? Promise.resolve("tok") : after()));
+  };
+
+  it("retries after a failed token mint on a resume instead of ending the exam", async () => {
+    vi.useFakeTimers();
+    try {
+      let failures = 1;
+      const getToken = flaky(1, () => (failures-- > 0 ? Promise.reject(new Error("mint down")) : Promise.resolve("tok2")));
+      const { socket, onError } = setup({ getToken });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onError).not.toHaveBeenCalled();
+      expect(socket.machine().state).toBe("RECOVERING");
+      expect(FakeWS.instances).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(600);
+      expect(FakeWS.instances).toHaveLength(2);
+      FakeWS.instances[1].open();
+      expect(FakeWS.instances[1].sent[0]).toEqual({ type: "session.resume", session_id: "sess_1" });
+      expect(onError).not.toHaveBeenCalled();
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives up with a message after a bounded number of failed mints", async () => {
+    vi.useFakeTimers();
+    try {
+      const getToken = flaky(1, () => Promise.reject(new Error("mint down")));
+      const { socket, onError } = setup({ getToken });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(getToken.mock.calls.length).toBeLessThanOrEqual(8);
+      expect(socket.machine().state).toBe("ERROR");
+      expect(socket.machine().fatal).toBe(true);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits for the browser's online event instead of burning retries while offline", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, () => void> = {};
+    vi.stubGlobal("addEventListener", (type: string, fn: () => void) => { handlers[type] = fn; });
+    vi.stubGlobal("removeEventListener", () => {});
+    vi.stubGlobal("navigator", { onLine: false });
+    try {
+      let mintOk = false;
+      const getToken = flaky(1, () => (mintOk ? Promise.resolve("tok2") : Promise.reject(new Error("offline"))));
+      const { socket, onError } = setup({ getToken });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      FakeWS.instances[0].fire("close", { code: 1006, reason: "network" });
+      await vi.advanceTimersByTimeAsync(20_000);
+      // Offline for 20 s: no fatal error, and the mint was tried once, not on a timer loop.
+      expect(onError).not.toHaveBeenCalled();
+      expect(getToken.mock.calls.length).toBe(2);
+      expect(FakeWS.instances).toHaveLength(1);
+      mintOk = true;
+      vi.stubGlobal("navigator", { onLine: true });
+      handlers.online?.();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(FakeWS.instances).toHaveLength(2);
+      socket.cancel();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it("still ends the exam when the very first token cannot be minted", async () => {
+    const { socket, onError } = setup({ getToken: async () => { throw new Error("no key"); } });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(socket.machine().fatal).toBe(true);
+  });
+});
+
+describe("buffered audio is paced, not dumped (Q23)", () => {
+  const frame = (i: number) => new Int16Array([i, i]);
+  const audioSent = (ws: FakeWS) => ws.of("input.audio").map((s) => s.audio as string);
+
+  it("sends the first buffered frame at once and the rest no faster than real time", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 0; i < 8; i++) socket.sendAudio(frame(i + 1));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      expect(audioSent(FakeWS.instances[0])).toHaveLength(1);
+      for (let t = 1; t <= 7; t++) {
+        await vi.advanceTimersByTimeAsync(100);
+        // 100 ms of audio per frame: never more frames than elapsed real time allows.
+        expect(audioSent(FakeWS.instances[0]).length).toBe(1 + t);
+      }
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(audioSent(FakeWS.instances[0])).toHaveLength(8);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps order, and queues a live frame behind the backlog", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 1; i <= 3; i++) socket.sendAudio(frame(i));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      socket.sendAudio(frame(99));
+      await vi.advanceTimersByTimeAsync(1_000);
+      const sent = audioSent(FakeWS.instances[0]);
+      const expected = [1, 2, 3, 99].map((i) => btoa(String.fromCharCode(i, 0, i, 0)));
+      expect(sent).toEqual(expected);
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drops the oldest backlog beyond one second so latency stays bounded", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 1; i <= 30; i++) socket.sendAudio(frame(i));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      await vi.advanceTimersByTimeAsync(5_000);
+      const sent = audioSent(FakeWS.instances[0]);
+      expect(sent).toHaveLength(10);
+      expect(sent[0]).toBe(btoa(String.fromCharCode(21, 0, 21, 0)));
+      expect(sent[9]).toBe(btoa(String.fromCharCode(30, 0, 30, 0)));
+      socket.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops the pacing timer on cancel", async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = setup();
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWS.instances[0].open();
+      for (let i = 1; i <= 5; i++) socket.sendAudio(frame(i));
+      FakeWS.instances[0].emit({ type: "session.ready", session_id: "sess_1", resume_token: "rt" });
+      socket.cancel();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

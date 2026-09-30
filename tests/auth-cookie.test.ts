@@ -74,7 +74,7 @@ describe("resolveIdentity reads the viva_did cookie", () => {
   ])("a malformed cookie is discarded, not trusted: %s", async (_label, value) => {
     jar.value = value;
     const { identity, setCookie } = await resolveIdentity();
-    // Not "does not contain the value" — that is probabilistic on a short
+    // Not "does not contain the value", that is probabilistic on a short
     // input. The claim is exact: this value did not become the user id.
     expect(identity.userId).not.toBe(`${DEMO_USER_PREFIX}${value}`);
     expect(identity.userId).toMatch(new RegExp(`^${DEMO_USER_PREFIX}[0-9a-f]{32}$`));

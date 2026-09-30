@@ -19,8 +19,8 @@ import { assemblyAIBreaker } from "@/lib/circuit";
  *   omitted           200                 correct Devanagari
  *   ["en"]            200                 correct Devanagari (it detects anyway)
  *   ["hi"]            200                 correct Devanagari
- *   ["multi"]         400 Bad Request     — and `multi` is the picker's default
- *   ["pl"] / ["uk"]   400 Bad Request     — and both are picker entries
+ *   ["multi"]         400 Bad Request, and `multi` is the picker's default
+ *   ["pl"] / ["uk"]   400 Bad Request, and both are picker entries
  *
  * So omitting the key IS this endpoint's automatic detection, `multi` is a
  * refusal rather than a synonym for it, and the same 400 enumerates the 32
@@ -45,7 +45,7 @@ afterEach(() => {
   assemblyAIBreaker.success();
 });
 
-/** A real 16 kHz mono WAV carrying a tone — silence is refused before send. */
+/** A real 16 kHz mono WAV carrying a tone, silence is refused before send. */
 function wav(samples: number): Buffer {
   const header = Buffer.alloc(44);
   header.write("RIFF", 0, "ascii");
@@ -135,7 +135,7 @@ describe("no picker entry can reach an endpoint that refuses it", () => {
   it("drops a language the batch endpoints do not serve instead of 400ing the clip", async () => {
     // Polish and Ukrainian were picker entries that the socket quietly turned
     // into automatic while the recorded path posted them and got
-    // 400 Bad Request — live words, then "That recording could not be read".
+    // 400 Bad Request, live words, then "That recording could not be read".
     for (const value of ["pl", "uk"]) {
       const config = await sentConfig({ subjectId: "course_transformers_w4", languageCodes: value });
       expect(config.language_codes).toBeUndefined();

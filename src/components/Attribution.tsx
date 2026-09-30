@@ -6,7 +6,7 @@ import type { SourceLicence } from "@/lib/courses/types";
  * Who wrote the words a student is reading.
  *
  * The library subjects are chapters of openly licensed textbooks, and showing
- * the credit is the condition on using them at all — not a footnote VIVA can
+ * the credit is the condition on using them at all, not a footnote VIVA can
  * decide to skip. So this renders wherever borrowed passages are offered or
  * read, and it renders the credit exactly as the licence supplies it: a
  * rewritten credit is not the credit.
@@ -16,7 +16,7 @@ import type { SourceLicence } from "@/lib/courses/types";
  * title first.
  */
 
-/** "openstax.org" — the part of an address a person recognises. */
+/** "openstax.org", the part of an address a person recognises. */
 function hostOf(url: string): string | null {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -36,7 +36,7 @@ function conditionsOf(l: SourceLicence): string | null {
 /*
  * min-h-11 because these are links, not decoration. At 390 px the two of them
  * wrap onto separate lines and each was a 20 px-tall target four pixels from
- * its neighbour — half the 44 px floor every other control in the product
+ * its neighbour, half the 44 px floor every other control in the product
  * keeps. The type stays 11 px and ash; only the box a thumb can land on grows,
  * which is the same trick the shell's own footer link uses.
  */
@@ -60,13 +60,13 @@ export function Attribution({
         return (
           <div key={`${l.name}-${l.sourceUrl}`} className="min-w-0">
             <p
-              className="text-[11px] leading-relaxed"
+              className="text-xs leading-relaxed"
               style={{ color: "var(--color-ash)", overflowWrap: "anywhere" }}
             >
               {l.attribution}
               {conditions ? ` ${conditions}` : null}
             </p>
-            <p className="mono mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" style={{ color: "var(--color-ash)" }}>
+            <p className="mono mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "var(--color-ash)" }}>
               <a href={l.url} target="_blank" rel="noopener noreferrer" className={LINK}>
                 {l.name}
               </a>

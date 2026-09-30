@@ -72,7 +72,7 @@ describe("preloaded library", () => {
   it("concept names read as headings, not as bare lowercase nouns", () => {
     // The map is written by a model, and the app renders the name as the
     // heading of a card. One shipped subject had "cell" and "resolution" as
-    // headings while the next had "Homeostasis" — the same generator, two
+    // headings while the next had "Homeostasis", the same generator, two
     // different-looking libraries. `conceptHeading` settles it before the
     // subject is written.
     for (const course of CORPUS) {

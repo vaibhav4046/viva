@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
  * says something else: the chip reads `verdict`, this block renders whenever
  * the marker returned a misconception, and the two are independent. Invented
  * technobabble came back as a blue "Partly there" chip 51 px above a red
- * "MIXED UP" — two verdicts on one card, the friendlier one on top, and a
+ * "MIXED UP", two verdicts on one card, the friendlier one on top, and a
  * student skimming on a phone reads the chip. Each label was defensible alone;
  * together they contradicted.
  *
@@ -34,7 +34,7 @@ export function ResultBlock({ tone, children }: { tone: keyof typeof TONE | stri
   const t = TONE[tone] ?? TONE.next;
   return (
     <div className="border-t pt-3 first:border-t-0 first:pt-0" style={{ borderColor: "var(--color-hairline)" }}>
-      <p className="mono text-[11px] font-semibold tracking-widest" style={{ color: t.color }}>
+      <p className="mono text-xs font-semibold tracking-widest" style={{ color: t.color }}>
         {t.label}
       </p>
       <div className="mt-1 text-sm leading-relaxed" style={{ color: "var(--color-mist)" }}>

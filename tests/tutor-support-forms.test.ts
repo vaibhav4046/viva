@@ -22,7 +22,7 @@ import { POST as studyTurn } from "@/app/api/study/turn/route";
  * typed the definition of kcat almost out of their own pasted notes and were
  * answered "I could not check that against your source, so I will not tell you
  * it is right", citing the passage that ends with that sentence. Measured, the
- * refusal was one word in twelve — the notes write "The turnover number is the
+ * refusal was one word in twelve, the notes write "The turnover number is the
  * number of substrate molecules converted…", the student wrote "kcat", and the
  * acronym counted as a word the line was missing.
  *
@@ -40,7 +40,7 @@ import { POST as studyTurn } from "@/app/api/study/turn/route";
  * improvement to intake.
  *
  * Both are the same rule: a claim's term is satisfied by a recognisable form of
- * itself — a name or alias the SUBJECT declares, or its head noun where the
+ * itself, a name or alias the SUBJECT declares, or its head noun where the
  * line puts no other named thing of that kind. Nothing here invents a synonym.
  *
  * The four negatives are the whole reason the rule is shaped that way, and each
@@ -54,8 +54,8 @@ import { POST as studyTurn } from "@/app/api/study/turn/route";
  *     "Gradient descent applies the chain rule…" were both CONFIRMED by a
  *     version that read "the line names the same concept" as "the line names
  *     the same thing". A subject may file two contrasting things under one
- *     concept — "Policy vs value iteration" lists both, "Backpropagation" lists
- *     "gradient descent" — so that reading is not available.
+ *     concept, "Policy vs value iteration" lists both, "Backpropagation" lists
+ *     "gradient descent", so that reading is not available.
  */
 
 let currentUser = "u_forms_default";
@@ -134,16 +134,16 @@ describe("the acronym a student's notes use is the term the passage names", () =
    * is not any more, and the reason is the same reason thirteen one-word
    * inversions stopped being confirmed on the same day: coverage counted the
    * claim's vocabulary and never its arrangement. This sentence reorders its
-   * line — the notes read "…molecules converted to product per enzyme molecule
+   * line, the notes read "…molecules converted to product per enzyme molecule
    * per second", the student wrote "…molecules one enzyme molecule converts to
-   * product per second" — and it uses a word ("one") the line does not.
+   * product per second", and it uses a word ("one") the line does not.
    *
    * That is a real loss and it is recorded rather than argued away: measured
    * over the shipped library, the same change cost 36 of 2,947 confirmations
    * and stopped 13 of 14 false ones. A miss is answered with "I could not
    * check that against your source"; the other way round told a student their
    * own notes agree that a low Km means low affinity. The alias half of the
-   * fix — "kcat" being the name the line spells "turnover number" — is still
+   * fix, "kcat" being the name the line spells "turnover number", is still
    * live and is what the second test here holds.
    */
   it("says so honestly on the judge's kcat sentence rather than agreeing", () => {
@@ -174,7 +174,7 @@ describe("the acronym a student's notes use is the term the passage names", () =
 /**
  * The other five of the fourteen: a subject a student built five minutes ago
  * out of pasted notes, with one word of a line swapped for its opposite. All
- * five were confirmed on a running server on 13 Sep — "That matches Enzyme
+ * five were confirmed on a running server on 13 Sep, "That matches Enzyme
  * Kinetics", quoting the line that says the reverse.
  *
  * A subject with no authored traps is where this matters most. There is no
@@ -250,7 +250,7 @@ describe("a correction has to correct something", () => {
   /*
    * Measured against the live provider, three cold runs out of three on
    * "Multi-head attention just runs the same attention twice to make it
-   * faster" — false, and one the lexical checks are recorded as missing. Two
+   * faster", false, and one the lexical checks are recorded as missing. Two
    * of the three came back *"It runs the same attention twice to make it
    * faster."* as VIVA's correction, with the map moving down: the product
    * asserting the misconception in its own voice while filing the learner as
@@ -352,7 +352,7 @@ describe("a false aside is refuted, not filed", () => {
     // The question opens on its own, the way it does for a learner, and only
     // then is the aside said. The sentence is one the lexical checks are
     // recorded as missing (`w03-mh-same-twice` in the claim corpus), so it
-    // reaches the aside branch rather than the contradiction branch — which
+    // reaches the aside branch rather than the contradiction branch, which
     // is exactly the shape that used to be filed unread.
     setReasoningProvider(new DeadProvider());
     await studyTurn(say("quiz me"));

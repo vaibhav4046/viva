@@ -256,7 +256,7 @@ describe("a note points at the passage the reply actually used", () => {
     const cited = body.turn.tutor.citations[0]?.chunkId;
     expect(cited).toBeTruthy();
     const chunk = COURSE.sources.flatMap((s) => s.chunks).find((c) => c.id === cited);
-    // The note used to take chunks[0] — a turn quoting p.11 filed a note saying
+    // The note used to take chunks[0], a turn quoting p.11 filed a note saying
     // p.5, and a note is the artefact that outlives the screen it came from.
     expect(body.event.sourceLocator?.page).toBe(chunk?.locator.page);
     expect(body.event.sourceLocator?.section).toBe(chunk?.locator.section);

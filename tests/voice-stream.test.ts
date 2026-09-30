@@ -16,8 +16,8 @@ import { clampExpiry, DEFAULT_EXPIRY_SEC, MAX_EXPIRY_SEC } from "@/app/api/voice
 /**
  * Live streaming transcription.
  *
- * The frames asserted here are the ones the real endpoint sent on 2026-09-12 —
- * shapes copied off the wire, not invented from the docs — including the two
+ * The frames asserted here are the ones the real endpoint sent on 2026-09-12, 
+ * shapes copied off the wire, not invented from the docs, including the two
  * that the published contract does not mention: the trailing empty final Turn
  * after Terminate, and words that finalise one at a time rather than all at
  * end_of_turn.
@@ -54,7 +54,7 @@ class FakeSocket implements SocketLike {
     this.readyState = 3;
     this.onclose?.({ code: 1006 });
   }
-  /** Text frames only — binary audio is what we assert on separately. */
+  /** Text frames only, binary audio is what we assert on separately. */
   textFrames() {
     return this.sent.filter((s): s is string => typeof s === "string");
   }
@@ -231,7 +231,7 @@ describe("language selection", () => {
     // error does not list them, and sending one closes the socket.
     expect(toStreamLanguage("pl")).toBe(AUTO_LANGUAGE);
     expect(toStreamLanguage("uk")).toBe(AUTO_LANGUAGE);
-    // A code-switching pair cannot be expressed as one code — detect instead.
+    // A code-switching pair cannot be expressed as one code, detect instead.
     expect(toStreamLanguage("en,hi")).toBe(AUTO_LANGUAGE);
   });
 
@@ -439,7 +439,7 @@ describe("openTranscriptSocket", () => {
     const errors: string[] = [];
     openTranscriptSocket({
       getToken: async () => {
-        throw new Error("Voice is not switched on for this deployment. Type instead — nothing is faked.");
+        throw new Error("Voice is not switched on for this deployment. Type instead, nothing is faked.");
       },
       openSocket: () => {
         throw new Error("should never open a socket without a token");

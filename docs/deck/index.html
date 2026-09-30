@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIVA Oral deck</title>
+<meta name="description" content="Nine slides on VIVA Oral, an oral exam on your own lecture notes built on the AssemblyAI Voice Agent API.">
+<link rel="stylesheet" href="../../src/styles/tokens.css">
+<style>
+  /* Font names the tokens expect. Not installed here, so the token fallback stack (Palatino, Segoe UI, Cascadia) shows. */
+  :root { --font-newsreader: "Newsreader"; --font-plex-sans: "IBM Plex Sans"; --font-plex-mono: "IBM Plex Mono"; }
+  @page { size: 1280px 720px; margin: 0; }
+  * { box-sizing: border-box; }
+  html { background: var(--surface-2); }
+  body { margin: 0; font-family: var(--font-ui); color: var(--text-primary); font-size: 20px; line-height: 1.45; }
+  .slide {
+    width: 1280px; height: 720px; position: relative; overflow: hidden;
+    background: var(--canvas); margin: 24px auto; padding: 56px 72px 48px 72px;
+    break-after: page; page-break-after: always;
+    display: grid; grid-template-rows: auto 1fr auto; row-gap: 20px;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  @media print { html { background: none; } .slide { margin: 0; } }
+  .rail { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  .foot { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; gap: 24px; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 500; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 44px; line-height: 1.12; max-width: 24ch; }
+  h3 { font-size: 22px; line-height: 1.25; }
+  p { margin: 0; }
+  .mono { font-family: var(--font-mono); }
+  .muted { color: var(--text-secondary); }
+  .small { font-size: 15px; line-height: 1.45; }
+  .pen { text-decoration-skip-ink: none; text-decoration: underline; text-decoration-color: var(--correction); text-decoration-thickness: 3px; text-underline-offset: 5px; }
+  .src { color: var(--success); text-decoration: underline; text-decoration-color: var(--success); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .label { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .paper { background: var(--elevated); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .stamp { display: inline-block; font-family: var(--font-mono); font-size: 12px; padding: 3px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-secondary); background: var(--surface-1); }
+
+  /* 1 title */
+  .s1 { grid-template-rows: auto 1fr auto; }
+  .s1 .body { display: grid; grid-template-columns: 1.3fr 1fr; column-gap: 64px; align-items: end; padding-bottom: 12px; }
+  .s1 h1 { font-size: 132px; line-height: 0.95; letter-spacing: -0.03em; }
+  .s1 .promise { font-family: var(--font-display); font-size: 30px; line-height: 1.3; }
+  .s1 .promise + .promise { margin-top: 18px; }
+
+  /* 2 problem */
+  .s2 .body { display: grid; grid-template-columns: 1fr 1fr; column-gap: 72px; align-items: start; padding-top: 12px; }
+  .s2 .col p + p { margin-top: 16px; }
+  .s2 .quote { font-family: var(--font-display); font-size: 34px; line-height: 1.25; }
+  .who { margin-top: 28px; border-top: 1px solid var(--border-strong); padding-top: 14px; }
+
+  /* 3 screenshot */
+  .s3 .body { display: grid; grid-template-columns: 1fr 340px; column-gap: 40px; align-items: start; }
+  .shot { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; height: 470px; background: var(--surface-1); }
+  .shot img { display: block; width: 100%; height: auto; object-position: top; }
+  .s3 aside p + p { margin-top: 14px; }
+  .s3 dl { margin: 18px 0 0; display: grid; row-gap: 10px; }
+  .s3 dt { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .s3 dd { margin: 0; font-size: 16px; }
+
+  /* 4 loop */
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); column-gap: 0; border-top: 2px solid var(--primary); }
+  .step { padding: 14px 16px 0 0; }
+  .step .n { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
+  .step h3 { font-size: 20px; margin-top: 4px; }
+  .step p { font-size: 15px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4; }
+  .moment { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; margin-top: 20px; }
+  .turn { padding: 14px 18px; }
+  .turn + .turn { margin-top: 12px; }
+  .turn .who-l { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+  .turn p.t { font-family: var(--font-display); font-size: 21px; line-height: 1.35; margin-top: 4px; }
+  .tool { font-family: var(--font-mono); font-size: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; line-height: 1.6; }
+  .tool b { font-weight: 500; color: var(--success); }
+
+  /* 5 architecture */
+  .s5 .body { display: grid; grid-template-rows: auto 1fr; row-gap: 12px; }
+  .s5 svg { width: 100%; height: auto; display: block; }
+  .s5 svg text { font-family: var(--font-mono); font-size: 13px; fill: var(--text-primary); }
+  .s5 svg .t2 { fill: var(--text-secondary); font-size: 12px; }
+  .s5 svg .h { font-family: var(--font-display); font-size: 19px; }
+  .uses { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 24px; }
+  .uses p { font-size: 15px; line-height: 1.4; color: var(--text-secondary); }
+  .uses .k { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); margin-bottom: 4px; display: block; }
+
+  /* 6 trust */
+  .s6 .body { display: grid; grid-template-columns: 1.15fr 1fr; column-gap: 56px; }
+  .rule { font-family: var(--font-display); font-size: 27px; line-height: 1.3; }
+  .cases { display: grid; row-gap: 10px; margin-top: 18px; }
+  .case { display: grid; grid-template-columns: 26px 1fr; column-gap: 12px; padding: 11px 14px; }
+  .case .m { font-family: var(--font-mono); font-size: 15px; }
+  .case p { font-size: 16px; line-height: 1.4; }
+  .ok { color: var(--success); }
+  .bad { color: var(--correction); }
+  .s6 h3 + p { margin-top: 8px; }
+  .s6 .right p + p { margin-top: 12px; }
+
+  /* 7 evidence */
+  table { border-collapse: collapse; width: 100%; font-size: 16px; }
+  th { text-align: left; font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 500; padding: 0 12px 8px 0; border-bottom: 2px solid var(--primary); }
+  td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--border); vertical-align: baseline; }
+  td.v { font-family: var(--font-mono); white-space: nowrap; }
+  td.n, td.d { font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary); white-space: nowrap; }
+  .s7 .body { display: grid; grid-template-columns: 1.7fr 1fr; column-gap: 40px; align-items: start; }
+  .s7 .two h3 { font-size: 18px; }
+  .s7 .two ul { margin: 6px 0 0; padding-left: 18px; font-size: 15px; line-height: 1.4; color: var(--text-secondary); }
+  .s7 .two ul + h3 { margin-top: 16px; }
+
+  /* 8 limits */
+  .s8 .body { display: grid; grid-template-columns: 1.4fr 1fr; column-gap: 56px; }
+  .s8 ol { margin: 0; padding: 0; list-style: none; counter-reset: l; }
+  .s8 li { counter-increment: l; display: grid; grid-template-columns: 34px 1fr; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 16.5px; line-height: 1.4; }
+  .s8 li::before { content: counter(l, decimal-leading-zero); font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); padding-top: 3px; }
+  .s8 .next li::before { content: "open"; font-size: 11px; text-transform: uppercase; }
+  .s8 .next li { grid-template-columns: 48px 1fr; }
+
+  /* 9 links */
+  .s9 .body { display: grid; grid-template-columns: 1.1fr 1fr; column-gap: 64px; align-items: start; }
+  .s9 h2 { font-size: 52px; }
+  .s9 .links { display: grid; row-gap: 18px; }
+  .s9 .links .label { display: block; margin-bottom: 2px; }
+  .s9 .links .u { font-family: var(--font-mono); font-size: 21px; color: var(--info); }
+  .s9 ol { margin: 18px 0 0; padding-left: 22px; font-size: 19px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide s1" aria-label="Slide 1 of 9">
+  <div class="rail"><span>VIVA Oral</span><span>01 / 09</span></div>
+  <div class="body">
+    <h1>VIVA<br>Oral</h1>
+    <div>
+      <p class="promise">Give it your lecture notes. Close them. Get examined out loud.</p>
+      <p class="promise muted">It checks each answer against your own pages, reads you the line you got wrong, and names the page.</p>
+    </div>
+  </div>
+  <div class="foot"><span>AssemblyAI Voice Agent Hackathon, lablab.ai, September 2026</span><span>Vaibhav Lalwani. Hackathon build.</span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide s2" aria-label="Slide 2 of 9">
+  <div class="rail"><span>The problem</span><span>02 / 09</span></div>
+  <div class="body">
+    <div class="col">
+      <h2>You can recognise the answer on the page. Can you say it?</h2>
+      <div class="who">
+        <p class="label">Who it helps</p>
+        <p class="small" style="margin-top:6px">A student revising from their own text notes before an oral exam, a viva or a seminar, who has read the pages several times and never tried to explain them aloud.</p>
+      </div>
+    </div>
+    <div class="col">
+      <p class="quote">Rereading and highlighting test recognition. An oral exam asks you to produce the explanation with the page closed.</p>
+      <p class="muted" style="margin-top:22px">Alone, nobody asks the follow-up. Nobody tells you which page you got wrong, so a confident wrong answer stays wrong until the real exam.</p>
+      <p class="muted">Tools that answer from a model's memory can agree with you when your notes disagree. VIVA only ever quotes your notes, and code checks the quote is really there.</p>
+    </div>
+  </div>
+  <div class="foot"><span>No market figures on this slide, on purpose.</span><span>Business value: who benefits, and why a notes-only check matters.</span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide s3" aria-label="Slide 3 of 9">
+  <div class="rail"><span>The product</span><span>03 / 09</span></div>
+  <div class="body">
+    <div class="shot"><img src="img/landing-1440.png" alt="The VIVA front page at 1440 pixels: headline and start buttons on the left, a scripted exam excerpt on the right with a quoted page and an underlined wrong phrase" width="1440" height="1726"></div>
+    <aside>
+      <h3>One screen, one job</h3>
+      <p class="small" style="margin-top:8px">The front page starts a spoken exam in one click. The panel on the right shows the shape of a session: the question, the learner's wrong phrase marked in red pen, the quoted passage with its page, and the examiner's correction.</p>
+      <dl>
+        <div><dt>What it is</dt><dd>Real screenshot, front page, 1440 px, 29 September 2026.</dd></div>
+        <div><dt>What is scripted</dt><dd>The excerpt is built from the sample course. The learner line is written, not recorded.</dd></div>
+        <div><dt>Sample course</dt><dd>VIVA's own Transformers notes, written for the demo.</dd></div>
+      </dl>
+    </aside>
+  </div>
+  <div class="foot"><span>Source: docs/deck/img/landing-1440.png, captured 2026-09-29</span><span>Screenshot, not a mockup</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide s4" aria-label="Slide 4 of 9">
+  <div class="rail"><span>The exam loop</span><span>04 / 09</span></div>
+  <div class="body">
+    <h2 style="max-width:30ch;font-size:38px">The examiner asks. You claim something. A tool checks it before the examiner says a word.</h2>
+    <div class="steps" style="margin-top:20px">
+      <div class="step"><span class="n">01</span><h3>Ask</h3><p>One question at a time, spoken, in the examiner's voice.</p></div>
+      <div class="step"><span class="n">02</span><h3>Answer</h3><p>You talk. The service decides when your turn ends.</p></div>
+      <div class="step"><span class="n">03</span><h3>Check</h3><p>The examiner calls verify_claim on your exact words.</p></div>
+      <div class="step"><span class="n">04</span><h3>Quote</h3><p>Only a contradicted verdict allows a correction, with the line and the page.</p></div>
+      <div class="step"><span class="n">05</span><h3>Restate</h3><p>You say the fact in your own words. You can interrupt at any point.</p></div>
+    </div>
+    <div class="moment">
+      <div>
+        <div class="paper turn"><p class="who-l">Learner, synthetic voice</p><p class="t">I think it runs <span class="pen">a single head over the input</span>.</p></div>
+        <div class="tool" style="margin-top:12px">verify_claim(claim, concept: "multi-head attention")<br>-> <b>contradicted</b>, page 15, 415 ms judge time</div>
+      </div>
+      <div class="paper turn"><p class="who-l">Examiner, live AssemblyAI session</p><p class="t">The material says, <span class="src">Multi-head attention runs the query-key-value computation h times in parallel, each in a smaller subspace</span>, on page fifteen. Please restate that in your own words.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>Live run 1 of 3, 2026-09-29, synthetic learner voice. Sample course text.</span><span>docs/evidence/probes/oral-live-roundtrip.2026-09-29.json</span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide s5" aria-label="Slide 5 of 9">
+  <div class="rail"><span>How AssemblyAI is used</span><span>05 / 09</span></div>
+  <div class="body">
+    <h2 style="font-size:36px;max-width:40ch">The Voice Agent API runs the conversation. VIVA supplies the token, the tools and the check.</h2>
+    <svg viewBox="0 0 1136 330" role="img" aria-labelledby="arch-t arch-d">
+      <title id="arch-t">Architecture</title>
+      <desc id="arch-d">The browser holds the microphone and player. It gets a short-lived token from the VIVA server, opens a WebSocket to the AssemblyAI Voice Agent API, and forwards each tool call to the VIVA server, which checks the claim against the learner's passages with a model judge and a quote check, then returns the result to the browser to send back to the agent.</desc>
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1F2A3A"/></marker></defs>
+      <g fill="none" stroke="#8C8475" stroke-width="1.5">
+        <rect x="1" y="21" width="258" height="300" rx="4" fill="#FBF9F4"/>
+        <rect x="441" y="21" width="258" height="150" rx="4" fill="#FBF9F4"/>
+        <rect x="877" y="121" width="258" height="200" rx="4" fill="#FBF9F4"/>
+        <rect x="893" y="171" width="226" height="56" rx="3" fill="#E7E1D5"/>
+        <rect x="893" y="245" width="226" height="56" rx="3" fill="#E7E1D5"/>
+      </g>
+      <text class="h" x="16" y="52">Browser, /oral</text>
+      <text class="t2" x="16" y="82">microphone, 24 kHz PCM16</text>
+      <text class="t2" x="16" y="106">player, flushed on barge-in</text>
+      <text class="t2" x="16" y="130">state machine, 12 states</text>
+      <text class="t2" x="16" y="154">transcript and source checks</text>
+      <text class="t2" x="16" y="178">holds a token, never the key</text>
+
+      <text class="h" x="456" y="52">AssemblyAI Voice Agent</text>
+      <text class="t2" x="456" y="82">native turn detection</text>
+      <text class="t2" x="456" y="106">speech in, speech out</text>
+      <text class="t2" x="456" y="130">tool calls, execution_mode hold</text>
+      <text class="t2" x="456" y="154">tool.result taken at reply.done</text>
+
+      <text class="h" x="892" y="150">VIVA server</text>
+      <text x="906" y="194">model judge</text>
+      <text class="t2" x="906" y="214">verdict and proposed quote</text>
+      <text x="906" y="268">passages + quote check</text>
+      <text class="t2" x="906" y="288">substring of the passage</text>
+
+      <g stroke="#1F2A3A" stroke-width="1.6" fill="none" marker-end="url(#ah)">
+        <path d="M259 62 H441"/>
+        <path d="M441 96 H259"/>
+        <path d="M441 130 H259"/>
+        <path d="M259 152 H441"/>
+        <path d="M259 250 H877"/>
+        <path d="M877 288 H259"/>
+        <path d="M259 306 H877"/>
+      </g>
+      <g stroke="#1F2A3A" stroke-width="1.6" fill="none" marker-end="url(#ah)"><path d="M1006 227 V245"/></g>
+      <text class="t2" x="272" y="56">mic audio</text>
+      <text class="t2" x="272" y="90">reply audio</text>
+      <text class="t2" x="272" y="124">tool.call</text>
+      <text class="t2" x="272" y="146">tool.result</text>
+      <text class="t2" x="272" y="244">GET /api/voice-agent/token: key stays on the server, token lives 600 s at most</text>
+      <text class="t2" x="272" y="282">result with quote and page</text>
+      <text class="t2" x="272" y="323">POST /api/oral/tool (verify_claim, grade_my_answer, search_my_material)</text>
+    </svg>
+  </div>
+  <div class="foot"><span>Code: src/lib/oral/socket.ts, tools.ts, machine.ts; src/app/api/voice-agent/token; src/app/api/oral/tool</span><span>Reconnect: the service refused session.resume live, so VIVA opens a new session with the recent turns</span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide s6" aria-label="Slide 6 of 9">
+  <div class="rail"><span>The trust layer</span><span>06 / 09</span></div>
+  <div class="body">
+    <div>
+      <h2 style="font-size:40px">A quotation is allowed only if it is in your notes, word for word.</h2>
+      <p class="rule" style="margin-top:22px">The model proposes a verdict and a quote. Code checks every piece of the quote is an exact substring of the passage it named, in order. If not, the verdict becomes "not in the material".</p>
+      <div class="cases">
+        <div class="case paper"><span class="m ok">yes</span><p>Real line from page 15, named passage matches. The examiner may quote it and say the page.</p></div>
+        <div class="case paper"><span class="m bad">no</span><p>One word of the quote changed, or the quote is from a different passage. Downgraded. The examiner says the material does not settle it.</p></div>
+        <div class="case paper"><span class="m bad">no</span><p>The quote is the learner's own words repeated back. Downgraded.</p></div>
+      </div>
+    </div>
+    <div class="right">
+      <h3>What it prevents</h3>
+      <p class="small muted">An invented citation, an altered quote, or a page number that does not hold the line. Tested with a mutation that changes one word of a real quote (tests/oral-verify-claim-set.test.ts).</p>
+      <h3 style="margin-top:22px">What it does not prevent</h3>
+      <p class="small muted">A wrong verdict with a real quote. The judge model can be wrong; the substring check cannot see that. On a labelled set of <span class="mono" data-num="oral.verifyClaim.claimsInSet">54</span> claims the judge made <span class="mono" data-num="oral.verifyClaim.falseSupported">0</span> false confirmations, and abstained on 3 claims the labels settled. It is a small set written in this repository.</p>
+      <p class="small muted">Live run, 2026-09-29, judge model openai/gpt-oss-120b.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Code: src/lib/oral/verify-claim.ts (quoteSpans)</span><span>docs/evidence/probes/verify-claim-live-2026-09-29.json</span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide s7" aria-label="Slide 7 of 9">
+  <div class="rail"><span>Evidence</span><span>07 / 09</span></div>
+  <div class="body">
+    <div>
+      <table>
+        <thead><tr><th>Measure</th><th>Value</th><th>n</th><th>Date</th></tr></thead>
+        <tbody>
+          <tr><td>Session ready</td><td class="v"><span data-num="oral.roundtrip.sessionReadyMs">444</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
+          <tr><td>First examiner audio</td><td class="v"><span data-num="oral.roundtrip.firstAudioMs">958</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Tool round trip, call to result</td><td class="v"><span data-num="oral.roundtrip.toolCallToResultMs">2470</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Interruption detection: first word to service reports speech</td><td class="v"><span data-num="oral.bargein.speechDetectedMs">1286</span> ms</td><td class="n">3</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Claim check: labelled claims, false confirmations</td><td class="v"><span data-num="oral.verifyClaim.claimsInSet">54</span>, <span data-num="oral.verifyClaim.falseSupported">0</span></td><td class="n">54</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Claim check: contradicted recall</td><td class="v"><span data-num="oral.verifyClaim.contradictedRecall">0.889</span></td><td class="n">54</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Judge time, median and p95</td><td class="v"><span data-num="oral.verifyClaim.medianJudgeMs">590</span> and <span data-num="oral.verifyClaim.p95JudgeMs">2067</span> ms</td><td class="n">53</td><td class="d">2026-09-29</td></tr>
+          <tr><td>Front page JS, gzip, throttled mobile profile</td><td class="v"><span data-num="landingGzipJsKB">139.5</span> KB</td><td class="n">5</td><td class="d">2026-09-29</td></tr>
+          <tr><td>/oral JS, gzip, same profile</td><td class="v"><span data-num="oralGzipJsKB">178.4</span> KB</td><td class="n">5</td><td class="d">2026-09-29</td></tr>
+        </tbody>
+      </table>
+      <p class="small muted" style="margin-top:10px">Live rows: real AssemblyAI service, synthetic learner voice (Windows speech synthesis), Node client running the browser's socket code, local server. Not a human on a microphone.</p>
+    </div>
+    <div class="two">
+      <h3>Verified live</h3>
+      <ul>
+        <li>Handshake and first audio, 3 of 3</li>
+        <li>Tool call, spoken quote and page, 3 of 3</li>
+        <li>Barge-in: 0 stale chunks handed to playback, 6 of 6</li>
+        <li>Reconnect as a new session, 2 of 2</li>
+        <li>Production: token mint, session config, scripted false claim returns contradicted, page 15</li>
+      </ul>
+      <h3>Unit-tested only</h3>
+      <ul>
+        <li>Pending tool result discarded on interruption (live probe failed 3 of 3)</li>
+        <li>Twelve machine states, failure screens</li>
+        <li>Debrief builder and plan</li>
+      </ul>
+      <h3>Not done</h3>
+      <ul>
+        <li>Browser with a human microphone, this build</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>numbers.json, checked by docs/deck/build.mjs before export</span><span>Probe files in docs/evidence/probes</span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide s8" aria-label="Slide 8 of 9">
+  <div class="rail"><span>Honest limits</span><span>08 / 09</span></div>
+  <div class="body">
+    <div>
+      <h2 style="font-size:38px;max-width:26ch">What it does not do, said before you find it.</h2>
+      <ol style="margin-top:18px">
+        <li>The judge can be wrong. The quote check proves the words are in your notes, not that the verdict is right.</li>
+        <li>54 labelled claims over two courses is a small set, written here, with no recorded split between tuning and testing.</li>
+        <li>The service reports your interruption 1.3 to 1.5 s after your first word, and VIVA clears the examiner's queued audio when it does. Time to silence in a browser was not measured.</li>
+        <li>Code picks your next concept and question kind from your last verdict and your weakest concept. The examiner's wording is the model's: it named that concept in 2 of 3 live runs.</li>
+        <li>The next oral session reads your stored map and opens on the weakest concept. History survives a restart only on the Postgres store.</li>
+        <li>Text notes only. A scan with no text layer gives it nothing to quote.</li>
+      </ol>
+    </div>
+    <div>
+      <p class="label">Also true today</p>
+      <ol style="margin-top:8px">
+        <li>Storage is durable only with a database. Without one it resets on restart. The deployed build was not yet the final one when this deck was made.</li>
+        <li>Legal pages are drafts marked for review.</li>
+      </ol>
+      <p class="label" style="margin-top:22px">Not done yet</p>
+      <ol class="next" style="margin-top:8px">
+        <li>The debrief sheet on screen after an exam</li>
+        <li>A live run of the pending-tool discard</li>
+        <li>A full exam in a browser with a human microphone</li>
+      </ol>
+    </div>
+  </div>
+  <div class="foot"><span>Full list: docs/SUBMISSION.md, docs/PROMISE-TRACE.md</span><span>Not for: scans, checking whether your notes are right</span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide s9" aria-label="Slide 9 of 9">
+  <div class="rail"><span>Try it</span><span>09 / 09</span></div>
+  <div class="body">
+    <div>
+      <h2>Press Try a sample exam. No sign-in, no upload.</h2>
+      <ol>
+        <li>Open the link and press <b>Try a sample exam</b>.</li>
+        <li>Use headphones in a quiet room. Allow the microphone, or type your answers.</li>
+        <li>Say something wrong about multi-head attention and listen to what comes back.</li>
+      </ol>
+      <p class="small muted" style="margin-top:16px">Your microphone audio goes to AssemblyAI while an exam runs. The privacy page lists what is stored and where.</p>
+    </div>
+    <div class="links">
+      <div><span class="label">Live</span><span class="u">https://viva-five-murex.vercel.app</span></div>
+      <div><span class="label">Source (MIT)</span><span class="u">github.com/vaibhav4046/viva</span></div>
+      <div><span class="label">Video</span><span class="u" style="color:var(--text-primary)">in the lablab submission</span></div>
+      <div><span class="label">Evidence</span><span class="u" style="color:var(--text-primary)">docs/evidence, numbers.json</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>Sample course: VIVA's own Transformers notes, written for the demo.</span><span>Built for the AssemblyAI Voice Agent Hackathon, September 2026</span></div>
+</section>
+
+</body>
+</html>

@@ -12,7 +12,7 @@ export type Assessment = {
   feedback: string;
   evidenceIds: string[];
   /**
-   * What a full answer covers. Held back while the question is still open —
+   * What a full answer covers. Held back while the question is still open, 
    * printing the marking key above a live retry box turns the retry into
    * theatre: the learner types back the three words they were just shown and
    * clears a question they cannot answer.
@@ -45,7 +45,7 @@ function tokenize(low: string): string[] {
  * Affirmed-mention matching: a keyword counts when the student states it,
  * NOT when they deny it ("does not involve order" ≠ "order matters").
  * Exception: negated epistemic verbs ("doesn't know their order") affirm the
- * TOPIC through admitted ignorance — the student named the right concept.
+ * TOPIC through admitted ignorance, the student named the right concept.
  */
 export function keywordAffirmed(fullText: string, keyword: string): boolean {
   const toks = tokenize(fullText);
@@ -66,7 +66,7 @@ export function keywordAffirmed(fullText: string, keyword: string): boolean {
     if (!negated) return true;
     const verbs = toks.slice(Math.max(0, i - 2), i);
     if (verbs.some((t) => KNOW_VERBS.some((k) => t === k || t.startsWith(k)))) return true;
-    // Denied mention — keep scanning; a later affirmed occurrence still counts.
+    // Denied mention, keep scanning; a later affirmed occurrence still counts.
   }
   return false;
 }
@@ -81,7 +81,7 @@ function affirmedHits(fullText: string, keywords: string[]): string[] {
  * "What was right: you identified that without positional information a
  * Transformer cannot distinguish the order of tokens" was printed over three
  * typed nouns. Nothing produced that sentence except a model filling in a
- * story about a student who understood — so credit is a quote now, and a
+ * story about a student who understood, so credit is a quote now, and a
  * quote cannot describe reasoning that never happened.
  */
 export function quotedHits(answer: string, requiredKeywords: string[]): string[] {
@@ -111,7 +111,7 @@ function spokenForm(answer: string, keyword: string): string | null {
  * The answer names one of the required points and predicates nothing.
  *
  * A judge typed "order attention permutation" into a question and was told
- * CORRECT, then said it was a quiz they could beat without knowing anything —
+ * CORRECT, then said it was a quiz they could beat without knowing anything, 
  * and the map believes the result. Naming the points is not making them, so a
  * list of nouns is capped at partial however it is graded, by the keywords
  * here or by the model, and gets back the one thing that is true about it:
@@ -132,7 +132,7 @@ function isPoint(key: Set<string>, word: string): boolean {
 /**
  * Does anything in here do the work of a verb?
  *
- * Not a parser — a closed class of auxiliaries and high-frequency verbs, plus
+ * Not a parser, a closed class of auxiliaries and high-frequency verbs, plus
  * any word of the learner's own carrying a verb ending. It only has to
  * separate a sentence from a list of nouns, and it errs towards "sentence",
  * because calling a real answer a list is the expensive mistake: it caps what
@@ -170,7 +170,7 @@ export const UNCHECKED_LEAD =
  * nothing in the source confirmed.
  */
 export const READ_IT_BACK =
-  "Read the passage beside this and say it again in your own words — if it matches a line, I will mark it.";
+  "Read the passage beside this and say it again in your own words, if it matches a line, I will mark it.";
 
 /** "That is the word. Now say it as a sentence." */
 export const SAY_IT_AS_A_SENTENCE =
@@ -198,8 +198,8 @@ function loose(text: string): string[] {
  * text. Function words and anything under four letters are already gone.
  *
  * This is a REFUTATION, not a confirmation. A sentence assembled out of the
- * source's own vocabulary can still be false — "an attention weight is the
- * same vector as the query and the key" scores 1.00 — which is why it only
+ * source's own vocabulary can still be false, "an attention weight is the
+ * same vector as the query and the key" scores 1.00, which is why it only
  * ever removes `correct` and never grants it on its own. What it does catch is
  * the sentence that imports its content from nowhere: the two the judge
  * invented score 0.43 and 0.33 ("batch", "document", "divided", "important"),
@@ -219,8 +219,8 @@ export function groundedFraction(answer: string, chunks: SourceChunk[]): number 
  *
  * Measured on the shipped Transformers subject: real answers to its seven exam
  * questions land 0.82-1.00, the two sentences the judge made up land 0.43 and
- * 0.33, and "order and attention and permutation all matter here" — the
- * marking key with a verb bolted on — lands 0.60. The bar sits in that gap.
+ * 0.33, and "order and attention and permutation all matter here", the
+ * marking key with a verb bolted on, lands 0.60. The bar sits in that gap.
  * Everything below it is answered honestly rather than wrongly, so the cost of
  * setting it a little high is one more sentence from the learner.
  */
@@ -237,7 +237,7 @@ function saidBySource(check: ClaimCheck): string {
 }
 
 /**
- * HARNESS D (exam/teachback branch) — claim assessment against retrieved
+ * HARNESS D (exam/teachback branch), claim assessment against retrieved
  * evidence. Deterministic and model-free. No invented citations: evidenceIds
  * always resolve to real chunk ids. The question bank and the chunk pool both
  * come from the requested course (default: Transformers).
@@ -247,21 +247,21 @@ function saidBySource(check: ClaimCheck): string {
  * of S-A-01: "an attention weight is the number of tokens in the batch divided
  * by the weight of the document" contains both required points of `ex_sa_1`
  * ("weight", "token") inside a grammatical sentence, cleared the two-thirds
- * bar, and came back **Correct — that covers the distinction the source
+ * bar, and came back **Correct, that covers the distinction the source
  * draws**, with GOT IT 1 written onto the map. The sentence was invented. The
  * question has two required words and one of them is in the question itself.
  *
  * So `correct` here now needs three things, not one: the marking points named,
  * nothing in the passages contradicting the sentence, and the sentence written
- * out of the passages' own vocabulary (`groundedFraction`) — or, better, a
+ * out of the passages' own vocabulary (`groundedFraction`), or, better, a
  * line of the source that says the same thing in the same polarity
  * (`checkClaim` → `supported`, the one status in this codebase allowed to tell
  * somebody they are right, and it arrives with the sentence that decided it).
  * Coverage backed by none of that is `partial` and says so.
  *
  * ponytail: every check here is lexical, so a false sentence built entirely
- * out of the source's own words — "an attention weight is the same vector as
- * the query and the key" — can still clear this bar when no model is
+ * out of the source's own words, "an attention weight is the same vector as
+ * the query and the key", can still clear this bar when no model is
  * reachable. That is the residual, it is named in the tests, and the exit is a
  * model pass over the same passages, which `gradeAnswer` already runs whenever
  * a provider answers. A miss costs the learner one more honest sentence; the
@@ -301,10 +301,10 @@ export function assessAnswer(
       verdict: "incorrect",
       // Credit is a quote of what they said or it is nothing. "You recognised
       // attention compares tokens" was printed over answers that said no such
-      // thing — an understanding invented on the learner's behalf.
+      // thing, an understanding invented on the learner's behalf.
       correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
       missingPoints: ["Without position information the model loses sequence order."],
-      possibleMisconception: "Attention weights already encode importance — what is lost without position is order, not importance (see the positional information section).",
+      possibleMisconception: "Attention weights already encode importance, what is lost without position is order, not importance (see the positional information section).",
       feedback:
         "The missing piece is sequence order: without positional information the model cannot tell first from last. Try that distinction again.",
       evidenceIds: chunks.map((c) => c.id),
@@ -359,7 +359,7 @@ export function assessAnswer(
       possibleMisconception: null,
       // When a line of their own source says it, quote that line: a verdict
       // that can show its sentence is the one the learner can check.
-      feedback: check.status === "supported" ? saidBySource(check) : "Correct — that covers the distinction the source draws.",
+      feedback: check.status === "supported" ? saidBySource(check) : "Correct, that covers the distinction the source draws.",
       evidenceIds: check.chunkId ? [check.chunkId] : verdict.support.length > 0 ? verdict.support : chunks.map((c) => c.id),
       fullAnswerCovers: q.requiredKeywords,
       check,
@@ -384,7 +384,7 @@ export function assessAnswer(
       verdict: "partial",
       correctPoints: quotedHits(answerTranscript, q.requiredKeywords),
       // The remaining points are the marking key. They are named only once the
-      // question is closed — see `fullAnswerCovers` and `sealAnswerKey`.
+      // question is closed, see `fullAnswerCovers` and `sealAnswerKey`.
       missingPoints: [`There is ${misses.length === 1 ? "one piece" : `${misses.length} pieces`} still missing.`],
       possibleMisconception: null,
       feedback: `Partly there. ${q.hint}`,
@@ -398,7 +398,7 @@ export function assessAnswer(
     correctPoints: [],
     missingPoints: [],
     possibleMisconception: sourceDisagrees(chunks),
-    feedback: `Not quite — and that is worth knowing now rather than on Friday. ${q.hint}`,
+    feedback: `Not quite, and that is worth knowing now rather than on Friday. ${q.hint}`,
     evidenceIds: chunks.map((c) => c.id),
     fullAnswerCovers: q.requiredKeywords,
     check,
@@ -416,7 +416,7 @@ function sourceDisagrees(chunks: SourceChunk[]): string {
 /**
  * Response-safe view of a graded answer.
  *
- * `closed` means the question is finished — cleared, skipped, or out of
+ * `closed` means the question is finished, cleared, skipped, or out of
  * attempts. Only then does the learner see what a full answer covers; while it
  * is live they get the nudge and nothing else.
  */
@@ -439,7 +439,7 @@ export type TutorResult = {
 };
 
 /**
- * HARNESS D — Socratic Tutor (heuristic branch; an LLM provider may rewrite
+ * HARNESS D, Socratic Tutor (heuristic branch; an LLM provider may rewrite
  * phrasing, but evidence selection and policy stay here).
  * Policy: factual lookup -> direct; conceptual confusion -> smallest useful
  * hint first; exam questions -> guided reasoning, never a bare answer dump.
@@ -465,8 +465,8 @@ export function tutorRespond(opts: {
     const q = course.examQuestions.find((x) => x.conceptId === opts.conceptId) ?? course.examQuestions[0];
     return {
       text: q
-        ? `${q.question} Answer aloud — can you say it in one or two sentences? I will check it against the passage.`
-        : "Say everything you remember in one minute — I will check it against the passage.",
+        ? `${q.question} Answer aloud, can you say it in one or two sentences? I will check it against the passage.`
+        : "Say everything you remember in one minute, I will check it against the passage.",
       evidenceIds,
       strategy: "socratic",
       missingConcepts: [],
@@ -485,7 +485,7 @@ export function tutorRespond(opts: {
     return {
       text:
         evidenceIds.length > 0
-          ? `The passage on ${label} is open beside this. Read it, then say it back to me in your own words — I'll tell you what you left out.`
+          ? `The passage on ${label} is open beside this. Read it, then say it back to me in your own words, I'll tell you what you left out.`
           : `I can't find ${label} anywhere in your source, so I won't guess at it. Point me at the page, or add the notes that cover it.`,
       evidenceIds,
       strategy: evidenceIds.length > 0 ? "hint" : "direct",
@@ -493,20 +493,20 @@ export function tutorRespond(opts: {
     };
   }
   if (intent === "claim") {
-    // A checked claim never reaches here — `checkClaim` in ./claim.ts has
+    // A checked claim never reaches here, `checkClaim` in ./claim.ts has
     // already led with the contradiction and the line that shows it. This is
     // the "nothing caught" case.
     //
     // It used to say "Nothing in the passage contradicts it", which was the
     // worst sentence in the product: the checks are lexical, so not catching a
-    // claim means the check could not read it, NOT that the source agrees —
+    // claim means the check could not read it, NOT that the source agrees, 
     // and the passage linked underneath was sometimes the one that disproved
     // the student. Never assert agreement the check did not produce.
     const q = course.examQuestions.find((x) => x.conceptId === opts.conceptId);
     const head = UNCHECKED_LEAD;
     return {
       text: q
-        ? `${head} ${evidenceIds.length > 0 ? "The nearest passage is beside this — read it, then answer me:" : "Answer me this instead:"} ${q.question}`
+        ? `${head} ${evidenceIds.length > 0 ? "The nearest passage is beside this, read it, then answer me:" : "Answer me this instead:"} ${q.question}`
         : `${head} Say it once more with the reason attached and I will check it line by line.`,
       evidenceIds,
       strategy: "socratic",
@@ -525,7 +525,7 @@ export function tutorRespond(opts: {
 }
 
 /**
- * HARNESS E — Response Verifier. One repair pass max. Checks: every
+ * HARNESS E, Response Verifier. One repair pass max. Checks: every
  * course-factual claim has evidence; citations resolve; no new unexplained
  * jargon flood; concise enough to speak.
  */
@@ -548,7 +548,7 @@ export function verifyResponse(text: string, evidenceIds: string[], knownIds: Se
 }
 
 /**
- * Teachback rubric — compatibility constants for the default (Transformers)
+ * Teachback rubric, compatibility constants for the default (Transformers)
  * lab. Routes should read `course.teachback` from the registry instead.
  * Every concept has at least 3 keywords; scoring is a case-insensitive
  * affirmed-mention fraction so it stays deterministic and unit-testable.

@@ -3,23 +3,25 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Academic Noir token guard.
+ * Examiner's table token guard.
  *
  * Two jobs:
- *  1. Pin the palette in src/app/globals.css to Academic Noir, and prove the
- *     two palettes it replaced (the light "paper" set and the neon "spectrum"
- *     set) have not crept back in.
- *  2. Recompute every text/background pair with the WCAG 2.x relative
- *     luminance formula and fail if any pair drops below 4.5:1. The ratios
- *     are computed from the values read out of the CSS, so token drift is
- *     caught rather than papered over.
+ *  1. Pin the palette in src/styles/tokens.css and the Tailwind bridge in
+ *     src/app/globals.css, and prove the earlier palettes (dark Academic Noir,
+ *     the neon "spectrum" set, the light "paper" set) have not crept back in.
+ *  2. Recompute every text/surface pair with the WCAG 2.x relative luminance
+ *     formula and fail if any pair drops below its minimum. The ratios are
+ *     computed from the values read out of the CSS, so token drift is caught
+ *     rather than papered over. scripts/check-contrast.mjs runs the same
+ *     computation over design/contrast-pairs.json.
  */
 
-const CSS = readFileSync(fileURLToPath(new URL("../src/app/globals.css", import.meta.url)), "utf8");
+const GLOBALS = readFileSync(fileURLToPath(new URL("../src/app/globals.css", import.meta.url)), "utf8");
+const TOKENS = readFileSync(fileURLToPath(new URL("../src/styles/tokens.css", import.meta.url)), "utf8");
 
-function cssVar(name: string): string {
-  const match = CSS.match(new RegExp(`--${name}\\s*:\\s*([^;]+);`));
-  if (!match) throw new Error(`token --${name} is not defined in globals.css`);
+function tokenVar(name: string): string {
+  const match = TOKENS.match(new RegExp(`--${name}\\s*:\\s*([^;]+);`));
+  if (!match) throw new Error(`token --${name} is not defined in tokens.css`);
   return match[1].trim();
 }
 
@@ -46,96 +48,140 @@ export function contrast(a: string, b: string): number {
 /* ----------------------------- the palette ----------------------------- */
 
 const PALETTE: Record<string, string> = {
-  "color-obsidian": "#0b0b0c",
-  "color-graphite": "#131417",
-  "color-panel": "#191b1f",
-  "color-hairline": "#262a31",
-  "color-slate": "#3a3f47",
-  "color-paper": "#f2f0ea",
-  "color-mist": "#d3d1c9",
-  "color-ash": "#a7abb6",
-  "color-cognition": "#b8ff5a",
-  "color-band-solid": "#b8ff5a",
-  "color-band-getting": "#8fa2ff",
-  "color-band-shaky": "#fbbf24",
-  "color-band-mixed": "#ff8080",
-  "color-band-notyet": "#a7abb6",
+  canvas: "#F1EDE4",
+  "surface-1": "#F8F5EE",
+  "surface-2": "#E7E1D5",
+  elevated: "#FBF9F4",
+  "text-primary": "#1D1B18",
+  "text-secondary": "#4A463F",
+  "text-muted": "#625C52",
+  primary: "#1F2A3A",
+  "on-primary": "#F8F5EE",
+  correction: "#A63A2B",
+  danger: "#A63A2B",
+  success: "#2B6B4A",
+  warning: "#7A4F00",
+  info: "#1F5F8B",
+  "success-tint": "#E2EBDD",
+  "correction-tint": "#F1DDD6",
+  "warning-tint": "#F0E4C8",
+  "info-tint": "#DDE8EE",
+  "border-subtle": "#DDD6C8",
+  border: "#CFC7B8",
+  "border-strong": "#8C8475",
+  "border-focus": "#1F5F8B",
+  "border-error": "#A63A2B",
 };
 
-describe("Academic Noir palette", () => {
+describe("Examiner's table palette", () => {
   it.each(Object.entries(PALETTE))("--%s is %s", (name, hex) => {
-    expect(cssVar(name)).toBe(hex);
+    expect(tokenVar(name).toUpperCase()).toBe(hex.toUpperCase());
+  });
+
+  it("uses the radius scale 2, 4, 6, 10 and a pill", () => {
+    expect(["xs", "sm", "md", "lg", "pill"].map((k) => tokenVar(`radius-${k}`))).toEqual([
+      "2px",
+      "4px",
+      "6px",
+      "10px",
+      "999px",
+    ]);
+  });
+
+  it("has a 2px focus ring in the focus token", () => {
+    expect(TOKENS).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--border-focus\)/);
+  });
+
+  it("zeroes the motion durations under prefers-reduced-motion", () => {
+    expect(TOKENS).toMatch(/prefers-reduced-motion: reduce\)\s*\{[^}]*--dur-fast:\s*0\.01ms/);
   });
 
   it("defines one band token per mastery word", () => {
-    const bands = [...CSS.matchAll(/--color-band-([a-z]+)\s*:/g)].map((m) => m[1]);
+    const bands = [...GLOBALS.matchAll(/--color-band-([a-z]+)\s*:/g)].map((m) => m[1]);
     expect(new Set(bands)).toEqual(new Set(["solid", "getting", "shaky", "mixed", "notyet"]));
   });
 
-  it("has dropped the spectrum palette", () => {
-    expect(CSS).not.toMatch(/--color-spectrum-/);
-    expect(CSS).not.toMatch(/--grad-spec/);
+  it("has dropped every earlier palette", () => {
+    expect(GLOBALS).not.toMatch(/--color-spectrum-/);
+    expect(GLOBALS).not.toMatch(/--grad-spec/);
+    expect(GLOBALS).not.toMatch(/--color-paper-(surface|ink|lime|coral|hairline|caption|card)/);
+    expect(GLOBALS).not.toMatch(/storage-banner/);
+    expect(GLOBALS + TOKENS).not.toMatch(/#b8ff5a|#0b0b0c|#131417/i);
   });
 
-  it("has dropped the light paper palette", () => {
-    expect(CSS).not.toMatch(/--color-paper-(surface|ink|lime|coral|hairline|caption|card)/);
-  });
-
-  it("has dropped the storage banner styles", () => {
-    expect(CSS).not.toMatch(/storage-banner/);
+  it("carries no gradient, glass, or blur", () => {
+    expect(GLOBALS + TOKENS).not.toMatch(/gradient\(|backdrop-filter|filter:\s*blur/);
   });
 });
 
 /* ------------------------------ contrast ------------------------------ */
 
-const GROUNDS = [
-  ["obsidian", PALETTE["color-obsidian"]],
-  ["graphite", PALETTE["color-graphite"]],
-  ["panel", PALETTE["color-panel"]],
-] as const;
+const SURFACES = ["canvas", "surface-1", "surface-2", "elevated"] as const;
+const TEXT = ["text-primary", "text-secondary", "text-muted", "primary", "correction", "success", "warning", "info"] as const;
 
-const FOREGROUNDS = [
-  "color-paper",
-  "color-mist",
-  "color-ash",
-  "color-cognition",
-  "color-band-solid",
-  "color-band-getting",
-  "color-band-shaky",
-  "color-band-mixed",
-  "color-band-notyet",
-] as const;
-
-describe("contrast on every surface", () => {
-  for (const [groundName, ground] of GROUNDS) {
-    for (const fg of FOREGROUNDS) {
-      it(`${fg} on ${groundName} clears 4.5:1`, () => {
-        expect(contrast(PALETTE[fg], ground)).toBeGreaterThanOrEqual(4.5);
+describe("text contrast on every surface", () => {
+  for (const surface of SURFACES) {
+    for (const fg of TEXT) {
+      it(`${fg} on ${surface} clears 4.5:1`, () => {
+        expect(contrast(tokenVar(fg), tokenVar(surface))).toBeGreaterThanOrEqual(4.5);
       });
     }
   }
 
-  it("obsidian text on the lime button clears 4.5:1", () => {
-    expect(contrast(PALETTE["color-obsidian"], PALETTE["color-cognition"])).toBeGreaterThanOrEqual(4.5);
+  it.each([
+    ["success", "success-tint"],
+    ["correction", "correction-tint"],
+    ["warning", "warning-tint"],
+    ["info", "info-tint"],
+  ])("%s text on its tint clears 4.5:1", (fg, bg) => {
+    expect(contrast(tokenVar(fg), tokenVar(bg))).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("obsidian text on the paper button clears 4.5:1", () => {
-    expect(contrast(PALETTE["color-obsidian"], PALETTE["color-paper"])).toBeGreaterThanOrEqual(4.5);
+  it("on-primary text on the ink button clears 4.5:1, and on hover and active", () => {
+    for (const bg of ["primary", "primary-hover", "primary-active"]) {
+      expect(contrast(tokenVar("on-primary"), tokenVar(bg))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("input edges (border-strong) clear 3:1 on the canvas and the field surface", () => {
+    expect(contrast(tokenVar("border-strong"), tokenVar("canvas"))).toBeGreaterThanOrEqual(3);
+    expect(contrast(tokenVar("border-strong"), tokenVar("elevated"))).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the focus ring clears 3:1 on the canvas and on the primary button", () => {
+    expect(contrast(tokenVar("border-focus"), tokenVar("canvas"))).toBeGreaterThanOrEqual(3);
+    expect(contrast(tokenVar("border-focus"), tokenVar("surface-2"))).toBeGreaterThanOrEqual(3);
   });
 });
 
 /* -------------------------------- type -------------------------------- */
 
 describe("type scale", () => {
-  it("is 12 / 14 / 16 / 18 / 24 / 32 / 48", () => {
-    const sizes = ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"].map((k) => cssVar(`text-${k}`));
+  it("keeps the utility scale at 12 / 14 / 16 / 18 / 24 / 32 / 48", () => {
+    const sizes = ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"].map((k) => {
+      const m = GLOBALS.match(new RegExp(`--text-${k}\\s*:\\s*([^;]+);`));
+      return m?.[1].trim();
+    });
     expect(sizes).toEqual(["12px", "14px", "16px", "18px", "24px", "32px", "48px"]);
   });
 
-  it("sets body to 16px and 1.55 line-height", () => {
-    const body = CSS.match(/\bbody\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(body).toMatch(/font-size:\s*16px/);
-    expect(body).toMatch(/line-height:\s*1\.55/);
+  it("sets body to 1rem and 1.6 line-height", () => {
+    expect(tokenVar("fs-body")).toBe("1rem");
+    expect(tokenVar("lh-body")).toBe("1.6");
+    const body = GLOBALS.match(/\bbody\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(body).toMatch(/font-size:\s*var\(--fs-body\)/);
+    expect(body).toMatch(/line-height:\s*var\(--lh-body\)/);
+  });
+
+  it("names Newsreader for display, IBM Plex Sans for the interface and IBM Plex Mono for figures", () => {
+    expect(tokenVar("font-display")).toMatch(/--font-newsreader/);
+    expect(tokenVar("font-ui")).toMatch(/--font-plex-sans/);
+    expect(tokenVar("font-mono")).toMatch(/--font-plex-mono/);
+  });
+
+  it("loads no default-AI font", () => {
+    const layout = readFileSync(fileURLToPath(new URL("../src/app/layout.tsx", import.meta.url)), "utf8");
+    expect(layout).not.toMatch(/\b(Inter|Geist|Space_Grotesk|Poppins|DM_Sans|Plus_Jakarta)/);
   });
 });
 
@@ -143,7 +189,7 @@ describe("type scale", () => {
 /*
  * A marked answer carries exactly one band word, and the verdict chip is what
  * carries it. The blocks under the chip name PARTS of the answer, so a block
- * label that is also a band word reads as a second, competing verdict — which
+ * label that is also a band word reads as a second, competing verdict, which
  * is what "Partly there" over a red "MIXED UP" was. Same trap the Daily Path
  * fell into with "MISCONCEPTION", fixed the same way.
  */
@@ -154,9 +200,7 @@ describe("a card says one thing", () => {
     const src = readFileSync(fileURLToPath(new URL("../src/components/ui/ResultBlock.tsx", import.meta.url)), "utf8");
     const labels = [...src.matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
     expect(labels.length).toBeGreaterThan(0);
-    const collisions = labels.filter((l) =>
-      BAND_WORDS.some((w) => w.toLowerCase() === l.toLowerCase())
-    );
+    const collisions = labels.filter((l) => BAND_WORDS.some((w) => w.toLowerCase() === l.toLowerCase()));
     expect(collisions).toEqual([]);
   });
 

@@ -72,7 +72,7 @@ function captureError(code: string, message: string): CaptureError {
 /**
  * A hold this long that captured almost nothing was not a short hold.
  *
- * The input device delivered no samples — muted at the operating system, a
+ * The input device delivered no samples, muted at the operating system, a
  * headset that never finished connecting, a virtual input with nothing behind
  * it. The browser grants the microphone, the button says "Listening", the
  * timer counts, and the worklet is handed empty quanta for the whole hold.
@@ -82,8 +82,8 @@ function captureError(code: string, message: string): CaptureError {
  * student "That was too short. Hold a little longer and speak." Holding
  * longer cannot fix it, and the sentence sends them to do exactly that.
  *
- * A working microphone held for a second yields about a second of audio —
- * twelve times MIN_MS — so nothing below this bound is a judgement call.
+ * A working microphone held for a second yields about a second of audio, 
+ * twelve times MIN_MS, so nothing below this bound is a judgement call.
  */
 export const DEAD_INPUT_MS = 1_000;
 
@@ -153,7 +153,7 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
   };
 
   // A worklet is only pulled while its output reaches the destination, so the
-  // chain has to terminate there — through a muted gain, or the microphone
+  // chain has to terminate there, through a muted gain, or the microphone
   // would be played back into the room.
   const mute = ctx.createGain();
   mute.gain.value = 0;
@@ -236,7 +236,7 @@ export async function startCapture(opts: Capture = {}): Promise<CaptureHandle> {
 
   // 120 s is the endpoint's hard ceiling and MAX_CLIP_MS sits under it, so
   // stopping ourselves turns a 413 into a finished clip the learner still gets
-  // to send — see the MAX_CLIP_MS note for why the two must not be equal.
+  // to send, see the MAX_CLIP_MS note for why the two must not be equal.
   capTimer = setTimeout(() => opts.onCapReached?.(), MAX_CLIP_MS);
 
   return { startedAt, stop, cancel: teardown };

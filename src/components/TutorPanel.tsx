@@ -10,7 +10,7 @@ const VERDICT: Record<string, { color: string; label: string }> = {
  * What VIVA said back.
  *
  * Citations link to the passage they came from, and they carry the number the
- * source rail gives that passage — not a per-reply counter.
+ * source rail gives that passage, not a per-reply counter.
  *
  * The counter was the bug a student caught: every reply cited "Passage 1" and
  * "Passage 2" while the rail called the same two paragraphs "Passage 5" and
@@ -35,7 +35,7 @@ export function TutorPanel({
       <section aria-label="VIVA" className="surface-card p-5">
         <p className="eyebrow">VIVA</p>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--color-ash)" }}>
-          Say what you think. VIVA answers from your source — or tells you when it can&apos;t find it there.
+          Say what you think. VIVA answers from your source, or tells you when it can&apos;t find it there.
         </p>
       </section>
     );

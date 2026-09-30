@@ -74,7 +74,7 @@ function check(name, cond, extra = "") {
   const bad = await call("/api/subjects/create", { method: "POST", body: form });
   check("upload truncated PDF → 415/422", bad.status === 415 || bad.status === 422, `got ${bad.status} ${JSON.stringify(bad.body?.error)}`);
   // A .pdf that is not a PDF is read as a document rather than rejected on its
-  // extension, which is right — a mislabelled text file still works — so what
+  // extension, which is right, a mislabelled text file still works, so what
   // it must do is refuse the empty result with a coded, non-retryable message
   // rather than build a subject out of nothing.
   const form2 = new FormData();

@@ -12,7 +12,7 @@ import type { EventStore } from "@/lib/store/repo";
  * lambda's /tmp, so two page loads are two different memories of the same
  * student: measured on the live site, four of ten reads of one student's own
  * record on one cookie came back empty in the same second. So the browser is
- * the authority and the server is a warm cache — the client mirrors every
+ * the authority and the server is a warm cache, the client mirrors every
  * mutation locally and hands the record back on load, and this merges it.
  *
  * The merge has exactly one rule that matters: it must be safe to run twice.
@@ -109,8 +109,8 @@ const ChunkSchema = z.object({
  *
  * Validated in full rather than trusted, because a subject becomes the
  * material the tutor quotes and the questions the learner is graded on. It is
- * written under the caller's own id — `ownerId` from the request is discarded,
- * not checked — so no field here can address another learner's rows.
+ * written under the caller's own id, `ownerId` from the request is discarded,
+ * not checked, so no field here can address another learner's rows.
  */
 export const ReplaySubjectSchema = z.object({
   id: Id,
@@ -182,7 +182,7 @@ export type SyncReport = {
  * the browser rather than about the notes: it comes back here, and only here.
  */
 export const DEVICE_RECORD_NOTE =
-  "Your record lives in this browser. VIVA hands it back every time you open the app, so your map, your plan and your subjects come back — on this device only.";
+  "Your record lives in this browser. VIVA hands it back every time you open the app, so your map, your plan and your subjects come back, on this device only.";
 
 /** A timestamp from someone else's clock, made usable. */
 function safeTimestamp(raw: string | undefined, now: number): string | null {
@@ -321,7 +321,7 @@ export type LearnerSnapshot = {
  * Everything a screen needs about this learner, from one read.
  *
  * Both `GET /api/learner` and `POST /api/learner/sync` answer with this, so a
- * reconciled reply and a plain read can never disagree about the same student —
+ * reconciled reply and a plain read can never disagree about the same student, 
  * four sections of one page arguing with each other was its own blocker.
  */
 export async function learnerSnapshot(
@@ -351,7 +351,7 @@ export async function learnerSnapshot(
 
   /*
    * "All courses" hands back mastery for every subject and, until now, concepts
-   * for one — so /today held records it had no names for and printed a
+   * for one, so /today held records it had no names for and printed a
    * placeholder into the plan ("Where does this concept come up?"). Union in
    * the concepts of every subject the learner has actually touched, which is
    * exactly the set the plan can name, and no more: one store call per subject

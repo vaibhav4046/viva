@@ -1,7 +1,7 @@
 /**
  * Per-identity/IP token-bucket rate limiting for expensive endpoints.
  * One AssemblyAI balance must not be burnable by one client.
- * NOTE: instance-local Map — correct on a single instance; the documented
+ * NOTE: instance-local Map, correct on a single instance; the documented
  * upgrade is a shared store (Redis/Upstash) when scaling horizontally.
  */
 

@@ -18,7 +18,7 @@ import {
 import { mergeLearner, syncRecord, type LearnerPayload } from "@/components/mirror";
 
 /*
- * /map — what VIVA has picked up about this subject.
+ * /map, what VIVA has picked up about this subject.
  *
  * One view, not two. The old page split the same data into "Human" and
  * "Exploration" tabs, which meant a student had to pick a mode before seeing
@@ -56,7 +56,7 @@ export default function MapPage() {
        * write lands in one instance's own /tmp, so the instance that answers
        * this read may never have seen the turn the student just did.
        * `syncRecord` hands the browser's copy back first, and `mergeLearner`
-       * unions what comes back with what the browser holds — so the map is
+       * unions what comes back with what the browser holds, so the map is
        * never thinner than the session behind it. A hand-back that fails is
        * not an error a student should see: fall back to the plain read, and
        * failing that, to the mirror alone.
@@ -165,19 +165,19 @@ export default function MapPage() {
 
               <dl className="mono mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs" style={{ color: "var(--color-ash)" }}>
                 <div>
-                  <dt className="text-[11px] tracking-widest">TIMES YOU GOT IT</dt>
+                  <dt className="text-xs tracking-widest">TIMES YOU GOT IT</dt>
                   <dd className="tnum" style={{ color: "var(--color-paper)" }}>{mastery.successfulRecallCount}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] tracking-widest">TIMES YOU MISSED IT</dt>
+                  <dt className="text-xs tracking-widest">TIMES YOU MISSED IT</dt>
                   <dd className="tnum">{mastery.failedRecallCount}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] tracking-widest">TIMES YOU SAID YOU WERE LOST</dt>
+                  <dt className="text-xs tracking-widest">TIMES YOU SAID YOU WERE LOST</dt>
                   <dd className="tnum">{mastery.confusionCount}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] tracking-widest">TIMES IT CAME UP</dt>
+                  <dt className="text-xs tracking-widest">TIMES IT CAME UP</dt>
                   <dd className="tnum">{mastery.exposureCount}</dd>
                 </div>
               </dl>
@@ -194,7 +194,7 @@ export default function MapPage() {
               ) : (
                 <ol className="mt-2 space-y-2">
                   {history.map((e) => (
-                    <li key={e.id} className="border-l-2 pl-3 text-sm leading-relaxed" style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}>
+                    <li key={e.id} className="border px-3 py-2 text-sm leading-relaxed rounded-sm" style={{ borderColor: "var(--color-hairline)", color: "var(--color-mist)" }}>
                       “{e.cleanedTranscript}”
                     </li>
                   ))}

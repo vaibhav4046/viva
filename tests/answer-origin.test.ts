@@ -11,8 +11,8 @@ import { POST as teachAnswer } from "@/app/api/teachback/answer/route";
  * Both answer routes used to hardcode `origin: "voice"` on the recorded
  * event, so a typed exam answer or a typed teach-back was filed as spoken.
  * The pages already know (MicButton hands every submit its origin); the
- * routes threw it away. The record distinguishes the two — sync replays it,
- * the UI chips it — so the lie compounded downstream.
+ * routes threw it away. The record distinguishes the two, sync replays it,
+ * the UI chips it, so the lie compounded downstream.
  */
 
 let tmp: string;

@@ -1,0 +1,199 @@
+[
+    {
+        "name":  "landing",
+        "path":  "/"
+    },
+    {
+        "name":  "oral",
+        "path":  "/oral"
+    },
+    {
+        "name":  "recorded",
+        "path":  "/recorded"
+    },
+    {
+        "name":  "subjects",
+        "path":  "/subjects"
+    },
+    {
+        "name":  "privacy",
+        "path":  "/privacy"
+    },
+    {
+        "name":  "terms",
+        "path":  "/terms"
+    },
+    {
+        "name":  "accessibility",
+        "path":  "/accessibility"
+    },
+    {
+        "name":  "about",
+        "path":  "/about"
+    },
+    {
+        "name":  "kitchen-sink",
+        "path":  "/dev/kitchen-sink",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-idle",
+        "path":  "/dev/oral-states?scenario=idle",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-connecting",
+        "path":  "/dev/oral-states?scenario=connecting",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-ready",
+        "path":  "/dev/oral-states?scenario=ready",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-listening",
+        "path":  "/dev/oral-states?scenario=listening",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-user_speaking",
+        "path":  "/dev/oral-states?scenario=user_speaking",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-thinking",
+        "path":  "/dev/oral-states?scenario=thinking",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-checking_source",
+        "path":  "/dev/oral-states?scenario=checking_source",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-speaking",
+        "path":  "/dev/oral-states?scenario=speaking",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-interrupted",
+        "path":  "/dev/oral-states?scenario=interrupted",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-recovering",
+        "path":  "/dev/oral-states?scenario=recovering",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-error",
+        "path":  "/dev/oral-states?scenario=error",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-ended",
+        "path":  "/dev/oral-states?scenario=ended",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-mic_denied",
+        "path":  "/dev/oral-states?scenario=failure-mic_denied",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-no_audio_device",
+        "path":  "/dev/oral-states?scenario=failure-no_audio_device",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-insecure_context",
+        "path":  "/dev/oral-states?scenario=failure-insecure_context",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-no_audio_worklet",
+        "path":  "/dev/oral-states?scenario=failure-no_audio_worklet",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-token_unauthorized",
+        "path":  "/dev/oral-states?scenario=failure-token_unauthorized",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-token_bad_request",
+        "path":  "/dev/oral-states?scenario=failure-token_bad_request",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-token_rate_limited",
+        "path":  "/dev/oral-states?scenario=failure-token_rate_limited",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-token_upstream_down",
+        "path":  "/dev/oral-states?scenario=failure-token_upstream_down",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-token_timeout",
+        "path":  "/dev/oral-states?scenario=failure-token_timeout",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-no_api_key",
+        "path":  "/dev/oral-states?scenario=failure-no_api_key",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-socket_error",
+        "path":  "/dev/oral-states?scenario=failure-socket_error",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-socket_closed",
+        "path":  "/dev/oral-states?scenario=failure-socket_closed",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-session_lost",
+        "path":  "/dev/oral-states?scenario=failure-session_lost",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-tool_timeout",
+        "path":  "/dev/oral-states?scenario=failure-tool_timeout",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-session_ended_early",
+        "path":  "/dev/oral-states?scenario=failure-session_ended_early",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-tab_hidden",
+        "path":  "/dev/oral-states?scenario=failure-tab_hidden",
+        "devOnly":  true
+    },
+    {
+        "name":  "fail-long_silence",
+        "path":  "/dev/oral-states?scenario=failure-long_silence",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-typed",
+        "path":  "/dev/oral-states?scenario=typed",
+        "devOnly":  true
+    },
+    {
+        "name":  "oral-diag",
+        "path":  "/dev/oral-states?scenario=diag",
+        "devOnly":  true
+    },
+    {
+        "name":  "debrief",
+        "path":  "/dev/oral-states?scenario=debrief",
+        "devOnly":  true
+    }
+]

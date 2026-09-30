@@ -11,7 +11,7 @@ type SourceMeta = { title: string; line: string };
 
 const STATIC_META: SourceMeta = {
   title: DEMO_SOURCE.title,
-  line: `Transformers — Week 4 · COMP532 · ${SOURCE_CHUNKS.length} passages`,
+  line: `Transformers, Week 4 · COMP532 · ${SOURCE_CHUNKS.length} passages`,
 };
 
 /**
@@ -19,8 +19,8 @@ const STATIC_META: SourceMeta = {
  * (identical to GET /api/sources); every other lab is fetched from
  * /api/sources?courseId=… so the pane always shows the selected course.
  *
- * A subject can be several documents now — a textbook chapter, a page from the
- * module site, the student's own notes — so two things travel with the
+ * A subject can be several documents now, a textbook chapter, a page from the
+ * module site, the student's own notes, so two things travel with the
  * passages. Each document's credit, because a chapter of an openly licensed
  * textbook may only be read here if it says whose work it is; and each
  * document's name, because when there is more than one, "p.4" alone does not
@@ -49,7 +49,7 @@ export function SourceReader({
   const [reloadKey, setReloadKey] = useState(0);
   /** One per borrowed document. Empty for the labs VIVA wrote and for your own notes. */
   const [licences, setLicences] = useState<SourceLicence[]>([]);
-  /** Document title by source id — only used once a subject has more than one. */
+  /** Document title by source id, only used once a subject has more than one. */
   const [docNames, setDocNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -144,7 +144,7 @@ export function SourceReader({
             {meta.line}
           </p>
         </div>
-        <span className="mono shrink-0 pt-1 text-[10px] tracking-widest" style={{ color: "var(--color-ash)" }} aria-hidden>
+        <span className="mono shrink-0 pt-1 text-xs tracking-widest" style={{ color: "var(--color-ash)" }} aria-hidden>
           Scroll
         </span>
       </div>
@@ -189,13 +189,13 @@ export function SourceReader({
                   const hot = highlightIds.includes(c.id);
                   const number = chunks.indexOf(c) + 1;
                   const from = docNames[c.sourceId];
-                  const section = c.locator.section ?? "—";
+                  const section = c.locator.section ?? ", ";
                   // "notes-a · §notes-a" is one fact printed twice: a document
                   // with no headings of its own falls back to its own name.
                   const showSection = from !== section;
                   const locator = [
                     from,
-                    showSection && section !== "—" ? `§${section}` : null,
+                    showSection && section !== ", " ? `§${section}` : null,
                     typeof c.locator.page === "number" ? `p.${c.locator.page}` : null,
                   ]
                     .filter(Boolean)
@@ -220,11 +220,11 @@ export function SourceReader({
 
                             A page number only when there is one. Pasted notes
                             have no pages, and every passage of a student's own
-                            subject was printing the literal "p.—", which reads
+                            subject was printing the literal "p., ", which reads
                             as a page the app has lost rather than a page that
                             never existed. */}
                         {locator ? (
-                          <p className="mono min-w-0 text-[11px]" style={{ color: "var(--color-ash)" }}>
+                          <p className="mono min-w-0 text-xs" style={{ color: "var(--color-ash)" }}>
                             {locator}
                           </p>
                         ) : (
